@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Paper.Web.Features.Correspondents;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.DocumentTypes;
+using Paper.Web.Features.Export;
 
 namespace Paper.Web.Pages.Settings;
 
@@ -10,7 +11,8 @@ public sealed class IndexModel(
     IConfiguration configuration,
     CorrespondentStore correspondents,
     DocumentTypeStore documentTypes,
-    CustomFieldStore customFields) : PageModel
+    CustomFieldStore customFields,
+    DocumentRestoreService restore) : PageModel
 {
     [BindProperty]
     public string CorrespondentName { get; set; } = "";
@@ -23,6 +25,9 @@ public sealed class IndexModel(
 
     [BindProperty]
     public CustomFieldType CustomFieldType { get; set; } = CustomFieldType.Text;
+
+    [BindProperty]
+    public IFormFile? Backup { get; set; }
 
     public string StoragePath => configuration["Storage:RootPath"] ?? "/data/documents";
     public string StorageProvider => configuration["Storage:Provider"] ?? "local";
@@ -70,6 +75,28 @@ public sealed class IndexModel(
         }
 
         TempData["Status"] = "Zusatzfeld gespeichert.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostRestoreAsync(CancellationToken cancellationToken)
+    {
+        if (Backup is null)
+        {
+            ModelState.AddModelError(nameof(Backup), "Bitte wähle ein ZIP-Backup aus.");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        await using var stream = Backup.OpenReadStream();
+        var result = await restore.RestoreAsync(stream, Backup.Length, cancellationToken);
+        if (result.Errors.Count > 0)
+        {
+            ModelState.AddModelError(nameof(Backup), $"Import mit {result.Errors.Count} Fehler(n): {string.Join(" | ", result.Errors.Take(3))}");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        TempData["Status"] = $"Backup importiert: {result.Imported} Dokument(e), {result.Skipped} Duplikat(e) übersprungen.";
         return RedirectToPage();
     }
 

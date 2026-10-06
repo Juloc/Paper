@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Paper.Web.Features.Storage;
 
-public sealed record StoredDocument(string RelativePath, string Hash, long Size);
+public sealed record StoredDocument(string RelativePath, string Hash, long Size, bool AlreadyExisted = false);
 
 public sealed class LocalDocumentStorage
 {
@@ -46,7 +46,8 @@ public sealed class LocalDocumentStorage
             var relativePath = StoragePathPolicy.CreateInboxPath(hashValue, originalFileName);
             var finalPath = GetSafePath(relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
-            if (!File.Exists(finalPath))
+            var alreadyExisted = File.Exists(finalPath);
+            if (!alreadyExisted)
             {
                 File.Move(temporaryPath, finalPath);
             }
@@ -55,7 +56,7 @@ public sealed class LocalDocumentStorage
                 File.Delete(temporaryPath);
             }
 
-            return new StoredDocument(relativePath, hashValue, size);
+            return new StoredDocument(relativePath, hashValue, size, alreadyExisted);
         }
         catch
         {

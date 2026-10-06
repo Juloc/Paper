@@ -81,6 +81,35 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageDoesNotDeleteExistingFileWhenSameContentIsSavedAgain()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            await using var first = new MemoryStream("%PDF-same"u8.ToArray());
+            await using var second = new MemoryStream("%PDF-same"u8.ToArray());
+            var original = await storage.SaveAsync(first, "same.pdf", CancellationToken.None);
+            var duplicate = await storage.SaveAsync(second, "same.pdf", CancellationToken.None);
+
+            Assert.IsTrue(duplicate.AlreadyExisted);
+            Assert.IsTrue(File.Exists(storage.GetSafePath(original.RelativePath)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void StoragePolicyRejectsInboxAsShelfAndTraversal()
     {
         Assert.ThrowsExactly<ArgumentException>(() => StoragePathPolicy.NormalizeFolderPath("inbox"));

@@ -82,6 +82,7 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .settings-list strong { font-weight: 600; }
 .settings-grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 1.5rem; }
 .settings-card { padding: 1.25rem; }
+.restore-card { margin-top: 1.5rem; }
 .settings-card h2 { font-size: 1.1rem; }
 .inline-form { display: flex; gap: .5rem; }
 .settings-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: 1rem; }

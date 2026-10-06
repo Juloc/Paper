@@ -45,3 +45,12 @@
         <div class="settings-tags">@foreach (var item in Model.CustomFieldOptions) { <span class="tag">@item.Name · @item.Type</span> }</div>
     </section>
 </div>
+<section class="panel settings-card restore-card">
+    <h2>Backup wiederherstellen</h2>
+    <p class="muted">Importiert Dateien und Metadaten aus einem Paper-ZIP-Backup. Vorhandene Hashes werden übersprungen.</p>
+    <form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form">
+        <input asp-for="Backup" accept=".zip" />
+        <button class="button button-primary" type="submit">Backup importieren</button>
+    </form>
+    <div asp-validation-summary="ModelOnly" class="validation"></div>
+</section>

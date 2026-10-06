@@ -42,6 +42,7 @@ builder.Services.AddScoped<ShelfFolderStore>();
 builder.Services.AddScoped<CustomFieldStore>();
 builder.Services.AddScoped<DocumentExportService>();
 builder.Services.AddScoped<DocumentBackupService>();
+builder.Services.AddScoped<DocumentRestoreService>();
 builder.Services.AddScoped<ProcessingJobStore>();
 builder.Services.AddSingleton<DocumentAnalyzer>();
 builder.Services.AddScoped<TesseractOcrService>();

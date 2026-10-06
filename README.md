@@ -43,3 +43,5 @@ Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper war
 ## Export
 
 Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV exportiert werden. Das ZIP-Backup enthält zusätzlich ein Manifest und die Originaldateien. Die Originaldateien bleiben im menschenlesbaren Regal unter /data/documents und benötigen für die Betrachtung keine proprietäre Dateistruktur.
+
+Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner sowie Metadaten bei Bedarf wieder an.

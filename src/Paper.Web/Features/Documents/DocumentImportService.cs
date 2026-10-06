@@ -46,7 +46,10 @@ public sealed class DocumentImportService(
         var duplicate = await db.Documents.AsNoTracking().AnyAsync(document => document.Hash == stored.Hash, cancellationToken);
         if (duplicate)
         {
-            storage.Delete(stored.RelativePath);
+            if (!stored.AlreadyExisted)
+            {
+                storage.Delete(stored.RelativePath);
+            }
             return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
         }
 
@@ -87,7 +90,10 @@ public sealed class DocumentImportService(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            storage.Delete(stored.RelativePath);
+            if (!stored.AlreadyExisted)
+            {
+                storage.Delete(stored.RelativePath);
+            }
             logger.LogError(exception, "Could not persist imported document {FileName}; stored file was removed.", fileName);
             return ImportResult.Failed("Das Dokument konnte nicht in der Datenbank angelegt werden.");
         }

@@ -26,8 +26,7 @@ public sealed class DocumentBackupService(AppDbContext db, LocalDocumentStorage 
         {
             await JsonSerializer.SerializeAsync(
                 manifestStream,
-                documents.Select(document => new
-                {
+                documents.Select(document => new DocumentBackupManifestEntry(
                     document.Id,
                     document.Title,
                     document.DocumentDate,
@@ -35,17 +34,20 @@ public sealed class DocumentBackupService(AppDbContext db, LocalDocumentStorage 
                     document.FilePath,
                     document.FileSize,
                     document.Hash,
-                    Status = document.Status.ToString(),
-                    OcrStatus = document.OcrStatus.ToString(),
-                    Correspondent = document.Correspondent?.Name,
-                    DocumentType = document.DocumentType?.Name,
-                    ShelfPath = document.ShelfFolder?.RelativePath,
-                    Tags = document.Tags.Select(link => link.Tag.Name).OrderBy(name => name).ToArray(),
-                    CustomFields = document.CustomFields
+                    document.Status.ToString(),
+                    document.OcrStatus.ToString(),
+                    document.OcrText,
+                    document.OcrError,
+                    document.CreatedAt,
+                    document.UpdatedAt,
+                    document.Correspondent?.Name,
+                    document.DocumentType?.Name,
+                    document.ShelfFolder?.RelativePath,
+                    document.Tags.Select(link => link.Tag.Name).OrderBy(name => name).ToArray(),
+                    document.CustomFields
                         .OrderBy(field => field.CustomField.Name)
-                        .Select(field => new { Name = field.CustomField.Name, Type = field.CustomField.Type.ToString(), field.Value })
-                        .ToArray()
-                }),
+                        .Select(field => new DocumentBackupCustomField(field.CustomField.Name, field.CustomField.Type.ToString(), field.Value))
+                        .ToArray())),
                 cancellationToken: cancellationToken);
         }
 
@@ -60,3 +62,25 @@ public sealed class DocumentBackupService(AppDbContext db, LocalDocumentStorage 
         }
     }
 }
+
+public sealed record DocumentBackupManifestEntry(
+    long Id,
+    string Title,
+    DateOnly? DocumentDate,
+    string OriginalFileName,
+    string FilePath,
+    long FileSize,
+    string Hash,
+    string Status,
+    string OcrStatus,
+    string? OcrText,
+    string? OcrError,
+    DateTime CreatedAt,
+    DateTime UpdatedAt,
+    string? Correspondent,
+    string? DocumentType,
+    string? ShelfPath,
+    string[] Tags,
+    DocumentBackupCustomField[] CustomFields);
+
+public sealed record DocumentBackupCustomField(string Name, string Type, string Value);
