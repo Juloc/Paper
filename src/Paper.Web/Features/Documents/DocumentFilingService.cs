@@ -187,17 +187,24 @@ public sealed class DocumentFilingService(
         IReadOnlyDictionary<long, string> values,
         IReadOnlyDictionary<long, CustomField> definitions)
     {
+        var normalizedValues = values
+            .Where(value => definitions.ContainsKey(value.Key) && !string.IsNullOrWhiteSpace(value.Value))
+            .ToDictionary(value => value.Key, value => value.Value.Trim());
         foreach (var existing in document.CustomFields.ToArray())
         {
-            db.DocumentCustomFieldValues.Remove(existing);
-            document.CustomFields.Remove(existing);
+            if (!normalizedValues.ContainsKey(existing.CustomFieldId))
+            {
+                db.DocumentCustomFieldValues.Remove(existing);
+                document.CustomFields.Remove(existing);
+            }
         }
 
-        document.CustomFields.Clear();
-        foreach (var value in values.Where(item => !string.IsNullOrWhiteSpace(item.Value)))
+        foreach (var value in normalizedValues)
         {
-            if (!definitions.ContainsKey(value.Key))
+            var existing = document.CustomFields.FirstOrDefault(item => item.CustomFieldId == value.Key);
+            if (existing is not null)
             {
+                existing.Value = value.Value;
                 continue;
             }
 
@@ -206,7 +213,7 @@ public sealed class DocumentFilingService(
                 Document = document,
                 CustomFieldId = value.Key,
                 CustomField = definitions[value.Key],
-                Value = value.Value.Trim()
+                Value = value.Value
             });
         }
     }
