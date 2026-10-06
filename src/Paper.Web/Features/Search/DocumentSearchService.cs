@@ -15,7 +15,7 @@ public sealed class DocumentSearchService(AppDbContext db)
         }
 
         return db.Documents.AsNoTracking()
-            .Where(document => document.SearchVector.Matches(EF.Functions.PlainToTsQuery("simple", normalizedQuery)))
+            .Where(document => document.SearchVector.Matches(EF.Functions.PlainToTsQuery("german", normalizedQuery)))
             .OrderByDescending(document => document.UpdatedAt)
             .Take(100)
             .Select(document => new DocumentListItem(

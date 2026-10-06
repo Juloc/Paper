@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.CustomFields;
 
 namespace Paper.Web.Data;
 
@@ -13,6 +14,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
 
     public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
+
+    public DbSet<Correspondent> Correspondents => Set<Correspondent>();
+
+    public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
+
+    public DbSet<ShelfFolder> ShelfFolders => Set<ShelfFolder>();
+
+    public DbSet<CustomField> CustomFields => Set<CustomField>();
+
+    public DbSet<DocumentCustomFieldValue> DocumentCustomFieldValues => Set<DocumentCustomFieldValue>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -33,10 +44,83 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(document => document.Status).HasConversion<string>().HasMaxLength(24);
             entity.Property(document => document.OcrError).HasMaxLength(2000);
             entity.Property(document => document.SearchText).HasColumnType("text").IsRequired();
-            entity.HasGeneratedTsVectorColumn(document => document.SearchVector, "simple", document => document.SearchText);
+            entity.HasGeneratedTsVectorColumn(document => document.SearchVector, "german", document => document.SearchText);
             entity.HasIndex(document => document.SearchVector).HasMethod("GIN");
             entity.HasIndex(document => document.Hash).IsUnique();
             entity.HasIndex(document => new { document.Status, document.UpdatedAt });
+            entity.HasIndex(document => document.CorrespondentId);
+            entity.HasIndex(document => document.DocumentTypeId);
+            entity.HasIndex(document => document.ShelfFolderId);
+            entity.HasOne(document => document.Correspondent)
+                .WithMany(correspondent => correspondent.Documents)
+                .HasForeignKey(document => document.CorrespondentId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(document => document.DocumentType)
+                .WithMany(documentType => documentType.Documents)
+                .HasForeignKey(document => document.DocumentTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(document => document.ShelfFolder)
+                .WithMany(folder => folder.Documents)
+                .HasForeignKey(document => document.ShelfFolderId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Correspondent>(entity =>
+        {
+            entity.ToTable("Correspondents", table => table.HasCheckConstraint("CK_Correspondents_Name", "length(trim(\"Name\")) > 0"));
+            entity.Property(correspondent => correspondent.Id).UseIdentityByDefaultColumn();
+            entity.Property(correspondent => correspondent.Name).HasMaxLength(200).IsRequired();
+            entity.HasIndex(correspondent => correspondent.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<DocumentType>(entity =>
+        {
+            entity.ToTable("DocumentTypes", table => table.HasCheckConstraint("CK_DocumentTypes_Name", "length(trim(\"Name\")) > 0"));
+            entity.Property(documentType => documentType.Id).UseIdentityByDefaultColumn();
+            entity.Property(documentType => documentType.Name).HasMaxLength(120).IsRequired();
+            entity.HasIndex(documentType => documentType.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<ShelfFolder>(entity =>
+        {
+            entity.ToTable("ShelfFolders", table =>
+            {
+                table.HasCheckConstraint("CK_ShelfFolders_Name", "length(trim(\"Name\")) > 0");
+                table.HasCheckConstraint("CK_ShelfFolders_RelativePath", "length(trim(\"RelativePath\")) > 0");
+            });
+            entity.Property(folder => folder.Id).UseIdentityByDefaultColumn();
+            entity.Property(folder => folder.Name).HasMaxLength(120).IsRequired();
+            entity.Property(folder => folder.RelativePath).HasMaxLength(500).IsRequired();
+            entity.HasIndex(folder => folder.RelativePath).IsUnique();
+            entity.HasIndex(folder => new { folder.ParentId, folder.Name }).IsUnique();
+            entity.HasOne(folder => folder.Parent)
+                .WithMany(parent => parent.Children)
+                .HasForeignKey(folder => folder.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CustomField>(entity =>
+        {
+            entity.ToTable("CustomFields", table => table.HasCheckConstraint("CK_CustomFields_Name", "length(trim(\"Name\")) > 0"));
+            entity.Property(field => field.Id).UseIdentityByDefaultColumn();
+            entity.Property(field => field.Name).HasMaxLength(120).IsRequired();
+            entity.Property(field => field.Type).HasConversion<string>().HasMaxLength(24);
+            entity.HasIndex(field => field.Name).IsUnique();
+        });
+
+        modelBuilder.Entity<DocumentCustomFieldValue>(entity =>
+        {
+            entity.ToTable("DocumentCustomFieldValues");
+            entity.HasKey(value => new { value.DocumentId, value.CustomFieldId });
+            entity.Property(value => value.Value).HasMaxLength(2000).IsRequired();
+            entity.HasOne(value => value.Document)
+                .WithMany(document => document.CustomFields)
+                .HasForeignKey(value => value.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(value => value.CustomField)
+                .WithMany(field => field.Values)
+                .HasForeignKey(value => value.CustomFieldId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<Tag>(entity =>

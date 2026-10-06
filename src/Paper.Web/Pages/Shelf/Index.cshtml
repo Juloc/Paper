@@ -1,0 +1,55 @@
+@page "/Shelf"
+@model Paper.Web.Pages.Shelf.IndexModel
+@{
+    ViewData["Title"] = "Regal";
+}
+<header class="page-header">
+    <div><div class="eyebrow">Dateiablage</div><h1>Regal</h1><p class="muted">Deine Dokumente bleiben auch außerhalb von Paper verständlich sortiert.</p></div>
+</header>
+<div class="shelf-layout">
+    <section class="panel shelf-tree">
+        <a class="shelf-folder @(Model.FolderId is null ? "active" : "")" asp-page="/Shelf/Index">Alle Regalordner</a>
+        @foreach (var folder in Model.Folders)
+        {
+            var depth = folder.RelativePath.Count(character => character == '/');
+            <a class="shelf-folder @(Model.FolderId == folder.Id ? "active" : "")" style="margin-left: @(depth * 1.1)rem" asp-page="/Shelf/Index" asp-route-folderId="@folder.Id">@folder.Name</a>
+        }
+        <form method="post" asp-page-handler="Create" class="stack">
+            <input type="hidden" name="parentId" value="@Model.FolderId" />
+            <label>Neuer Ordner <input asp-for="NewFolderName" placeholder="z. B. Wohnung" /></label>
+            <span asp-validation-for="NewFolderName" class="validation"></span>
+            <button class="button" type="submit">Ordner erstellen</button>
+        </form>
+    </section>
+    <section class="panel shelf-content">
+        @if (Model.CurrentFolder is null && Model.FolderId is not null)
+        {
+            <h2>Ordner nicht gefunden</h2>
+        }
+        else if (Model.CurrentFolder is null)
+        {
+            <h2>Regalübersicht</h2>
+            <p class="muted">Wähle links einen Ordner aus.</p>
+        }
+        else
+        {
+            <div class="eyebrow">Ordner</div>
+            <h2>@Model.CurrentFolder.RelativePath</h2>
+            @if (Model.CurrentFolder.Documents.Count == 0)
+            {
+                <p class="muted">Noch keine Dokumente in diesem Ordner.</p>
+            }
+            else
+            {
+                <div class="shelf-documents">
+                    @foreach (var document in Model.CurrentFolder.Documents)
+                    {
+                        <a class="document-row" asp-page="/Documents/Detail" asp-route-id="@document.Id">
+                            <div class="document-copy"><strong>@document.Title</strong><span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span></div>
+                        </a>
+                    }
+                </div>
+            }
+        }
+    </section>
+</div>

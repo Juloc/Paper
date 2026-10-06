@@ -19,6 +19,11 @@ services:
       - paper_documents:/data/documents
       - paper_keys:/data/keys
     restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
     security_opt:
       - no-new-privileges:true
   postgres:

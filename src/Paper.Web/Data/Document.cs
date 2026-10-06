@@ -1,5 +1,6 @@
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.CustomFields;
 using NpgsqlTypes;
 
 namespace Paper.Web.Data;
@@ -28,6 +29,18 @@ public sealed class Document
 
     public DocumentStatus Status { get; set; }
 
+    public long? CorrespondentId { get; set; }
+
+    public Correspondent? Correspondent { get; set; }
+
+    public long? DocumentTypeId { get; set; }
+
+    public DocumentType? DocumentType { get; set; }
+
+    public long? ShelfFolderId { get; set; }
+
+    public ShelfFolder? ShelfFolder { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
@@ -37,6 +50,8 @@ public sealed class Document
     public NpgsqlTsVector SearchVector { get; private set; } = null!;
 
     public List<DocumentTag> Tags { get; set; } = [];
+
+    public List<DocumentCustomFieldValue> CustomFields { get; set; } = [];
 }
 
 public sealed class Tag
@@ -57,6 +72,45 @@ public sealed class DocumentTag
     public long TagId { get; set; }
 
     public Tag Tag { get; set; } = null!;
+}
+
+public sealed class Correspondent
+{
+    public long Id { get; set; }
+
+    public string Name { get; set; } = "";
+
+    public List<Document> Documents { get; set; } = [];
+}
+
+public sealed class DocumentType
+{
+    public long Id { get; set; }
+
+    public string Name { get; set; } = "";
+
+    public List<Document> Documents { get; set; } = [];
+}
+
+public sealed class ShelfFolder
+{
+    public long Id { get; set; }
+
+    public long? ParentId { get; set; }
+
+    public ShelfFolder? Parent { get; set; }
+
+    public string Name { get; set; } = "";
+
+    public string RelativePath { get; set; } = "";
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+
+    public List<ShelfFolder> Children { get; set; } = [];
+
+    public List<Document> Documents { get; set; } = [];
 }
 
 public sealed class ProcessingJob

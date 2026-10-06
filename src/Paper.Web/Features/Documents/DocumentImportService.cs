@@ -23,12 +23,12 @@ public sealed class DocumentImportService(AppDbContext db, LocalDocumentStorage 
         }
 
         input.Position = 0;
-        var (_, stored) = await storage.SaveAsync(input, file.FileName, cancellationToken);
+        var stored = await storage.SaveAsync(input, file.FileName, cancellationToken);
         var duplicate = await db.Documents.AsNoTracking().AnyAsync(document => document.Hash == stored.Hash, cancellationToken);
         if (duplicate)
         {
             storage.Delete(stored.RelativePath);
-            return ImportResult.Failed("Dieses Dokument ist bereits archiviert.");
+            return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
         }
 
         var now = timeProvider.GetUtcNow().UtcDateTime;

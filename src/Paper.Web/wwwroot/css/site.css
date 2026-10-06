@@ -1,12 +1,12 @@
 :root {
-    --paper: #f7f3f1;
-    --surface: #fffdfb;
-    --ink: #2b2727;
-    --muted: #746c6a;
-    --line: #e8dfdc;
-    --accent: #b45f72;
-    --accent-dark: #8f4357;
-    --soft: #f1e5e5;
+    --paper: #f5f7fb;
+    --surface: #ffffff;
+    --ink: #202938;
+    --muted: #667085;
+    --line: #dfe5ef;
+    --accent: #3159b8;
+    --accent-dark: #23418d;
+    --soft: #e9eefc;
     font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     color: var(--ink);
     background: var(--paper);
@@ -14,7 +14,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; background: var(--paper); }
 a { color: inherit; text-decoration: none; }
-.topbar { align-items: center; background: rgba(255, 253, 251, .92); border-bottom: 1px solid var(--line); display: flex; gap: 2rem; padding: 1rem clamp(1rem, 4vw, 4rem); position: sticky; top: 0; z-index: 2; }
+.topbar { align-items: center; background: rgba(255, 255, 255, .94); border-bottom: 1px solid var(--line); display: flex; gap: 2rem; padding: 1rem clamp(1rem, 4vw, 4rem); position: sticky; top: 0; z-index: 2; }
 .brand { color: var(--accent-dark); font-size: 1.45rem; font-weight: 750; letter-spacing: -.04em; }
 nav { display: flex; flex: 1; gap: 1.25rem; }
 nav a { color: var(--muted); font-size: .92rem; }
@@ -32,7 +32,7 @@ h2 { letter-spacing: -.03em; }
 .button-primary { background: var(--accent); border-color: var(--accent); color: white; }
 .button-primary:hover, .button-primary:focus-visible { background: var(--accent-dark); border-color: var(--accent-dark); }
 .button-quiet { background: transparent; border-color: transparent; color: var(--muted); }
-.panel, .document-row, .empty-state, .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; box-shadow: 0 10px 30px rgba(75, 43, 48, .04); }
+.panel, .document-row, .empty-state, .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; box-shadow: 0 10px 30px rgba(35, 65, 141, .04); }
 .document-list { display: grid; gap: .75rem; }
 .document-row { align-items: center; display: flex; gap: 1rem; padding: 1rem; }
 .document-icon { align-items: center; background: var(--soft); border-radius: .7rem; color: var(--accent-dark); display: flex; flex: 0 0 3.25rem; font-size: .67rem; font-weight: 750; height: 3.25rem; justify-content: center; }
@@ -53,7 +53,8 @@ h2 { letter-spacing: -.03em; }
 .stack { display: grid; gap: 1rem; }
 label { display: grid; font-size: .88rem; font-weight: 650; gap: .45rem; }
 input { background: white; border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); font: inherit; padding: .75rem .8rem; width: 100%; }
-input:focus { border-color: var(--accent); outline: 2px solid rgba(180, 95, 114, .18); }
+select { background: white; border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); font: inherit; padding: .75rem .8rem; width: 100%; }
+input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba(49, 89, 184, .18); }
 .validation { color: #a63838; font-size: .85rem; }
 .auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: 1.25rem; margin: 10vh auto; max-width: 420px; padding: 2rem; }
 .file-drop { align-items: center; background: var(--soft); border: 1px dashed var(--accent); border-radius: .9rem; color: var(--accent-dark); cursor: pointer; min-height: 10rem; padding: 2rem; text-align: center; }
@@ -77,6 +78,14 @@ input:focus { border-color: var(--accent); outline: 2px solid rgba(180, 95, 114,
 .settings-list div { border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; padding: 1.1rem 1.4rem; }
 .settings-list div:last-child { border-bottom: 0; }
 .settings-list strong { font-weight: 600; }
+.form-heading { font-size: 1rem; margin: .4rem 0 -.3rem; }
+.shelf-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.5fr); }
+.shelf-tree, .shelf-content { padding: 1.25rem; }
+.shelf-tree { display: grid; align-content: start; gap: .35rem; }
+.shelf-folder { border-radius: .55rem; display: block; padding: .55rem .7rem; }
+.shelf-folder:hover, .shelf-folder.active { background: var(--soft); color: var(--accent-dark); }
+.shelf-documents { display: grid; gap: .7rem; }
+details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 @media (max-width: 700px) {
     .topbar { align-items: start; flex-wrap: wrap; gap: .75rem 1rem; }
     nav { flex-basis: 100%; gap: .8rem; order: 3; overflow-x: auto; }

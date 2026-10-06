@@ -38,7 +38,16 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
 
     public static string BuildSearchText(Document document) => string.Join(
         ' ',
-        new[] { document.Title, document.OcrText ?? "" }
-            .Concat(document.Tags.Select(documentTag => documentTag.Tag.Name))
-            .Where(value => !string.IsNullOrWhiteSpace(value)));
+        new[]
+        {
+            document.Title,
+            document.OriginalFileName,
+            document.OcrText,
+            document.Correspondent?.Name,
+            document.DocumentType?.Name,
+            document.ShelfFolder?.RelativePath
+        }
+        .Concat(document.Tags.Select(documentTag => documentTag.Tag.Name))
+        .Concat(document.CustomFields.Select(value => $"{value.CustomField.Name} {value.Value}"))
+        .Where(value => !string.IsNullOrWhiteSpace(value)));
 }

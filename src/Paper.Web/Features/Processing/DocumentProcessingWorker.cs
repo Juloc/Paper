@@ -74,6 +74,18 @@ public sealed class DocumentProcessingWorker(
             }
 
             document.DocumentDate ??= analysis.DocumentDate;
+            if (analysis.SuggestedCorrespondent is not null)
+            {
+                document.Correspondent = await db.Correspondents.SingleOrDefaultAsync(item => item.Name == analysis.SuggestedCorrespondent, cancellationToken)
+                    ?? new Correspondent { Name = analysis.SuggestedCorrespondent };
+            }
+
+            if (analysis.SuggestedDocumentType is not null)
+            {
+                document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name == analysis.SuggestedDocumentType, cancellationToken)
+                    ?? new DocumentType { Name = analysis.SuggestedDocumentType };
+            }
+
             await services.GetRequiredService<TagStore>().AddNamesAsync(document, analysis.SuggestedTags, cancellationToken);
             document.SearchText = TagStore.BuildSearchText(document);
             await db.SaveChangesAsync(cancellationToken);

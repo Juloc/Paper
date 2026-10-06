@@ -11,14 +11,4 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
     public async Task OnGetAsync(CancellationToken cancellationToken) =>
         Documents = await documents.ListInboxAsync(cancellationToken);
 
-    public async Task<IActionResult> OnPostArchiveAsync(long id, CancellationToken cancellationToken)
-    {
-        if (!await documents.ArchiveAsync(id, cancellationToken))
-        {
-            return NotFound();
-        }
-
-        TempData["Status"] = "Dokument archiviert.";
-        return RedirectToPage();
-    }
 }

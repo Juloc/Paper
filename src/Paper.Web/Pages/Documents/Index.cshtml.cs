@@ -8,5 +8,5 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
     public IReadOnlyList<DocumentListItem> Documents { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken) =>
-        Documents = await documents.ListArchivedAsync(cancellationToken);
+        Documents = await documents.ListFiledAsync(cancellationToken);
 }

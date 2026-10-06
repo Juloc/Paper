@@ -1,15 +1,15 @@
 @page "/Documents/{id:long}"
 @model Paper.Web.Pages.Documents.DetailModel
+@using Paper.Web.Features.Documents
+@using Paper.Web.Features.Processing
 @{
     ViewData["Title"] = Model.Document?.Title ?? "Dokument";
     var document = Model.Document!;
-    Model.Input.Title = document.Title;
-    Model.Input.DocumentDate = document.DocumentDate;
-    Model.Input.Tags = string.Join(", ", document.Tags);
+    var inInbox = document.Status == DocumentStatus.Inbox;
 }
 <header class="page-header">
-    <div><div class="eyebrow">Dokument</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
-    <a class="button" asp-page="/Inbox/Index">Zurück</a>
+    <div><div class="eyebrow">@(inInbox ? "Inbox" : "Dokument")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
+    <a class="button" asp-page="@(inInbox ? "/Inbox/Index" : "/Documents/Index")">Zurück</a>
 </header>
 <div class="document-detail">
     <section class="preview panel">
@@ -24,26 +24,65 @@
         <a class="button" href="/documents/@document.Id/file">Datei herunterladen</a>
     </section>
     <aside class="panel metadata">
-        <form method="post" asp-page-handler="Save" class="stack">
+        <form method="post" asp-page-handler="@(inInbox ? "File" : "Save")" class="stack">
             <div asp-validation-summary="ModelOnly" class="validation"></div>
             <label>Titel <input asp-for="Input.Title" /></label>
             <label>Dokumentdatum <input asp-for="Input.DocumentDate" type="date" /></label>
+            <label>Korrespondent
+                <select asp-for="Input.CorrespondentId">
+                    <option value="">Nicht festgelegt</option>
+                    @foreach (var option in Model.Correspondents)
+                    {
+                        <option value="@option.Id">@option.Name</option>
+                    }
+                </select>
+            </label>
+            <label>Dokumenttyp
+                <select asp-for="Input.DocumentTypeId">
+                    <option value="">Nicht festgelegt</option>
+                    @foreach (var option in Model.DocumentTypes)
+                    {
+                        <option value="@option.Id">@option.Name</option>
+                    }
+                </select>
+            </label>
+            <label>Regalordner
+                <select asp-for="Input.ShelfFolderId">
+                    <option value="">@(inInbox ? "Bitte auswählen" : "Nicht festgelegt")</option>
+                    @foreach (var option in Model.ShelfFolders)
+                    {
+                        <option value="@option.Id">@option.RelativePath</option>
+                    }
+                </select>
+            </label>
             <label>Tags <input asp-for="Input.Tags" placeholder="z. B. rechnung, privat" /></label>
-            <button class="button button-primary" type="submit">Speichern</button>
+            @if (Model.CustomFields.Count > 0)
+            {
+                <h2 class="form-heading">Zusatzfelder</h2>
+                @foreach (var field in Model.CustomFields)
+                {
+                    var value = Model.Input.CustomFields.GetValueOrDefault(field.Id, "");
+                    <label>@field.Name <input name="Input.CustomFields[@field.Id]" value="@value" /></label>
+                }
+            }
+            <button class="button button-primary" type="submit">@(inInbox ? "Ablegen" : "Änderungen speichern")</button>
         </form>
         <dl class="facts">
-            <div><dt>OCR</dt><dd>@document.OcrStatus</dd></div>
+            <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
+            <div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div>
             <div><dt>Größe</dt><dd>@($"{document.FileSize / 1024d / 1024d:0.0} MB")</dd></div>
-            <div><dt>Hash</dt><dd class="hash">@document.Hash</dd></div>
+            <div><dt>Originaldatei</dt><dd>@document.OriginalFileName</dd></div>
+            <div><dt>Geändert</dt><dd>@document.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd></div>
         </dl>
         @if (document.OcrStatus == OcrStatus.Failed)
         {
             <p class="error-text">@document.OcrError</p>
         }
-        <form method="post" asp-page-handler="Archive">
-            <input type="hidden" name="id" value="@document.Id" />
-            <button class="button button-quiet" type="submit">Archivieren</button>
-        </form>
+        <details>
+            <summary>Weitere Informationen</summary>
+            <p class="hash">@document.Hash</p>
+            <p class="muted">@document.FilePath</p>
+        </details>
     </aside>
 </div>
 @if (!string.IsNullOrWhiteSpace(document.OcrText))

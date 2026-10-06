@@ -23,7 +23,16 @@ public sealed class DocumentAnalyzer
         AddTagIfFound(tags, text, "vertrag", "vertrag", "agreement", "kündigung");
         AddTagIfFound(tags, text, "versicherung", "versicherung", "insurance", "police");
         AddTagIfFound(tags, text, "steuer", "steuer", "finanzamt", "tax");
-        return new AnalysisResult(title, date, tags);
+        var correspondent = FindFirst(text, "Stadtwerke Mannheim", "Allianz", "Sparkasse", "Amazon", "Finanzamt Mannheim");
+        var documentType = new[]
+        {
+            ("Rechnung", new[] { "rechnung", "invoice", "betrag", "mwst" }),
+            ("Vertrag", new[] { "vertrag", "agreement", "kündigung" }),
+            ("Bescheid", new[] { "bescheid", "finanzamt" }),
+            ("Kontoauszug", new[] { "kontoauszug", "kontostand" }),
+            ("Versicherung", new[] { "versicherung", "police" })
+        }.FirstOrDefault(item => item.Item2.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase))).Item1;
+        return new AnalysisResult(title, date, tags, correspondent, string.IsNullOrWhiteSpace(documentType) ? null : documentType);
     }
 
     private static void AddTagIfFound(List<string> tags, string text, string tag, params string[] terms)
@@ -33,6 +42,14 @@ public sealed class DocumentAnalyzer
             tags.Add(tag);
         }
     }
+
+    private static string? FindFirst(string text, params string[] values) =>
+        values.FirstOrDefault(value => text.Contains(value, StringComparison.OrdinalIgnoreCase));
 }
 
-public sealed record AnalysisResult(string Title, DateOnly? DocumentDate, IReadOnlyList<string> SuggestedTags);
+public sealed record AnalysisResult(
+    string Title,
+    DateOnly? DocumentDate,
+    IReadOnlyList<string> SuggestedTags,
+    string? SuggestedCorrespondent,
+    string? SuggestedDocumentType);

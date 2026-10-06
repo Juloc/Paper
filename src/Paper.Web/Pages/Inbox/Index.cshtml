@@ -7,7 +7,7 @@
     <div>
         <div class="eyebrow">Zu prüfen</div>
         <h1>Inbox</h1>
-        <p class="muted">Neue Dokumente bleiben hier, bis du sie kurz geprüft und archiviert hast.</p>
+        <p class="muted">Neue Dokumente bleiben hier, bis du sie kurz prüfst und ablegst.</p>
     </div>
     <a class="button button-primary" asp-page="/Add/Index">Dokument hinzufügen</a>
 </header>
@@ -37,10 +37,7 @@ else
                 </div>
                 <div class="document-state">
                     <span class="status status-@document.OcrStatus.ToString().ToLowerInvariant()">@document.OcrStatus switch { OcrStatus.Pending => "Wartet auf OCR", OcrStatus.Processing => "Wird verarbeitet", OcrStatus.Completed => "OCR fertig", _ => "OCR fehlgeschlagen" }</span>
-                    <form method="post" asp-page-handler="Archive">
-                        <input type="hidden" name="id" value="@document.Id" />
-                        <button class="button button-primary" type="submit">Archivieren</button>
-                    </form>
+                    <a class="button button-primary" asp-page="/Documents/Detail" asp-route-id="@document.Id">Prüfen und ablegen</a>
                 </div>
             </article>
         }
