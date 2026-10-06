@@ -10,7 +10,7 @@ Paper ist ein leichtes, selbst gehostetes Dokumentenarchiv für Home-Server und 
 Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpasswörter in .env vor dem Einsatz.
 Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_POSTGRES_PASSWORD` müssen gesetzt sein; Compose bricht bei fehlenden Werten bewusst früh ab.
 
-## MVP
+## Funktionen
 
 - PDF, JPG, JPEG, PNG und TIFF
 - sicherer Upload mit Dateisignaturprüfung, Größenlimit und SHA-256-Duplikaterkennung
@@ -28,6 +28,9 @@ Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_
 - responsive Razor-UI und sichere Cookie-Authentifizierung
 - optionaler Consume-Eingang unter /data/consume mit stabiler Dateiprüfung und Fehlerablage
 - JSON-/CSV-Metadatenexport aus den Einstellungen
+- vollständiges ZIP-Backup mit Manifest, Dateien, Metadaten und Lernregeln sowie Restore
+- Paperless-ngx-Import für Dokumente, OCR-Text, Kataloge, Tags und Custom Fields
+- transparente, korrigierbare Lernregeln in den Einstellungen
 - On-Demand-Bild-Thumbnails als lokaler, wegwerfbarer Preview-Cache; PDFs bleiben direkt im Browser betrachtbar
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.
@@ -53,12 +56,12 @@ Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper war
 Auch stabile EML-Dateien werden verarbeitet: Paper liest verschachtelte MIME-Strukturen, dekodiert Base64- und Quoted-Printable-Anhänge und importiert unterstützte PDF-/Bildanhänge einzeln. Die E-Mail selbst wird nach erfolgreichem Import entfernt oder bei Fehlern mit einer Begründung nach failed verschoben.
 
 Optional kann zusätzlich ein IMAP-Konto über den Abschnitt `Mail` beziehungsweise Umgebungsvariablen wie `PAPER_MAIL_ENABLED`, `PAPER_MAIL_HOST`, `PAPER_MAIL_USERNAME` und `PAPER_MAIL_PASSWORD` aktiviert werden. Der Import verwendet IMAP-UIDs, speichert den letzten Stand in PostgreSQL, verarbeitet standardmäßig nur ungelesene Nachrichten, unterstützt Absender-/Betreff-/Dateiendungsfilter und markiert Nachrichten nur bei gesetztem `PAPER_MAIL_MARK_SEEN` als gelesen. In den Einstellungen kann der Abruf manuell gestartet werden. Der Standard bleibt deaktiviert; Zugangsdaten gehören ausschließlich in `.env` oder eine Secret-Verwaltung.
-Fehler werden zusätzlich als Mail-Fehlerhistorie mit Konto und UID gespeichert, damit ein späteres UI oder ein manueller Wiederholungsjob daran anknüpfen kann.
+Fehler werden zusätzlich als Mail-Fehlerhistorie mit Konto und UID gespeichert und in den Einstellungen angezeigt. Ein fehlgeschlagener UID-Lauf bleibt offen, damit er nach der Korrektur der Ursache erneut verarbeitet werden kann.
 
 ## Export
 
 Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV exportiert werden. Das ZIP-Backup enthält zusätzlich ein Manifest und die Originaldateien. Die Originaldateien bleiben im menschenlesbaren Regal unter /data/documents und benötigen für die Betrachtung keine proprietäre Dateistruktur.
 
-Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner, Metadaten und gelernte Analyse-Regeln bei Bedarf wieder an.
+Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper streamt große Manifeste speicherschonend, prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner, Metadaten und gelernte Analyse-Regeln bei Bedarf wieder an.
 
 Paperless-ngx-Exporte können ebenfalls als ZIP unter Einstellungen importiert werden. Unterstützte Dokumente werden mit OCR-Text, Titel, Datum, Korrespondent, Dokumenttyp, Tags und Custom Fields in die Paper-Inbox übernommen; die physische Regalablage erfolgt anschließend bewusst nach einer kurzen Prüfung. Einzelne Manifestdateien aus Paperless im Split-Manifest-Modus werden für Custom-Field-Instanzen ebenfalls berücksichtigt.
