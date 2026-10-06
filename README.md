@@ -42,7 +42,7 @@ Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper war
 
 Auch stabile EML-Dateien werden verarbeitet: Paper liest verschachtelte MIME-Strukturen, dekodiert Base64- und Quoted-Printable-Anhänge und importiert unterstützte PDF-/Bildanhänge einzeln. Die E-Mail selbst wird nach erfolgreichem Import entfernt oder bei Fehlern mit einer Begründung nach failed verschoben.
 
-Optional kann zusätzlich ein IMAP-Konto über den Abschnitt `Mail` beziehungsweise Umgebungsvariablen wie `Mail__Enabled`, `Mail__Host`, `Mail__Username` und `Mail__Password` aktiviert werden. Der Import verwendet IMAP-UIDs, speichert den letzten Stand in PostgreSQL, verarbeitet standardmäßig nur ungelesene Nachrichten und markiert Nachrichten nur bei gesetztem `MarkSeen` als gelesen. Der Standard bleibt deaktiviert; Zugangsdaten gehören ausschließlich in `.env` oder eine Secret-Verwaltung.
+Optional kann zusätzlich ein IMAP-Konto über den Abschnitt `Mail` beziehungsweise Umgebungsvariablen wie `PAPER_MAIL_ENABLED`, `PAPER_MAIL_HOST`, `PAPER_MAIL_USERNAME` und `PAPER_MAIL_PASSWORD` aktiviert werden. Der Import verwendet IMAP-UIDs, speichert den letzten Stand in PostgreSQL, verarbeitet standardmäßig nur ungelesene Nachrichten, unterstützt Absender-/Betreff-/Dateiendungsfilter und markiert Nachrichten nur bei gesetztem `PAPER_MAIL_MARK_SEEN` als gelesen. In den Einstellungen kann der Abruf manuell gestartet werden. Der Standard bleibt deaktiviert; Zugangsdaten gehören ausschließlich in `.env` oder eine Secret-Verwaltung.
 Fehler werden zusätzlich als Mail-Fehlerhistorie mit Konto und UID gespeichert, damit ein späteres UI oder ein manueller Wiederholungsjob daran anknüpfen kann.
 
 ## Export

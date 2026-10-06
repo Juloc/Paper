@@ -8,7 +8,7 @@ namespace Paper.Web.Features.Documents;
 
 public sealed class DocumentFilingService(
     AppDbContext db,
-    LocalDocumentStorage storage,
+    IStorageProvider storage,
     TimeProvider timeProvider,
     ILogger<DocumentFilingService> logger)
 {

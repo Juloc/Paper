@@ -4,7 +4,7 @@ using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Documents;
 
-public sealed class DocumentFileService(AppDbContext db, LocalDocumentStorage storage)
+public sealed class DocumentFileService(AppDbContext db, IStorageProvider storage)
 {
     public async Task<DocumentFile?> OpenAsync(long id, CancellationToken cancellationToken)
     {

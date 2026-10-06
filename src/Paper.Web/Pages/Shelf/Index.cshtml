@@ -33,7 +33,14 @@
         }
         else
         {
-            <div class="eyebrow">Ordner</div>
+            <nav class="breadcrumbs" aria-label="Regalpfad">
+                <a asp-page="/Shelf/Index">Regal</a>
+                @foreach (var breadcrumb in Model.CurrentFolder.Breadcrumbs)
+                {
+                    <span aria-hidden="true">/</span>
+                    <a asp-page="/Shelf/Index" asp-route-folderId="@breadcrumb.Id">@breadcrumb.Name</a>
+                }
+            </nav>
             <h2>@Model.CurrentFolder.RelativePath</h2>
             <form method="post" asp-page-handler="Update" class="stack shelf-editor">
                 <input type="hidden" name="id" value="@Model.CurrentFolder.Id" />

@@ -25,6 +25,29 @@ public sealed class DocumentStore(AppDbContext db)
         return document is null ? null : ToDetails(document);
     }
 
+    public async Task<bool> QueueReanalysisAsync(long id, CancellationToken cancellationToken)
+    {
+        var document = await db.Documents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (document is null)
+        {
+            return false;
+        }
+
+        document.OcrStatus = OcrStatus.Pending;
+        document.OcrError = null;
+        db.ProcessingJobs.Add(new ProcessingJob
+        {
+            DocumentId = id,
+            Type = ProcessingJobType.OcrAndAnalyze,
+            State = ProcessingJobState.Pending,
+            Priority = 20,
+            Attempts = 0,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     private IQueryable<DocumentListItem> Query(DocumentStatus status) =>
         db.Documents.AsNoTracking()
             .Where(document => document.Status == status)

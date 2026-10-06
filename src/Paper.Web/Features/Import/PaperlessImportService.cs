@@ -13,7 +13,7 @@ namespace Paper.Web.Features.Import;
 
 public sealed class PaperlessImportService(
     AppDbContext db,
-    LocalDocumentStorage storage,
+    IStorageProvider storage,
     TimeProvider timeProvider,
     ILogger<PaperlessImportService> logger)
 {

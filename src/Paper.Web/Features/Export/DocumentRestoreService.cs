@@ -11,7 +11,7 @@ namespace Paper.Web.Features.Export;
 
 public sealed class DocumentRestoreService(
     AppDbContext db,
-    LocalDocumentStorage storage,
+    IStorageProvider storage,
     DocumentFilingService filing,
     TimeProvider timeProvider,
     ILogger<DocumentRestoreService> logger)

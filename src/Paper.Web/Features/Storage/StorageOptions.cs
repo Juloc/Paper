@@ -19,6 +19,11 @@ public sealed class StorageOptions
             return SmbRootPath;
         }
 
+        if (!Provider.Equals("local", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Unbekannter Storage-Provider: {Provider}.");
+        }
+
         return RootPath;
     }
 }

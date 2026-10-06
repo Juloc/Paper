@@ -4,7 +4,7 @@ using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Shelf;
 
-public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider, LocalDocumentStorage storage)
+public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider, IStorageProvider storage)
 {
     public Task<List<ShelfFolderOption>> ListOptionsAsync(CancellationToken cancellationToken) =>
         db.ShelfFolders.AsNoTracking()
@@ -31,7 +31,22 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
                 document.OriginalFileName,
                 document.FileSize))
             .ToListAsync(cancellationToken);
-        return new ShelfFolderView(folder.Id, folder.Name, folder.RelativePath, folder.ParentId, documents);
+        var folders = await db.ShelfFolders.AsNoTracking()
+            .Select(item => new ShelfFolderOption(item.Id, item.Name, item.RelativePath, item.ParentId))
+            .ToListAsync(cancellationToken);
+        var byId = folders.ToDictionary(item => item.Id);
+        var breadcrumbs = new List<ShelfFolderOption>();
+        for (var currentId = folder.Id; byId.TryGetValue(currentId, out var current); currentId = current.ParentId ?? 0)
+        {
+            breadcrumbs.Add(current);
+            if (current.ParentId is null)
+            {
+                break;
+            }
+        }
+
+        breadcrumbs.Reverse();
+        return new ShelfFolderView(folder.Id, folder.Name, folder.RelativePath, folder.ParentId, documents, breadcrumbs);
     }
 
     public async Task<ShelfFolder?> CreateAsync(long? parentId, string name, CancellationToken cancellationToken)
@@ -186,7 +201,7 @@ public sealed record ShelfFolderOption(long Id, string Name, string RelativePath
 
 public sealed record ShelfDocument(long Id, string Title, DateOnly? DocumentDate, string OriginalFileName, long FileSize);
 
-public sealed record ShelfFolderView(long Id, string Name, string RelativePath, long? ParentId, IReadOnlyList<ShelfDocument> Documents);
+public sealed record ShelfFolderView(long Id, string Name, string RelativePath, long? ParentId, IReadOnlyList<ShelfDocument> Documents, IReadOnlyList<ShelfFolderOption> Breadcrumbs);
 
 public sealed record ShelfFolderUpdateResult(bool Succeeded, bool NotFound, string? Error)
 {

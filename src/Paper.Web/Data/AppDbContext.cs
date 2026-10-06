@@ -19,6 +19,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<MailImportFailure> MailImportFailures => Set<MailImportFailure>();
 
+    public DbSet<AnalysisRule> AnalysisRules => Set<AnalysisRule>();
+
     public DbSet<Correspondent> Correspondents => Set<Correspondent>();
 
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
@@ -184,6 +186,17 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(failure => failure.AccountName).HasMaxLength(120).IsRequired();
             entity.Property(failure => failure.Error).HasMaxLength(2000).IsRequired();
             entity.HasIndex(failure => new { failure.AccountName, failure.CreatedAt });
+        });
+
+        modelBuilder.Entity<AnalysisRule>(entity =>
+        {
+            entity.ToTable("AnalysisRules", table =>
+                table.HasCheckConstraint("CK_AnalysisRules_UseCount", "\"UseCount\" > 0"));
+            entity.Property(rule => rule.Term).HasMaxLength(80).IsRequired();
+            entity.HasIndex(rule => new { rule.Term, rule.UseCount });
+            entity.HasOne<Correspondent>().WithMany().HasForeignKey(rule => rule.CorrespondentId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<DocumentType>().WithMany().HasForeignKey(rule => rule.DocumentTypeId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<ShelfFolder>().WithMany().HasForeignKey(rule => rule.ShelfFolderId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

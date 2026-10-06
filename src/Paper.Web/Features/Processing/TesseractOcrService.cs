@@ -3,7 +3,7 @@ using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Processing;
 
-public sealed class TesseractOcrService(IConfiguration configuration, LocalDocumentStorage storage, ILogger<TesseractOcrService> logger)
+public sealed class TesseractOcrService(IConfiguration configuration, IStorageProvider storage, ILogger<TesseractOcrService> logger)
 {
     public async Task<string> ExtractAsync(string relativePath, CancellationToken cancellationToken)
     {

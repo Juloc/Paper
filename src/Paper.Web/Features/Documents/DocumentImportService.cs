@@ -7,7 +7,7 @@ namespace Paper.Web.Features.Documents;
 
 public sealed class DocumentImportService(
     AppDbContext db,
-    LocalDocumentStorage storage,
+    IStorageProvider storage,
     TimeProvider timeProvider,
     ILogger<DocumentImportService> logger)
 {

@@ -30,6 +30,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ?? throw new InvalidOperationException("ConnectionStrings:Default is required.")));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LocalDocumentStorage>();
+builder.Services.AddSingleton<IStorageProvider>(services => services.GetRequiredService<LocalDocumentStorage>());
 builder.Services.AddScoped<DocumentImportService>();
 builder.Services.AddScoped<DocumentStore>();
 builder.Services.AddScoped<DocumentFilingService>();
@@ -45,11 +46,13 @@ builder.Services.AddScoped<DocumentBackupService>();
 builder.Services.AddScoped<DocumentRestoreService>();
 builder.Services.AddScoped<ProcessingJobStore>();
 builder.Services.AddSingleton<DocumentAnalyzer>();
+builder.Services.AddScoped<DocumentLearningStore>();
 builder.Services.AddScoped<TesseractOcrService>();
 builder.Services.AddScoped<OwnerAuthService>();
 builder.Services.AddHostedService<DocumentProcessingWorker>();
 builder.Services.AddHostedService<ConsumeDirectoryWorker>();
-builder.Services.AddHostedService<ImapMailImportWorker>();
+builder.Services.AddSingleton<ImapMailImportWorker>();
+builder.Services.AddSingleton<IHostedService>(services => services.GetRequiredService<ImapMailImportWorker>());
 builder.Services.AddSingleton<EmailAttachmentExtractor>();
 builder.Services.AddScoped<PaperlessImportService>();
 

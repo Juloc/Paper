@@ -14,6 +14,9 @@ public sealed class MailAccountOptions
     public int MaxMessagesPerRun { get; set; } = 10;
     public bool OnlyUnread { get; set; } = true;
     public bool MarkSeen { get; set; }
+    public string? FromContains { get; set; }
+    public string? SubjectContains { get; set; }
+    public string AttachmentExtensions { get; set; } = ".pdf,.jpg,.jpeg,.png,.tif,.tiff";
 
     public bool IsConfigured(out string error)
     {
@@ -53,7 +56,20 @@ public sealed class MailAccountOptions
             return false;
         }
 
+        if (FromContains?.Length > 200 || SubjectContains?.Length > 200 || AttachmentExtensions.Length > 500)
+        {
+            error = "Mailfilter sind zu lang.";
+            return false;
+        }
+
         error = "";
         return true;
     }
+
+    public IReadOnlySet<string> AllowedAttachmentExtensions() =>
+        AttachmentExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(extension => extension.StartsWith('.') ? extension : $".{extension}")
+            .Select(extension => extension.ToLowerInvariant())
+            .Where(extension => extension.Length <= 12 && extension.All(character => char.IsLetterOrDigit(character) || character == '.' || character == '-'))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 }

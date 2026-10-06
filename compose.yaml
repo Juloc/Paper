@@ -13,6 +13,21 @@ services:
       Storage__RootPath: /data/documents
       Storage__Provider: local
       Consume__RootPath: /data/consume
+      Mail__Enabled: ${PAPER_MAIL_ENABLED:-false}
+      Mail__AccountName: ${PAPER_MAIL_ACCOUNT_NAME:-default}
+      Mail__Host: ${PAPER_MAIL_HOST:-}
+      Mail__Port: ${PAPER_MAIL_PORT:-993}
+      Mail__UseSsl: ${PAPER_MAIL_USE_SSL:-true}
+      Mail__Username: ${PAPER_MAIL_USERNAME:-}
+      Mail__Password: ${PAPER_MAIL_PASSWORD:-}
+      Mail__Folder: ${PAPER_MAIL_FOLDER:-INBOX}
+      Mail__PollSeconds: ${PAPER_MAIL_POLL_SECONDS:-300}
+      Mail__MaxMessagesPerRun: ${PAPER_MAIL_MAX_MESSAGES_PER_RUN:-10}
+      Mail__OnlyUnread: ${PAPER_MAIL_ONLY_UNREAD:-true}
+      Mail__MarkSeen: ${PAPER_MAIL_MARK_SEEN:-false}
+      Mail__FromContains: ${PAPER_MAIL_FROM_CONTAINS:-}
+      Mail__SubjectContains: ${PAPER_MAIL_SUBJECT_CONTAINS:-}
+      Mail__AttachmentExtensions: ${PAPER_MAIL_ATTACHMENT_EXTENSIONS:-.pdf,.jpg,.jpeg,.png,.tif,.tiff}
       Ocr__Language: deu+eng
       DataProtection__KeysDirectory: /data/keys
     ports:

@@ -67,6 +67,9 @@
             }
             <button class="button button-primary" type="submit">@(inInbox ? "Ablegen" : "Änderungen speichern")</button>
         </form>
+        <form method="post" asp-page-handler="Reanalyze">
+            <button class="button" type="submit">Neu analysieren</button>
+        </form>
         <dl class="facts">
             <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
             <div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div>

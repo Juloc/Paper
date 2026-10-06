@@ -94,6 +94,8 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .shelf-folder:hover, .shelf-folder.active { background: var(--soft); color: var(--accent-dark); }
 .shelf-documents { display: grid; gap: .7rem; }
 .shelf-editor { border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; padding-bottom: 1.5rem; }
+.breadcrumbs { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: .85rem; gap: .45rem; margin-bottom: .8rem; }
+.breadcrumbs a:hover, .breadcrumbs a:focus-visible { color: var(--accent-dark); }
 details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 @media (max-width: 700px) {
     .topbar { align-items: start; flex-wrap: wrap; gap: .75rem 1rem; }

@@ -4,6 +4,7 @@ using Paper.Web.Features.Correspondents;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.DocumentTypes;
+using Paper.Web.Features.Processing;
 using Paper.Web.Features.Shelf;
 
 namespace Paper.Web.Pages.Documents;
@@ -14,7 +15,8 @@ public sealed class DetailModel(
     CorrespondentStore correspondents,
     DocumentTypeStore documentTypes,
     ShelfFolderStore shelfFolders,
-    CustomFieldStore customFields) : PageModel
+    CustomFieldStore customFields,
+    DocumentLearningStore learning) : PageModel
 {
     [BindProperty]
     public EditDocumentInput Input { get; set; } = new();
@@ -44,6 +46,17 @@ public sealed class DetailModel(
     public Task<IActionResult> OnPostSaveAsync(long id, CancellationToken cancellationToken) =>
         SaveAsync(id, fileFromInbox: false, "Änderungen gespeichert.", cancellationToken);
 
+    public async Task<IActionResult> OnPostReanalyzeAsync(long id, CancellationToken cancellationToken)
+    {
+        if (!await documents.QueueReanalysisAsync(id, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        TempData["Status"] = "Dokument wird erneut analysiert.";
+        return RedirectToPage(new { id });
+    }
+
     private async Task<IActionResult> SaveAsync(long id, bool fileFromInbox, string successMessage, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -64,6 +77,8 @@ public sealed class DetailModel(
             await ReloadAsync(id, cancellationToken);
             return Document is null ? NotFound() : Page();
         }
+
+        await learning.RecordCorrectionAsync(id, Input.ToEdit(), cancellationToken);
 
         TempData["Status"] = successMessage;
         return RedirectToPage(new { id });

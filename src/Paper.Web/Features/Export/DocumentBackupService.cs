@@ -6,7 +6,7 @@ using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Export;
 
-public sealed class DocumentBackupService(AppDbContext db, LocalDocumentStorage storage)
+public sealed class DocumentBackupService(AppDbContext db, IStorageProvider storage)
 {
     public async Task WriteZipAsync(Stream destination, CancellationToken cancellationToken)
     {

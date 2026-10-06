@@ -267,4 +267,12 @@ public sealed class StorageAndAnalysisTests
         options.Password = "secret";
         Assert.IsTrue(options.IsConfigured(out error), error);
     }
+
+    [TestMethod]
+    public void LearningTermsAreStableAndIgnoreCommonWords()
+    {
+        var terms = DocumentLearningStore.ExtractTerms("Stadtwerke Mannheim Rechnung und eine Rechnung");
+
+        CollectionAssert.AreEqual(new[] { "stadtwerke", "mannheim", "rechnung" }, terms.ToArray());
+    }
 }

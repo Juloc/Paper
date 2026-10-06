@@ -163,3 +163,22 @@ public sealed class MailImportFailure
 
     public DateTime CreatedAt { get; set; }
 }
+
+public sealed class AnalysisRule
+{
+    public long Id { get; set; }
+
+    public string Term { get; set; } = "";
+
+    public long? CorrespondentId { get; set; }
+
+    public long? DocumentTypeId { get; set; }
+
+    public long? ShelfFolderId { get; set; }
+
+    public int UseCount { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+}

@@ -49,9 +49,24 @@ public sealed class ImapClient : IAsyncDisposable
         await ExecuteAsync($"SELECT {Quote(options.Folder)}");
     }
 
-    public async Task<IReadOnlyList<long>> SearchAsync(long afterUid, int maximum, bool onlyUnread)
+    public async Task<IReadOnlyList<long>> SearchAsync(long afterUid, int maximum, bool onlyUnread, string? fromContains, string? subjectContains)
     {
-        var criteria = onlyUnread ? "UNSEEN " : "";
+        var criteria = new StringBuilder();
+        if (onlyUnread)
+        {
+            criteria.Append("UNSEEN ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(fromContains))
+        {
+            criteria.Append($"FROM {Quote(fromContains)} ");
+        }
+
+        if (!string.IsNullOrWhiteSpace(subjectContains))
+        {
+            criteria.Append($"SUBJECT {Quote(subjectContains)} ");
+        }
+
         var response = await ExecuteAsync($"UID SEARCH {criteria}UID {Math.Max(1, afterUid)}:*");
         var searchLine = response.Lines.FirstOrDefault(line => line.StartsWith("* SEARCH", StringComparison.OrdinalIgnoreCase));
         if (searchLine is null)

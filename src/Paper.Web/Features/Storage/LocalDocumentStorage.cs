@@ -4,7 +4,18 @@ namespace Paper.Web.Features.Storage;
 
 public sealed record StoredDocument(string RelativePath, string Hash, long Size, bool AlreadyExisted = false);
 
-public sealed class LocalDocumentStorage
+public interface IStorageProvider
+{
+    Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken);
+    Task<string> MoveToShelfAsync(string sourceRelativePath, string shelfRelativePath, DateOnly? documentDate, string title, string originalFileName, CancellationToken cancellationToken);
+    Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
+    Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
+    string GetSafePath(string relativePath);
+    FileStream OpenRead(string relativePath);
+    void Delete(string relativePath);
+}
+
+public sealed class LocalDocumentStorage : IStorageProvider
 {
     private readonly ILogger<LocalDocumentStorage> logger;
     private readonly StorageOptions options;

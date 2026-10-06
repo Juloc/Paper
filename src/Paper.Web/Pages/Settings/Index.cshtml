@@ -55,6 +55,34 @@
     <div asp-validation-summary="ModelOnly" class="validation"></div>
 </section>
 <section class="panel settings-card restore-card">
+    <h2>Mailimport</h2>
+    <p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p>
+    @if (Model.MailState is not null)
+    {
+        <p class="small muted">Letzte UID: @Model.MailState.LastUid · Letzte Ausführung: @(Model.MailState.LastSyncAt?.ToLocalTime().ToString("g") ?? "noch nie")</p>
+        @if (!string.IsNullOrWhiteSpace(Model.MailState.LastError))
+        {
+            <p class="error-text">Letzter Fehler: @Model.MailState.LastError</p>
+        }
+    }
+    <form method="post" asp-page-handler="RunMailImport">
+        <button class="button button-primary" type="submit">Jetzt abrufen</button>
+    </form>
+    @if (Model.MailFailures.Count > 0)
+    {
+        <details class="mail-failures">
+            <summary>Letzte Mailfehler (@Model.MailFailures.Count)</summary>
+            <ul>
+                @foreach (var failure in Model.MailFailures)
+                {
+                    <li><span class="muted">@failure.CreatedAt.ToLocalTime().ToString("g") · UID @failure.Uid</span> — @failure.Error</li>
+                }
+            </ul>
+        </details>
+    }
+    <div asp-validation-summary="ModelOnly" class="validation"></div>
+</section>
+<section class="panel settings-card restore-card">
     <h2>Paperless-ngx importieren</h2>
     <p class="muted">Importiert unterstützte Paperless-Export-ZIPs in die Inbox. Die Dateien können danach geprüft und im Regal abgelegt werden.</p>
     <form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form">

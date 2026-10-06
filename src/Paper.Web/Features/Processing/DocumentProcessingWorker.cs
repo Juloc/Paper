@@ -65,6 +65,7 @@ public sealed class DocumentProcessingWorker(
             var ocr = services.GetRequiredService<TesseractOcrService>();
             var text = await ocr.ExtractAsync(document.FilePath, cancellationToken);
             var analysis = services.GetRequiredService<DocumentAnalyzer>().Analyze(document.Title, text);
+            var learned = await services.GetRequiredService<DocumentLearningStore>().SuggestAsync($"{document.Title} {document.OriginalFileName} {text}", cancellationToken);
             document.OcrText = text;
             document.OcrStatus = OcrStatus.Completed;
             document.OcrError = null;
@@ -84,6 +85,21 @@ public sealed class DocumentProcessingWorker(
             {
                 document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name == analysis.SuggestedDocumentType, cancellationToken)
                     ?? new DocumentType { Name = analysis.SuggestedDocumentType };
+            }
+
+            if (document.Correspondent is null && learned?.CorrespondentId is not null)
+            {
+                document.Correspondent = await db.Correspondents.SingleOrDefaultAsync(item => item.Id == learned.CorrespondentId, cancellationToken);
+            }
+
+            if (document.DocumentType is null && learned?.DocumentTypeId is not null)
+            {
+                document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Id == learned.DocumentTypeId, cancellationToken);
+            }
+
+            if (document.ShelfFolder is null && learned?.ShelfFolderId is not null)
+            {
+                document.ShelfFolder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.Id == learned.ShelfFolderId, cancellationToken);
             }
 
             await services.GetRequiredService<TagStore>().AddNamesAsync(document, analysis.SuggestedTags, cancellationToken);

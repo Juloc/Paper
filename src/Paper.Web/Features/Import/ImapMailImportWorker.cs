@@ -10,9 +10,36 @@ public sealed class ImapMailImportWorker(
     EmailAttachmentExtractor emailAttachments,
     ILogger<ImapMailImportWorker> logger) : BackgroundService
 {
+    private readonly SemaphoreSlim runGate = new(1, 1);
+
+    public async Task<MailImportRunResult> RunOnceAsync(CancellationToken cancellationToken)
+    {
+        var options = LoadOptions();
+        if (!options.Enabled)
+        {
+            return MailImportRunResult.Disabled;
+        }
+
+        if (!options.IsConfigured(out var configurationError))
+        {
+            throw new InvalidOperationException(configurationError);
+        }
+
+        await runGate.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await ImportAvailableAsync(options, cancellationToken);
+            return new MailImportRunResult(true, result.Processed, result.Imported);
+        }
+        finally
+        {
+            runGate.Release();
+        }
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var options = configuration.GetSection("Mail").Get<MailAccountOptions>() ?? new MailAccountOptions();
+        var options = LoadOptions();
         if (!options.Enabled)
         {
             logger.LogInformation("IMAP import is disabled.");
@@ -29,7 +56,7 @@ public sealed class ImapMailImportWorker(
         {
             try
             {
-                await ImportAvailableAsync(options, stoppingToken);
+                await RunOnceAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -44,7 +71,7 @@ public sealed class ImapMailImportWorker(
         }
     }
 
-    private async Task ImportAvailableAsync(MailAccountOptions options, CancellationToken cancellationToken)
+    private async Task<(int Processed, int Imported)> ImportAvailableAsync(MailAccountOptions options, CancellationToken cancellationToken)
     {
         using var scope = scopeFactory.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -58,8 +85,11 @@ public sealed class ImapMailImportWorker(
 
         await using var client = new ImapClient(options, cancellationToken);
         await client.ConnectAsync();
-        var uids = await client.SearchAsync(state.LastUid + 1, options.MaxMessagesPerRun, options.OnlyUnread);
+        var uids = await client.SearchAsync(state.LastUid + 1, options.MaxMessagesPerRun, options.OnlyUnread, options.FromContains, options.SubjectContains);
         var importer = scope.ServiceProvider.GetRequiredService<DocumentImportService>();
+        var allowedExtensions = options.AllowedAttachmentExtensions();
+        var processed = 0;
+        var importedTotal = 0;
         foreach (var uid in uids)
         {
             try
@@ -70,6 +100,11 @@ public sealed class ImapMailImportWorker(
                 var imported = 0;
                 foreach (var attachment in attachments)
                 {
+                    if (allowedExtensions.Count > 0 && !allowedExtensions.Contains(Path.GetExtension(attachment.FileName)))
+                    {
+                        continue;
+                    }
+
                     await using var content = new MemoryStream(attachment.Content, writable: false);
                     var result = await importer.ImportAsync(
                         content,
@@ -87,7 +122,7 @@ public sealed class ImapMailImportWorker(
                     }
                 }
 
-                if (attachments.Count == 0)
+                if (imported == 0 && errors.Count == 0)
                 {
                     errors.Add("Die E-Mail enthält keine unterstützten Anhänge.");
                 }
@@ -113,6 +148,8 @@ public sealed class ImapMailImportWorker(
                 }
 
                 logger.LogInformation("Processed IMAP UID {Uid}: {ImportedCount} attachment(s) imported.", uid, imported);
+                processed++;
+                importedTotal += imported;
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
@@ -129,9 +166,14 @@ public sealed class ImapMailImportWorker(
                 });
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogWarning(exception, "Could not process IMAP UID {Uid}.", uid);
+                processed++;
             }
         }
+
+        return (processed, importedTotal);
     }
+
+    private MailAccountOptions LoadOptions() => configuration.GetSection("Mail").Get<MailAccountOptions>() ?? new MailAccountOptions();
 
     private static string SanitizeName(string value)
     {
@@ -139,4 +181,9 @@ public sealed class ImapMailImportWorker(
         var safe = new string(value.Select(character => character < 32 || invalid.Contains(character) ? '_' : character).ToArray());
         return string.IsNullOrWhiteSpace(safe) ? "email-attachment" : safe[..Math.Min(180, safe.Length)];
     }
+}
+
+public sealed record MailImportRunResult(bool Executed, int Processed, int Imported)
+{
+    public static MailImportRunResult Disabled { get; } = new(false, 0, 0);
 }
