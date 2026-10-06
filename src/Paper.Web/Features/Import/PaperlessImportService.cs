@@ -39,6 +39,7 @@ public sealed class PaperlessImportService(
         }
 
         var catalogs = ReadCatalogs(manifest.RootElement);
+        await ReadSplitCustomValuesAsync(archive, catalogs, cancellationToken);
         var result = new PaperlessImportResult();
         foreach (var fixture in manifest.RootElement.EnumerateArray())
         {
@@ -113,6 +114,7 @@ public sealed class PaperlessImportService(
 
             var correspondent = await GetOrCreateCorrespondentAsync(catalogs.Correspondents, GetLong(fields, "correspondent"), cancellationToken);
             var documentType = await GetOrCreateDocumentTypeAsync(catalogs.DocumentTypes, GetLong(fields, "document_type"), cancellationToken);
+            var documentId = GetLong(fixture, "pk");
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var ocrText = GetString(fields, "content");
             var document = new Document
@@ -150,7 +152,7 @@ public sealed class PaperlessImportService(
                 document.Tags.Add(new DocumentTag { Document = document, Tag = tag });
             }
 
-            foreach (var value in ReadCustomValues(fields, catalogs.CustomFields))
+            foreach (var value in ReadCustomValues(fields, documentId, catalogs))
             {
                 var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name == value.Name, cancellationToken);
                 if (customField is null)
@@ -242,6 +244,19 @@ public sealed class PaperlessImportService(
                 continue;
             }
 
+            if (model is "documents.customfieldinstance")
+            {
+                var documentId = GetLong(fields, "document");
+                var fieldId = GetLong(fields, "field");
+                var value = GetString(fields, "value");
+                if (documentId is not null && fieldId is not null && value is not null)
+                {
+                    catalogs.GetOrAdd(documentId.Value).Add(new PaperlessCustomValue(fieldId.Value, value));
+                }
+
+                continue;
+            }
+
             var name = GetString(fields, "name");
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -269,14 +284,9 @@ public sealed class PaperlessImportService(
         return catalogs;
     }
 
-    private static IEnumerable<PaperlessValue> ReadCustomValues(JsonElement fields, IReadOnlyDictionary<long, PaperlessCustomField> definitions)
+    private static IEnumerable<PaperlessValue> ReadCustomValues(JsonElement fields, long? documentId, PaperlessCatalogs catalogs)
     {
-        if (!fields.TryGetProperty("custom_fields", out var values))
-        {
-            yield break;
-        }
-
-        if (values.ValueKind == JsonValueKind.Array)
+        if (fields.TryGetProperty("custom_fields", out var values) && values.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in values.EnumerateArray())
             {
@@ -287,17 +297,17 @@ public sealed class PaperlessImportService(
 
                 var fieldId = GetLong(item, "field") ?? GetLong(item, "id");
                 var value = GetString(item, "value");
-                if (fieldId is not null && value is not null && definitions.TryGetValue(fieldId.Value, out var definition))
+                if (fieldId is not null && value is not null && catalogs.CustomFields.TryGetValue(fieldId.Value, out var definition))
                 {
                     yield return new PaperlessValue(definition.Name, definition.Type, value);
                 }
             }
         }
-        else if (values.ValueKind == JsonValueKind.Object)
+        else if (fields.TryGetProperty("custom_fields", out values) && values.ValueKind == JsonValueKind.Object)
         {
             foreach (var property in values.EnumerateObject())
             {
-                if (!long.TryParse(property.Name, out var fieldId) || !definitions.TryGetValue(fieldId, out var definition))
+                if (!long.TryParse(property.Name, out var fieldId) || !catalogs.CustomFields.TryGetValue(fieldId, out var definition))
                 {
                     continue;
                 }
@@ -306,6 +316,51 @@ public sealed class PaperlessImportService(
                 if (!string.IsNullOrWhiteSpace(value))
                 {
                     yield return new PaperlessValue(definition.Name, definition.Type, value);
+                }
+            }
+        }
+
+        if (documentId is not null && catalogs.CustomValuesByDocument.TryGetValue(documentId.Value, out var instances))
+        {
+            foreach (var instance in instances)
+            {
+                if (catalogs.CustomFields.TryGetValue(instance.FieldId, out var definition))
+                {
+                    yield return new PaperlessValue(definition.Name, definition.Type, instance.Value);
+                }
+            }
+        }
+    }
+
+    private static async Task ReadSplitCustomValuesAsync(
+        ZipArchive archive,
+        PaperlessCatalogs catalogs,
+        CancellationToken cancellationToken)
+    {
+        foreach (var entry in archive.Entries.Where(entry =>
+                     entry.FullName.EndsWith("-manifest.json", StringComparison.OrdinalIgnoreCase)))
+        {
+            await using var stream = entry.Open();
+            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            if (json.RootElement.ValueKind != JsonValueKind.Array)
+            {
+                continue;
+            }
+
+            foreach (var fixture in json.RootElement.EnumerateArray())
+            {
+                if (!string.Equals(GetString(fixture, "model"), "documents.customfieldinstance", StringComparison.OrdinalIgnoreCase) ||
+                    !fixture.TryGetProperty("fields", out var fields))
+                {
+                    continue;
+                }
+
+                var documentId = GetLong(fields, "document");
+                var fieldId = GetLong(fields, "field");
+                var value = GetString(fields, "value");
+                if (documentId is not null && fieldId is not null && value is not null)
+                {
+                    catalogs.GetOrAdd(documentId.Value).Add(new PaperlessCustomValue(fieldId.Value, value));
                 }
             }
         }
@@ -417,9 +472,22 @@ public sealed class PaperlessImportService(
         public Dictionary<long, string> Correspondents { get; } = [];
         public Dictionary<long, string> DocumentTypes { get; } = [];
         public Dictionary<long, PaperlessCustomField> CustomFields { get; } = [];
+        public Dictionary<long, List<PaperlessCustomValue>> CustomValuesByDocument { get; } = [];
+
+        public List<PaperlessCustomValue> GetOrAdd(long documentId)
+        {
+            if (!CustomValuesByDocument.TryGetValue(documentId, out var values))
+            {
+                values = [];
+                CustomValuesByDocument[documentId] = values;
+            }
+
+            return values;
+        }
     }
 
     private sealed record PaperlessCustomField(string Name, CustomFieldType Type);
+    private sealed record PaperlessCustomValue(long FieldId, string Value);
     private sealed record PaperlessValue(string Name, CustomFieldType Type, string Value);
 }
 

@@ -46,4 +46,4 @@ Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV ex
 
 Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner sowie Metadaten bei Bedarf wieder an.
 
-Paperless-ngx-Exporte können ebenfalls als ZIP unter Einstellungen importiert werden. Unterstützte Dokumente werden mit OCR-Text, Titel, Datum, Korrespondent, Dokumenttyp, Tags und Custom Fields in die Paper-Inbox übernommen; die physische Regalablage erfolgt anschließend bewusst nach einer kurzen Prüfung.
+Paperless-ngx-Exporte können ebenfalls als ZIP unter Einstellungen importiert werden. Unterstützte Dokumente werden mit OCR-Text, Titel, Datum, Korrespondent, Dokumenttyp, Tags und Custom Fields in die Paper-Inbox übernommen; die physische Regalablage erfolgt anschließend bewusst nach einer kurzen Prüfung. Einzelne Manifestdateien aus Paperless im Split-Manifest-Modus werden für Custom-Field-Instanzen ebenfalls berücksichtigt.
