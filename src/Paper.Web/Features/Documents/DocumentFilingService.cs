@@ -182,11 +182,17 @@ public sealed class DocumentFilingService(
         }
     }
 
-    private static void ReplaceCustomFields(
+    private void ReplaceCustomFields(
         Document document,
         IReadOnlyDictionary<long, string> values,
         IReadOnlyDictionary<long, CustomField> definitions)
     {
+        foreach (var existing in document.CustomFields.ToArray())
+        {
+            db.DocumentCustomFieldValues.Remove(existing);
+            document.CustomFields.Remove(existing);
+        }
+
         document.CustomFields.Clear();
         foreach (var value in values.Where(item => !string.IsNullOrWhiteSpace(item.Value)))
         {
