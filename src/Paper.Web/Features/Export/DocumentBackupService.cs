@@ -10,7 +10,7 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
 {
     public async Task WriteZipAsync(Stream destination, CancellationToken cancellationToken)
     {
-        using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);
+        using var archive = new ZipArchive(new SynchronousWriteThroughStream(destination), ZipArchiveMode.Create, leaveOpen: true);
         var documents = await db.Documents
             .AsNoTracking()
             .AsSplitQuery()
@@ -77,6 +77,54 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
         await using (var rulesStream = rulesEntry.Open())
         {
             await JsonSerializer.SerializeAsync(rulesStream, rules, cancellationToken: cancellationToken);
+        }
+
+        await destination.FlushAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// ZipArchive still finalizes its central directory synchronously. Kestrel's response
+    /// stream rejects synchronous I/O, so bridge those small synchronous writes to the
+    /// response's asynchronous stream without buffering the complete backup in memory.
+    /// </summary>
+    private sealed class SynchronousWriteThroughStream(Stream inner) : Stream
+    {
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override bool CanWrite => true;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override void Flush() => inner.FlushAsync().GetAwaiter().GetResult();
+
+        public override Task FlushAsync(CancellationToken cancellationToken) => inner.FlushAsync(cancellationToken);
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            inner.WriteAsync(buffer.AsMemory(offset, count)).GetAwaiter().GetResult();
+
+        public override void Write(ReadOnlySpan<byte> buffer) =>
+            inner.WriteAsync(buffer.ToArray()).GetAwaiter().GetResult();
+
+        public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            inner.WriteAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) =>
+            inner.WriteAsync(buffer, cancellationToken);
+
+        protected override void Dispose(bool disposing)
+        {
+            // The response stream belongs to ASP.NET Core, not this adapter.
+            base.Dispose(disposing);
         }
     }
 }
