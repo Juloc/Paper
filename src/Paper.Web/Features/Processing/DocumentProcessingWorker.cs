@@ -109,7 +109,9 @@ public sealed class DocumentProcessingWorker(
                 document.ShelfFolder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.Id == learned.ShelfFolderId, cancellationToken);
             }
 
-            var customFields = await db.CustomFields.ToDictionaryAsync(field => field.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+            var customFields = (await db.CustomFields.ToListAsync(cancellationToken))
+                .GroupBy(field => field.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.OrderBy(field => field.Id).First(), StringComparer.OrdinalIgnoreCase);
             foreach (var suggestion in analysis.SuggestedCustomFields)
             {
                 if (!customFields.TryGetValue(suggestion.Key, out var field) ||
