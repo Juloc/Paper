@@ -156,24 +156,27 @@ public sealed class PaperlessImportService(
                 SearchText = ""
             };
 
-            foreach (var tagId in GetLongArray(fields, "tags"))
+            var importedTagNames = GetLongArray(fields, "tags")
+                .Where(catalogs.Tags.ContainsKey)
+                .Select(tagId => catalogs.Tags[tagId].Trim().ToLowerInvariant())
+                .Where(name => name.Length is > 0 and <= 80)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            foreach (var name in importedTagNames)
             {
-                if (!catalogs.Tags.TryGetValue(tagId, out var name))
-                {
-                    continue;
-                }
-
                 var tag = await db.Tags.SingleOrDefaultAsync(item => item.Name == name, cancellationToken);
                 if (tag is null)
                 {
-                    tag = new Tag { Name = name[..Math.Min(80, name.Length)] };
+                    tag = new Tag { Name = name };
                     db.Tags.Add(tag);
                 }
 
                 document.Tags.Add(new DocumentTag { Document = document, Tag = tag });
             }
 
-            foreach (var value in ReadCustomValues(fields, documentId, catalogs))
+            foreach (var value in ReadCustomValues(fields, documentId, catalogs)
+                         .GroupBy(value => value.Name, StringComparer.OrdinalIgnoreCase)
+                         .Select(group => group.First()))
             {
                 var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name == value.Name, cancellationToken);
                 if (customField is null)
