@@ -50,6 +50,7 @@ builder.Services.AddScoped<DocumentExportService>();
 builder.Services.AddScoped<DocumentBackupService>();
 builder.Services.AddScoped<DocumentRestoreService>();
 builder.Services.AddScoped<ProcessingJobStore>();
+builder.Services.AddScoped<ProcessingStatusStore>();
 builder.Services.AddSingleton<DocumentAnalyzer>();
 builder.Services.AddScoped<DocumentLearningStore>();
 builder.Services.AddScoped<TesseractOcrService>();

@@ -160,6 +160,15 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void ProcessingSummarySeparatesActiveAndFailedJobs()
+    {
+        var summary = new ProcessingSummary(2, 1, 3);
+
+        Assert.AreEqual(3, summary.Active);
+        Assert.AreEqual(3, summary.Failed);
+    }
+
+    [TestMethod]
     public void ModelDefinesShelfMetadataAndCustomFieldConstraints()
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()

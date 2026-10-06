@@ -57,6 +57,8 @@ h2 { letter-spacing: -.03em; }
 .empty-state { padding: 3rem; text-align: center; }
 .empty-state p { color: var(--muted); margin-bottom: 0; }
 .notice { border-color: #d3e6d8; color: #2d7045; margin-bottom: 1.5rem; padding: .8rem 1rem; }
+.processing-footer { align-items: center; border-top: 1px solid var(--line); display: flex; font-size: .8rem; gap: .65rem; justify-content: center; margin: 0 auto; max-width: 1180px; padding: .8rem 1rem; }
+.processing-footer a { color: var(--accent-dark); font-weight: 650; }
 .stack { display: grid; gap: 1rem; }
 label { display: grid; font-size: .88rem; font-weight: 650; gap: .45rem; }
 input { background: white; border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); font: inherit; padding: .75rem .8rem; width: 100%; }
@@ -104,6 +106,14 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .breadcrumbs { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: .85rem; gap: .45rem; margin-bottom: .8rem; }
 .breadcrumbs a:hover, .breadcrumbs a:focus-visible { color: var(--accent-dark); }
 details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+.processing-summary { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 1.5rem; }
+.processing-stat { display: grid; gap: .3rem; padding: 1.25rem; }
+.processing-stat strong { color: var(--accent-dark); font-size: 1.8rem; }
+.processing-stat span { color: var(--muted); font-size: .85rem; }
+.processing-list { padding: 1.25rem; }
+.processing-row { border-top: 1px solid var(--line); display: grid; gap: .6rem; padding: 1rem 0; }
+.processing-row > div:first-child { display: grid; gap: .25rem; }
+.processing-row-state { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 700px) {
     .topbar { align-items: start; flex-wrap: wrap; gap: .75rem 1rem; }
     nav { flex-basis: 100%; gap: .8rem; order: 3; overflow-x: auto; }
@@ -115,4 +125,5 @@ details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
     .settings-list div { align-items: start; flex-direction: column; gap: .35rem; }
     .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-grid { grid-template-columns: 1fr; }
+    .processing-summary { grid-template-columns: 1fr; }
 }

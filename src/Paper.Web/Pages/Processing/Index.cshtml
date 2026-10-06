@@ -1,0 +1,41 @@
+@page "/Processing"
+@model Paper.Web.Pages.Processing.IndexModel
+@using Paper.Web.Features.Processing
+@{
+    ViewData["Title"] = "Verarbeitung";
+}
+<header class="page-header">
+    <div><div class="eyebrow">Hintergrundverarbeitung</div><h1>Verarbeitung</h1><p class="muted">OCR und automatische Analyse laufen als persistente Jobs.</p></div>
+</header>
+<section class="processing-summary" aria-label="Verarbeitungsstatus">
+    <div class="panel processing-stat"><strong>@Model.Summary.Active</strong><span>aktiv</span></div>
+    <div class="panel processing-stat"><strong>@Model.Summary.Pending</strong><span>warten</span></div>
+    <div class="panel processing-stat"><strong>@Model.Summary.Failed</strong><span>fehlgeschlagen</span></div>
+</section>
+<section class="panel processing-list">
+    <h2>Letzte Jobs</h2>
+    @if (Model.Jobs.Count == 0)
+    {
+        <p class="muted">Noch keine Verarbeitungsjobs.</p>
+    }
+    else
+    {
+        @foreach (var job in Model.Jobs)
+        {
+            <article class="processing-row">
+                <div><strong>@job.DocumentTitle</strong><span class="muted">@job.OriginalFileName · @job.Type · Versuch @job.Attempts</span></div>
+                <div class="processing-row-state">
+                    <span class="status status-@job.State.ToString().ToLowerInvariant()">@(job.State switch { ProcessingJobState.Pending => "Wartet", ProcessingJobState.Running => "Läuft", ProcessingJobState.Succeeded => "Fertig", _ => "Fehlgeschlagen" })</span>
+                    @if (job.State == ProcessingJobState.Failed)
+                    {
+                        <form method="post" asp-page-handler="Retry"><input type="hidden" name="id" value="@job.Id" /><button class="button" type="submit">Erneut versuchen</button></form>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(job.Error))
+                {
+                    <p class="error-text">@job.Error</p>
+                }
+            </article>
+        }
+    }
+</section>

@@ -19,6 +19,7 @@ Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpas
 - Regalansicht mit echten Unterordnern und kollisionssicheren Dateinamen
 - Korrespondenten, Dokumenttypen, Tags und relationale Custom Fields
 - persistente PostgreSQL-Verarbeitungsjobs mit Retry und Crash-Recovery
+- dezenter Processing-Status mit Fehlerliste und manuellem Retry
 - Tesseract OCR und kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
 - PostgreSQL Full Text Search über Titel, OCR-Text, Dateiname, Regalpfad und Metadaten
 - responsive Razor-UI und sichere Cookie-Authentifizierung

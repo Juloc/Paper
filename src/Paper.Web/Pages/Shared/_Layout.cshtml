@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
 <body>
+    @inject Paper.Web.Features.Processing.ProcessingStatusStore ProcessingStatus
     @if (User.Identity?.IsAuthenticated == true)
     {
         <header class="topbar">
@@ -24,6 +25,11 @@
                 <button class="button button-quiet" type="submit">Abmelden</button>
             </form>
         </header>
+        var processingSummary = await ProcessingStatus.GetSummaryAsync(Context.RequestAborted);
+        <footer class="processing-footer">
+            <a asp-page="/Processing">Verarbeitung</a>
+            <span class="muted">@processingSummary.Active aktiv · @processingSummary.Failed fehlgeschlagen</span>
+        </footer>
     }
     <main class="page">
         @if (TempData["Status"] is string status)
