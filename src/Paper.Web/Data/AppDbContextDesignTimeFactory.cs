@@ -7,8 +7,9 @@ public sealed class AppDbContextDesignTimeFactory : IDesignTimeDbContextFactory<
 {
     public AppDbContext CreateDbContext(string[] args)
     {
+        var password = Environment.GetEnvironmentVariable("PAPER_POSTGRES_PASSWORD") ?? "change-me";
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql("Host=localhost;Port=5432;Database=paper;Username=paper;Password=paper")
+            .UseNpgsql($"Host=localhost;Port=5432;Database=paper;Username=paper;Password={password}")
             .Options;
         return new AppDbContext(options);
     }
