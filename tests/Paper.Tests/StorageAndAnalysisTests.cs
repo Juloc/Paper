@@ -1,6 +1,8 @@
 using System.IO.Compression;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Paper.Web.Data;
@@ -216,6 +218,14 @@ public sealed class StorageAndAnalysisTests
             new[] { nameof(DocumentCustomFieldValue.DocumentId), nameof(DocumentCustomFieldValue.CustomFieldId) },
             customValue.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
         Assert.AreEqual(DeleteBehavior.Cascade, customValue.FindNavigation(nameof(DocumentCustomFieldValue.Document))!.ForeignKey.DeleteBehavior);
+
+        var designModel = db.GetService<IDesignTimeModel>().Model;
+        var documentConstraints = designModel.FindEntityType(typeof(Document))!.GetCheckConstraints().Select(constraint => constraint.Name).ToArray();
+        CollectionAssert.Contains(documentConstraints, "CK_Documents_Status");
+        CollectionAssert.Contains(documentConstraints, "CK_Documents_OcrStatus");
+        var jobConstraints = designModel.FindEntityType(typeof(ProcessingJob))!.GetCheckConstraints().Select(constraint => constraint.Name).ToArray();
+        CollectionAssert.Contains(jobConstraints, "CK_ProcessingJobs_State");
+        CollectionAssert.Contains(jobConstraints, "CK_ProcessingJobs_Type");
     }
 
     [TestMethod]

@@ -39,6 +39,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             {
                 table.HasCheckConstraint("CK_Documents_FileSize", "\"FileSize\" >= 0");
                 table.HasCheckConstraint("CK_Documents_Title", "length(trim(\"Title\")) > 0");
+                table.HasCheckConstraint("CK_Documents_Status", "\"Status\" IN ('Inbox', 'Filed', 'Deferred', 'Ignored')");
+                table.HasCheckConstraint("CK_Documents_OcrStatus", "\"OcrStatus\" IN ('Pending', 'Processing', 'Completed', 'Failed')");
             });
             entity.Property(document => document.Id).UseIdentityByDefaultColumn();
             entity.Property(document => document.Title).HasMaxLength(300).IsRequired();
@@ -107,7 +109,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
         modelBuilder.Entity<CustomField>(entity =>
         {
-            entity.ToTable("CustomFields", table => table.HasCheckConstraint("CK_CustomFields_Name", "length(trim(\"Name\")) > 0"));
+            entity.ToTable("CustomFields", table =>
+            {
+                table.HasCheckConstraint("CK_CustomFields_Name", "length(trim(\"Name\")) > 0");
+                table.HasCheckConstraint("CK_CustomFields_Type", "\"Type\" IN ('Text', 'Number', 'Date', 'Boolean')");
+            });
             entity.Property(field => field.Id).UseIdentityByDefaultColumn();
             entity.Property(field => field.Name).HasMaxLength(120).IsRequired();
             entity.Property(field => field.Type).HasConversion<string>().HasMaxLength(24);
@@ -157,6 +163,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             {
                 table.HasCheckConstraint("CK_ProcessingJobs_Attempts", "\"Attempts\" >= 0");
                 table.HasCheckConstraint("CK_ProcessingJobs_Priority", "\"Priority\" >= 0");
+                table.HasCheckConstraint("CK_ProcessingJobs_Type", "\"Type\" IN ('OcrAndAnalyze')");
+                table.HasCheckConstraint("CK_ProcessingJobs_State", "\"State\" IN ('Pending', 'Running', 'Succeeded', 'Failed')");
             });
             entity.Property(job => job.Id).UseIdentityByDefaultColumn();
             entity.Property(job => job.Type).HasConversion<string>().HasMaxLength(32);
