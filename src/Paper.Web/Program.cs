@@ -82,10 +82,12 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/documents/{id:long}/file", async (long id, DocumentFileService files, CancellationToken cancellationToken) =>
+app.MapGet("/documents/{id:long}/file", async (long id, bool? download, DocumentFileService files, CancellationToken cancellationToken) =>
 {
     var file = await files.OpenAsync(id, cancellationToken);
-    return file is null ? Results.NotFound() : Results.File(file.Stream, file.ContentType, file.DownloadName, enableRangeProcessing: true);
+    return file is null
+        ? Results.NotFound()
+        : Results.File(file.Stream, file.ContentType, download == true ? file.DownloadName : null, enableRangeProcessing: true);
 }).RequireAuthorization();
 app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {

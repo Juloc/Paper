@@ -56,7 +56,12 @@ public sealed class DocumentProcessingWorker(
     {
         var db = services.GetRequiredService<AppDbContext>();
         var jobStore = services.GetRequiredService<ProcessingJobStore>();
-        var document = await db.Documents.Include(item => item.Tags).ThenInclude(item => item.Tag).SingleAsync(item => item.Id == job.DocumentId, cancellationToken);
+        var document = await db.Documents
+            .Include(item => item.Tags).ThenInclude(item => item.Tag)
+            .Include(item => item.Correspondent)
+            .Include(item => item.DocumentType)
+            .Include(item => item.ShelfFolder)
+            .SingleAsync(item => item.Id == job.DocumentId, cancellationToken);
         document.OcrStatus = OcrStatus.Processing;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -75,13 +80,13 @@ public sealed class DocumentProcessingWorker(
             }
 
             document.DocumentDate ??= analysis.DocumentDate;
-            if (analysis.SuggestedCorrespondent is not null)
+            if (document.CorrespondentId is null && analysis.SuggestedCorrespondent is not null)
             {
                 document.Correspondent = await db.Correspondents.SingleOrDefaultAsync(item => item.Name == analysis.SuggestedCorrespondent, cancellationToken)
                     ?? new Correspondent { Name = analysis.SuggestedCorrespondent };
             }
 
-            if (analysis.SuggestedDocumentType is not null)
+            if (document.DocumentTypeId is null && analysis.SuggestedDocumentType is not null)
             {
                 document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name == analysis.SuggestedDocumentType, cancellationToken)
                     ?? new DocumentType { Name = analysis.SuggestedDocumentType };

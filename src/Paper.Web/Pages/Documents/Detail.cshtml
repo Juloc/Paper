@@ -21,7 +21,7 @@
         {
             <img src="/documents/@document.Id/file" alt="Vorschau von @document.Title" />
         }
-        <a class="button" href="/documents/@document.Id/file">Datei herunterladen</a>
+        <a class="button" href="/documents/@document.Id/file?download=true">Datei herunterladen</a>
     </section>
     <aside class="panel metadata">
         <form method="post" asp-page-handler="@(inInbox ? "File" : "Save")" class="stack">

@@ -183,6 +183,7 @@ public sealed class StorageAndAnalysisTests
         Assert.AreEqual("\\\\nas\\paper", options.EffectiveRootPath());
         Assert.AreEqual("data/documents", new StorageOptions { RootPath = "data/documents" }.EffectiveRootPath());
         Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "smb" }.EffectiveRootPath());
+        Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "ftp" }.EffectiveRootPath());
     }
 
     [TestMethod]
@@ -274,5 +275,15 @@ public sealed class StorageAndAnalysisTests
         var terms = DocumentLearningStore.ExtractTerms("Stadtwerke Mannheim Rechnung und eine Rechnung");
 
         CollectionAssert.AreEqual(new[] { "stadtwerke", "mannheim", "rechnung" }, terms.ToArray());
+    }
+
+    [TestMethod]
+    public void MailAccountOptionsNormalizeAttachmentFilters()
+    {
+        var options = new MailAccountOptions { AttachmentExtensions = "pdf, .JPG, invalid extension" };
+
+        var extensions = options.AllowedAttachmentExtensions();
+
+        CollectionAssert.AreEquivalent(new[] { ".pdf", ".jpg" }, extensions.ToArray());
     }
 }
