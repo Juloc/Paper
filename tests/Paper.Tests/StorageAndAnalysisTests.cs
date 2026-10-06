@@ -143,4 +143,13 @@ public sealed class StorageAndAnalysisTests
         Assert.IsTrue(new SearchCriteria("", null, null, null, null, null, null, 3, "").HasFilters);
         Assert.IsFalse(new SearchCriteria("", null, null, null, null, null, null, null, null).HasFilters);
     }
+
+    [TestMethod]
+    public void StorageOptionsSelectsSmbRootWithoutChangingLocalDefault()
+    {
+        var options = new StorageOptions { Provider = "smb", SmbRootPath = "\\\\nas\\paper" };
+        Assert.AreEqual("\\\\nas\\paper", options.EffectiveRootPath());
+        Assert.AreEqual("data/documents", new StorageOptions { RootPath = "data/documents" }.EffectiveRootPath());
+        Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "smb" }.EffectiveRootPath());
+    }
 }

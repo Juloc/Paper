@@ -11,6 +11,7 @@ services:
       Auth__Username: $PAPER_ADMIN_USERNAME
       Auth__Password: $PAPER_ADMIN_PASSWORD
       Storage__RootPath: /data/documents
+      Storage__Provider: local
       Consume__RootPath: /data/consume
       Ocr__Language: deu+eng
       DataProtection__KeysDirectory: /data/keys

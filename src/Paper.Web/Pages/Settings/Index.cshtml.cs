@@ -25,6 +25,8 @@ public sealed class IndexModel(
     public CustomFieldType CustomFieldType { get; set; } = CustomFieldType.Text;
 
     public string StoragePath => configuration["Storage:RootPath"] ?? "/data/documents";
+    public string StorageProvider => configuration["Storage:Provider"] ?? "local";
+    public string WakePolicy => configuration["Storage:WakePolicy"] ?? "Never";
     public string OcrLanguage => configuration["Ocr:Language"] ?? "eng";
     public IReadOnlyList<CorrespondentOption> CorrespondentOptions { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypeOptions { get; private set; } = [];

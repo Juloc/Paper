@@ -4,9 +4,18 @@ namespace Paper.Web.Features.Storage;
 
 public sealed record StoredDocument(string RelativePath, string Hash, long Size);
 
-public sealed class LocalDocumentStorage(IConfiguration configuration, ILogger<LocalDocumentStorage> logger)
+public sealed class LocalDocumentStorage
 {
-    private readonly string rootPath = Path.GetFullPath(configuration["Storage:RootPath"] ?? "/data/documents");
+    private readonly ILogger<LocalDocumentStorage> logger;
+    private readonly StorageOptions options;
+    private readonly string rootPath;
+
+    public LocalDocumentStorage(IConfiguration configuration, ILogger<LocalDocumentStorage> logger)
+    {
+        this.logger = logger;
+        options = configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions();
+        rootPath = Path.GetFullPath(options.EffectiveRootPath());
+    }
 
     public async Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken)
     {

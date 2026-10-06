@@ -34,6 +34,8 @@ Neue Uploads landen zunächst unter inbox/. Nach der Prüfung erzeugt Paper beis
 
 Das Verschieben der Datei und die Datenbankänderung werden konsistent behandelt. Bei einem Datenbankfehler wird ein bereits verschobenes Dokument nach Möglichkeit in den Inbox-Pfad zurückgelegt.
 
+Für NAS-Betrieb kann Storage:Provider auf smb gesetzt und Storage:SmbRootPath auf einen erreichbaren UNC-/SMB-Pfad gesetzt werden. WakePolicy: Never vermeidet unnötige Zugriffe auf ein schlafendes NAS; OnDemand ist für eine spätere gezielte Wake-Integration vorbereitet. Lokal bleibt der Provider ohne weitere Abhängigkeiten aktiv.
+
 ## Automatischer Import
 
 Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper wartet, bis eine Datei stabil ist, verschiebt sie intern in einen Verarbeitungspuffer und importiert sie danach in die Inbox. Ungültige Dateien oder Duplikate landen mit einer .error.txt-Begründung unter /data/consume/failed; dadurch entstehen keine wiederholten Fehlversuche.
