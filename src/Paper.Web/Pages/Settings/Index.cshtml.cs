@@ -46,12 +46,12 @@ public sealed class IndexModel(
         : configuration["Storage:RootPath"] ?? "/data/documents";
     public string WakePolicy => configuration["Storage:WakePolicy"] ?? "Never";
     public string OcrLanguage => configuration["Ocr:Language"] ?? "eng";
-    public bool MailEnabled => configuration.GetValue<bool>("Mail:Enabled");
+    public bool MailEnabled => MailConfiguration.Load(configuration).Any(account => account.Enabled);
     public IReadOnlyList<CorrespondentOption> CorrespondentOptions { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypeOptions { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFieldOptions { get; private set; } = [];
     public IReadOnlyList<AnalysisRuleView> AnalysisRules { get; private set; } = [];
-    public MailImportState? MailState { get; private set; }
+    public IReadOnlyList<MailImportState> MailStates { get; private set; } = [];
     public IReadOnlyList<MailImportFailure> MailFailures { get; private set; } = [];
 
     public Task OnGetAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
@@ -174,9 +174,9 @@ public sealed class IndexModel(
         DocumentTypeOptions = await documentTypes.ListAsync(cancellationToken);
         CustomFieldOptions = await customFields.ListAsync(cancellationToken);
         AnalysisRules = await analysisRules.ListAsync(cancellationToken);
-        MailState = await db.MailImportStates.AsNoTracking()
-            .OrderByDescending(state => state.LastSyncAt)
-            .FirstOrDefaultAsync(cancellationToken);
+        MailStates = await db.MailImportStates.AsNoTracking()
+            .OrderBy(state => state.AccountName)
+            .ToListAsync(cancellationToken);
         MailFailures = await db.MailImportFailures.AsNoTracking()
             .OrderByDescending(failure => failure.CreatedAt)
             .Take(10)

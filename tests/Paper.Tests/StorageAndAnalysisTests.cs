@@ -532,4 +532,38 @@ public sealed class StorageAndAnalysisTests
 
         CollectionAssert.AreEquivalent(new[] { ".pdf", ".jpg" }, extensions.ToArray());
     }
+
+    [TestMethod]
+    public void MailConfigurationSupportsMultipleAccountsAndLegacySettings()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Mail:Accounts:0:AccountName"] = "private",
+            ["Mail:Accounts:0:Enabled"] = "true",
+            ["Mail:Accounts:0:Host"] = "imap.private.test",
+            ["Mail:Accounts:0:Username"] = "private-user",
+            ["Mail:Accounts:0:Password"] = "private-secret",
+            ["Mail:Accounts:1:AccountName"] = "business",
+            ["Mail:Accounts:1:Enabled"] = "true",
+            ["Mail:Accounts:1:Host"] = "imap.business.test",
+            ["Mail:Accounts:1:Username"] = "business-user",
+            ["Mail:Accounts:1:Password"] = "business-secret"
+        }).Build();
+
+        var accounts = MailConfiguration.Load(configuration);
+
+        Assert.AreEqual(2, accounts.Count);
+        CollectionAssert.AreEquivalent(new[] { "private", "business" }, accounts.Select(account => account.AccountName).ToArray());
+
+        var legacyConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Mail:Enabled"] = "true",
+            ["Mail:AccountName"] = "legacy",
+            ["Mail:Host"] = "imap.legacy.test",
+            ["Mail:Username"] = "legacy-user",
+            ["Mail:Password"] = "legacy-secret"
+        }).Build();
+        var legacy = MailConfiguration.Load(legacyConfiguration);
+        Assert.AreEqual("legacy", legacy.Single().AccountName);
+    }
 }

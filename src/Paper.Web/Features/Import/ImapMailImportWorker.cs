@@ -15,13 +15,14 @@ public sealed class ImapMailImportWorker(
 
     public async Task<MailImportRunResult> RunOnceAsync(CancellationToken cancellationToken)
     {
-        var options = LoadOptions();
-        if (!options.Enabled)
+        var options = LoadOptions().Where(account => account.Enabled).ToArray();
+        if (options.Length == 0)
         {
             return MailImportRunResult.Disabled;
         }
 
-        if (!options.IsConfigured(out var configurationError))
+        var invalid = options.FirstOrDefault(account => !account.IsConfigured(out _));
+        if (invalid is not null && !invalid.IsConfigured(out var configurationError))
         {
             throw new InvalidOperationException(configurationError);
         }
@@ -29,8 +30,30 @@ public sealed class ImapMailImportWorker(
         await runGate.WaitAsync(cancellationToken);
         try
         {
-            var result = await ImportAvailableAsync(options, cancellationToken);
-            return new MailImportRunResult(true, result.Processed, result.Imported);
+            var processed = 0;
+            var imported = 0;
+            Exception? firstError = null;
+            foreach (var account in options)
+            {
+                try
+                {
+                    var result = await ImportAvailableAsync(account, cancellationToken);
+                    processed += result.Processed;
+                    imported += result.Imported;
+                }
+                catch (Exception exception) when (exception is not OperationCanceledException)
+                {
+                    firstError ??= exception;
+                    logger.LogError(exception, "IMAP import failed for account {AccountName}.", account.AccountName);
+                }
+            }
+
+            if (firstError is not null)
+            {
+                throw firstError;
+            }
+
+            return new MailImportRunResult(true, processed, imported);
         }
         finally
         {
@@ -40,14 +63,15 @@ public sealed class ImapMailImportWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var options = LoadOptions();
-        if (!options.Enabled)
+        var options = LoadOptions().Where(account => account.Enabled).ToArray();
+        if (options.Length == 0)
         {
             logger.LogInformation("IMAP import is disabled.");
             return;
         }
 
-        if (!options.IsConfigured(out var configurationError))
+        var invalid = options.FirstOrDefault(account => !account.IsConfigured(out _));
+        if (invalid is not null && !invalid.IsConfigured(out var configurationError))
         {
             logger.LogError("IMAP import is enabled but not configured: {Error}", configurationError);
             return;
@@ -68,7 +92,8 @@ public sealed class ImapMailImportWorker(
                 logger.LogError(exception, "IMAP import failed.");
             }
 
-            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(options.PollSeconds, 30, 86400)), stoppingToken);
+            var pollSeconds = options.Length == 0 ? 300 : options.Min(account => Math.Clamp(account.PollSeconds, 30, 86400));
+            await Task.Delay(TimeSpan.FromSeconds(pollSeconds), stoppingToken);
         }
     }
 
@@ -193,7 +218,7 @@ public sealed class ImapMailImportWorker(
         return (processed, importedTotal);
     }
 
-    private MailAccountOptions LoadOptions() => configuration.GetSection("Mail").Get<MailAccountOptions>() ?? new MailAccountOptions();
+    private IReadOnlyList<MailAccountOptions> LoadOptions() => MailConfiguration.Load(configuration);
 
     private static string SanitizeName(string value)
     {

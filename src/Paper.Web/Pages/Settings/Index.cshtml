@@ -84,12 +84,15 @@
 <section class="panel settings-card restore-card">
     <h2>Mailimport</h2>
     <p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p>
-    @if (Model.MailState is not null)
+    @if (Model.MailStates.Count > 0)
     {
-        <p class="small muted">Letzte UID: @Model.MailState.LastUid · Letzte Ausführung: @(Model.MailState.LastSyncAt?.ToLocalTime().ToString("g") ?? "noch nie")</p>
-        @if (!string.IsNullOrWhiteSpace(Model.MailState.LastError))
+        @foreach (var state in Model.MailStates)
         {
-            <p class="error-text">Letzter Fehler: @Model.MailState.LastError</p>
+            <p class="small muted"><strong>@state.AccountName</strong> · Letzte UID: @state.LastUid · Letzte Ausführung: @(state.LastSyncAt?.ToLocalTime().ToString("g") ?? "noch nie")</p>
+            @if (!string.IsNullOrWhiteSpace(state.LastError))
+            {
+                <p class="error-text">Letzter Fehler (@state.AccountName): @state.LastError</p>
+            }
         }
     }
     <form method="post" asp-page-handler="RunMailImport">
