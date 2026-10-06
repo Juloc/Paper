@@ -21,7 +21,14 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
         }
 
         var relativePath = $".thumbnails/{document.Hash}.jpg";
-        var thumbnailPath = storage.GetSafePath(relativePath);
+        if (!storage.TryGetLocalPath(relativePath, out var thumbnailPath))
+        {
+            var bytes = await RenderAsync(document.FilePath, cancellationToken);
+            return bytes is null
+                ? null
+                : new ThumbnailFile(new MemoryStream(bytes, writable: false), "image/jpeg");
+        }
+
         if (!File.Exists(thumbnailPath))
         {
             await CreateAsync(document.FilePath, thumbnailPath, cancellationToken);
@@ -38,27 +45,15 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
         var temporaryPath = $"{destinationPath}.{Guid.NewGuid():N}.tmp";
         try
         {
-            await using var source = storage.OpenRead(sourceRelativePath);
-            using var bitmap = await Task.Run(() => SKBitmap.Decode(source), cancellationToken);
-            if (bitmap is null)
+            var bytes = await RenderAsync(sourceRelativePath, cancellationToken);
+            if (bytes is null)
             {
                 return;
             }
 
-            var scale = Math.Min(1d, Math.Min((double)MaximumDimension / bitmap.Width, (double)MaximumDimension / bitmap.Height));
-            var width = Math.Max(1, (int)Math.Round(bitmap.Width * scale));
-            var height = Math.Max(1, (int)Math.Round(bitmap.Height * scale));
-            using var resized = bitmap.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
-            if (resized is null)
-            {
-                return;
-            }
-
-            using var image = SKImage.FromBitmap(resized);
-            using var data = image.Encode(SKEncodedImageFormat.Jpeg, 82);
             await using (var target = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 16 * 1024, useAsync: true))
             {
-                data.SaveTo(target);
+                await target.WriteAsync(bytes, cancellationToken);
             }
 
             if (!File.Exists(destinationPath))
@@ -82,6 +77,29 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
             }
         }
     }
+
+    private async Task<byte[]?> RenderAsync(string sourceRelativePath, CancellationToken cancellationToken)
+    {
+        await using var source = storage.OpenRead(sourceRelativePath);
+        using var bitmap = await Task.Run(() => SKBitmap.Decode(source), cancellationToken);
+        if (bitmap is null)
+        {
+            return null;
+        }
+
+        var scale = Math.Min(1d, Math.Min((double)MaximumDimension / bitmap.Width, (double)MaximumDimension / bitmap.Height));
+        var width = Math.Max(1, (int)Math.Round(bitmap.Width * scale));
+        var height = Math.Max(1, (int)Math.Round(bitmap.Height * scale));
+        using var resized = bitmap.Resize(new SKImageInfo(width, height), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear));
+        if (resized is null)
+        {
+            return null;
+        }
+
+        using var image = SKImage.FromBitmap(resized);
+        using var data = image.Encode(SKEncodedImageFormat.Jpeg, 82);
+        return data.ToArray();
+    }
 }
 
-public sealed record ThumbnailFile(FileStream Stream, string ContentType);
+public sealed record ThumbnailFile(Stream Stream, string ContentType);

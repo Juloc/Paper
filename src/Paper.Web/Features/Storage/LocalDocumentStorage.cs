@@ -13,8 +13,8 @@ public interface IStorageProvider
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     bool DirectoryExists(string relativePath);
     void EnsureDirectory(string relativePath);
-    string GetSafePath(string relativePath);
-    FileStream OpenRead(string relativePath);
+    bool TryGetLocalPath(string relativePath, out string path);
+    Stream OpenRead(string relativePath);
     void Delete(string relativePath);
 }
 
@@ -165,7 +165,13 @@ public sealed class LocalDocumentStorage : IStorageProvider
         return fullPath;
     }
 
-    public FileStream OpenRead(string relativePath)
+    public bool TryGetLocalPath(string relativePath, out string path)
+    {
+        path = GetSafePath(relativePath);
+        return true;
+    }
+
+    public Stream OpenRead(string relativePath)
     {
         var path = GetSafePath(relativePath);
         return new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);

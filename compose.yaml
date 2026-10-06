@@ -22,8 +22,15 @@ services:
       Auth__Username: ${PAPER_ADMIN_USERNAME:?PAPER_ADMIN_USERNAME muss gesetzt sein}
       Auth__Password: ${PAPER_ADMIN_PASSWORD:?PAPER_ADMIN_PASSWORD muss gesetzt sein}
       Storage__RootPath: /data/documents
-      Storage__Provider: local
+      Storage__Provider: ${PAPER_STORAGE_PROVIDER:-local}
       Consume__RootPath: /data/consume
+      Storage__SmbRootPath: ${PAPER_STORAGE_SMB_ROOT_PATH:-}
+      Storage__SmbUsername: ${PAPER_STORAGE_SMB_USERNAME:-}
+      Storage__SmbPassword: ${PAPER_STORAGE_SMB_PASSWORD:-}
+      Storage__SmbDomain: ${PAPER_STORAGE_SMB_DOMAIN:-}
+      Storage__WakePolicy: ${PAPER_STORAGE_WAKE_POLICY:-Never}
+      Storage__WakeMacAddress: ${PAPER_STORAGE_WAKE_MAC_ADDRESS:-}
+      Storage__WakeBroadcastAddress: ${PAPER_STORAGE_WAKE_BROADCAST_ADDRESS:-255.255.255.255}
       Mail__Enabled: ${PAPER_MAIL_ENABLED:-false}
       Mail__AccountName: ${PAPER_MAIL_ACCOUNT_NAME:-default}
       Mail__Host: ${PAPER_MAIL_HOST:-}

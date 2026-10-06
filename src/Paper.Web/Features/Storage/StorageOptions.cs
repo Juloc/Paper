@@ -5,7 +5,12 @@ public sealed class StorageOptions
     public string Provider { get; set; } = "local";
     public string RootPath { get; set; } = "/data/documents";
     public string? SmbRootPath { get; set; }
+    public string? SmbUsername { get; set; }
+    public string? SmbPassword { get; set; }
+    public string? SmbDomain { get; set; }
     public WakePolicy WakePolicy { get; set; } = WakePolicy.Never;
+    public string? WakeMacAddress { get; set; }
+    public string WakeBroadcastAddress { get; set; } = "255.255.255.255";
 
     public string EffectiveRootPath()
     {

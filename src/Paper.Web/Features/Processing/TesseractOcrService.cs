@@ -11,11 +11,40 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
 
     public async Task<string> ExtractAsync(string relativePath, CancellationToken cancellationToken)
     {
-        var safePath = storage.GetSafePath(relativePath);
-        return Path.GetExtension(safePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase)
-            ? await ExtractPdfAsync(safePath, cancellationToken)
-            : await RunTesseractAsync(safePath, cancellationToken);
+        if (storage.TryGetLocalPath(relativePath, out var localPath))
+        {
+            return await ExtractFromLocalPathAsync(localPath, cancellationToken);
+        }
+
+        var temporaryDirectory = Directory.CreateTempSubdirectory("paper-ocr-source-");
+        var temporaryPath = Path.Combine(temporaryDirectory.FullName, $"source{Path.GetExtension(relativePath)}");
+        try
+        {
+            await using (var source = storage.OpenRead(relativePath))
+            await using (var target = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 64 * 1024, useAsync: true))
+            {
+                await source.CopyToAsync(target, cancellationToken);
+            }
+
+            return await ExtractFromLocalPathAsync(temporaryPath, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                temporaryDirectory.Delete(recursive: true);
+            }
+            catch (Exception exception)
+            {
+                logger.LogDebug(exception, "Could not remove temporary OCR source directory.");
+            }
+        }
     }
+
+    private Task<string> ExtractFromLocalPathAsync(string path, CancellationToken cancellationToken) =>
+        Path.GetExtension(path).Equals(".pdf", StringComparison.OrdinalIgnoreCase)
+            ? ExtractPdfAsync(path, cancellationToken)
+            : RunTesseractAsync(path, cancellationToken);
 
     private async Task<string> ExtractPdfAsync(string path, CancellationToken cancellationToken)
     {

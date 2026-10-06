@@ -33,4 +33,4 @@ public sealed class DocumentFileService(AppDbContext db, IStorageProvider storag
     }
 }
 
-public sealed record DocumentFile(FileStream Stream, string ContentType, string DownloadName);
+public sealed record DocumentFile(Stream Stream, string ContentType, string DownloadName);

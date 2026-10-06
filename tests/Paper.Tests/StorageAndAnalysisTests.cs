@@ -296,6 +296,27 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void DirectSmbProviderValidatesItsEndpointBeforeConnecting()
+    {
+        var validConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Storage:Provider"] = "smb",
+            ["Storage:SmbRootPath"] = "smb://nas/paper/archive",
+            ["Storage:SmbUsername"] = "paper",
+            ["Storage:SmbPassword"] = "secret"
+        }).Build();
+
+        _ = new SmbStorageProvider(validConfiguration, NullLogger<SmbStorageProvider>.Instance);
+
+        var invalidConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Storage:Provider"] = "smb",
+            ["Storage:SmbRootPath"] = "not-a-share"
+        }).Build();
+        Assert.ThrowsExactly<InvalidOperationException>(() => new SmbStorageProvider(invalidConfiguration, NullLogger<SmbStorageProvider>.Instance));
+    }
+
+    [TestMethod]
     public async Task PaperlessImporterAcceptsEmptySingleManifest()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));

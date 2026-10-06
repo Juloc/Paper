@@ -46,7 +46,7 @@ Neue Uploads landen zunächst unter inbox/. Nach der Prüfung erzeugt Paper beis
 
 Das Verschieben der Datei und die Datenbankänderung werden konsistent behandelt. Bei einem Datenbankfehler wird ein bereits verschobenes Dokument nach Möglichkeit in den Inbox-Pfad zurückgelegt.
 
-Für NAS-Betrieb kann Storage:Provider auf smb gesetzt und Storage:SmbRootPath auf einen erreichbaren UNC-/SMB-Pfad gesetzt werden. Der SMB-Provider nutzt die native Dateisystem-/UNC-Anbindung des Betriebssystems; Zugangsdaten und Verbindungslebenszyklus bleiben außerhalb der Anwendung. WakePolicy: Never vermeidet unnötige Zugriffe auf ein schlafendes NAS; OnDemand ist für eine spätere gezielte Wake-Integration vorbereitet. Lokal bleibt der Provider ohne weitere Abhängigkeiten aktiv.
+Für NAS-Betrieb kann `Storage:Provider` auf `smb` gesetzt und `Storage:SmbRootPath` auf `smb://server/share/pfad` oder `\\server\share\pfad` gesetzt werden. Der Provider verbindet sich direkt per SMB2, authentifiziert sich pro Operation und benötigt keinen Host-Mount. Zugangsdaten gehören ausschließlich in `.env` oder eine Secret-Verwaltung. `WakePolicy: Never` vermeidet WoL-Pakete; mit `OnDemand` und `WakeMacAddress` wird ein gedrosseltes Wake-on-LAN-Paket vor dem Zugriff gesendet. Der lokale Provider bleibt ohne SMB-Abhängigkeit aktiv.
 Beim ersten Compose-Start richtet ein kurzlebiger Init-Container die Eigentümer der gemounteten Datenvolumes auf den non-root App-Benutzer ein. Der App-Container selbst bleibt danach read-only, non-root, ohne Linux-Capabilities und mit `no-new-privileges`.
 
 ## Automatischer Import
