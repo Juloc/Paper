@@ -54,7 +54,7 @@
 </form>
 @if (Model.Query.Length > 0 || Model.CorrespondentId is not null || Model.DocumentTypeId is not null || Model.ShelfFolderId is not null || !string.IsNullOrWhiteSpace(Model.Tag) || Model.FromDate is not null || Model.ToDate is not null || Model.CustomFieldId is not null)
 {
-    <p class="muted">@Model.Results.Count Ergebnis(se)</p>
+    <p class="muted">@Model.TotalCount Ergebnis(se)</p>
 }
 else
 {
@@ -77,3 +77,17 @@ else
         </article>
     }
 </section>
+@if (Model.PageCount > 1)
+{
+    <nav class="pagination" aria-label="Suchergebnisseiten">
+        @if (Model.PageNumber > 1)
+        {
+            <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-query="@Model.Query" asp-route-correspondentId="@Model.CorrespondentId" asp-route-documentTypeId="@Model.DocumentTypeId" asp-route-shelfFolderId="@Model.ShelfFolderId" asp-route-tag="@Model.Tag" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-customFieldId="@Model.CustomFieldId" asp-route-customFieldValue="@Model.CustomFieldValue">Zurück</a>
+        }
+        <span class="muted">Seite @Model.PageNumber von @Model.PageCount</span>
+        @if (Model.PageNumber < Model.PageCount)
+        {
+            <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-query="@Model.Query" asp-route-correspondentId="@Model.CorrespondentId" asp-route-documentTypeId="@Model.DocumentTypeId" asp-route-shelfFolderId="@Model.ShelfFolderId" asp-route-tag="@Model.Tag" asp-route-fromDate="@Model.FromDate" asp-route-toDate="@Model.ToDate" asp-route-customFieldId="@Model.CustomFieldId" asp-route-customFieldValue="@Model.CustomFieldValue">Weiter</a>
+        }
+    </nav>
+}

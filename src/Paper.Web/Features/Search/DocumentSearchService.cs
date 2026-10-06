@@ -6,14 +6,44 @@ namespace Paper.Web.Features.Search;
 
 public sealed class DocumentSearchService(AppDbContext db)
 {
-    public Task<List<DocumentListItem>> SearchAsync(SearchCriteria criteria, CancellationToken cancellationToken)
+    public const int PageSize = 100;
+
+    public async Task<SearchPage> SearchAsync(SearchCriteria criteria, int pageNumber, CancellationToken cancellationToken)
     {
         var normalizedQuery = criteria.Query.Trim();
         if (normalizedQuery.Length > 200 || (normalizedQuery.Length == 0 && !criteria.HasFilters))
         {
-            return Task.FromResult(new List<DocumentListItem>());
+            return new SearchPage([], 1, 1, 0);
         }
 
+        pageNumber = Math.Max(1, pageNumber);
+        var documents = BuildQuery(criteria, normalizedQuery);
+        var totalCount = await documents.CountAsync(cancellationToken);
+        var pageCount = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        pageNumber = Math.Min(pageNumber, pageCount);
+        var results = await documents
+            .OrderByDescending(document => document.DocumentDate)
+            .ThenByDescending(document => document.UpdatedAt)
+            .ThenByDescending(document => document.Id)
+            .Skip((pageNumber - 1) * PageSize)
+            .Take(PageSize)
+            .Select(document => new DocumentListItem(
+                document.Id,
+                document.Title,
+                document.DocumentDate,
+                document.OriginalFileName,
+                document.FileSize,
+                document.OcrStatus,
+                document.Status,
+                document.UpdatedAt,
+                document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray()))
+            .ToListAsync(cancellationToken);
+
+        return new SearchPage(results, pageNumber, pageCount, totalCount);
+    }
+
+    private IQueryable<Document> BuildQuery(SearchCriteria criteria, string normalizedQuery)
+    {
         var documents = db.Documents.AsNoTracking().AsQueryable();
         if (normalizedQuery.Length > 0)
         {
@@ -66,23 +96,11 @@ public sealed class DocumentSearchService(AppDbContext db)
             }
         }
 
-        return documents
-            .OrderByDescending(document => document.DocumentDate)
-            .ThenByDescending(document => document.UpdatedAt)
-            .Take(100)
-            .Select(document => new DocumentListItem(
-                document.Id,
-                document.Title,
-                document.DocumentDate,
-                document.OriginalFileName,
-                document.FileSize,
-                document.OcrStatus,
-                document.Status,
-                document.UpdatedAt,
-                document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray()))
-            .ToListAsync(cancellationToken);
+        return documents;
     }
 }
+
+public sealed record SearchPage(IReadOnlyList<DocumentListItem> Results, int PageNumber, int PageCount, int TotalCount);
 
 public sealed record SearchCriteria(
     string Query,

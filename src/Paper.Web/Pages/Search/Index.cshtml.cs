@@ -44,6 +44,10 @@ public sealed class IndexModel(
     public string CustomFieldValue { get; set; } = "";
 
     public IReadOnlyList<DocumentListItem> Results { get; private set; } = [];
+    [BindProperty(SupportsGet = true)]
+    public int PageNumber { get; set; } = 1;
+    public int PageCount { get; private set; }
+    public int TotalCount { get; private set; }
     public IReadOnlyList<CorrespondentOption> Correspondents { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypes { get; private set; } = [];
     public IReadOnlyList<ShelfFolderOption> ShelfFolders { get; private set; } = [];
@@ -52,7 +56,11 @@ public sealed class IndexModel(
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
         var criteria = new SearchCriteria(Query, CorrespondentId, DocumentTypeId, ShelfFolderId, Tag, FromDate, ToDate, CustomFieldId, CustomFieldValue);
-        Results = await search.SearchAsync(criteria, cancellationToken);
+        var page = await search.SearchAsync(criteria, PageNumber, cancellationToken);
+        Results = page.Results;
+        PageNumber = page.PageNumber;
+        PageCount = page.PageCount;
+        TotalCount = page.TotalCount;
         Correspondents = await correspondents.ListAsync(cancellationToken);
         DocumentTypes = await documentTypes.ListAsync(cancellationToken);
         ShelfFolders = await shelfFolders.ListOptionsAsync(cancellationToken);
