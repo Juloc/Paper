@@ -137,3 +137,29 @@ public sealed class ProcessingJob
 
     public string? Error { get; set; }
 }
+
+public sealed class MailImportState
+{
+    public long Id { get; set; }
+
+    public string AccountName { get; set; } = "";
+
+    public long LastUid { get; set; }
+
+    public DateTime? LastSyncAt { get; set; }
+
+    public string? LastError { get; set; }
+}
+
+public sealed class MailImportFailure
+{
+    public long Id { get; set; }
+
+    public string AccountName { get; set; } = "";
+
+    public long Uid { get; set; }
+
+    public string Error { get; set; } = "";
+
+    public DateTime CreatedAt { get; set; }
+}

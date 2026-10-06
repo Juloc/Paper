@@ -15,6 +15,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<ProcessingJob> ProcessingJobs => Set<ProcessingJob>();
 
+    public DbSet<MailImportState> MailImportStates => Set<MailImportState>();
+
+    public DbSet<MailImportFailure> MailImportFailures => Set<MailImportFailure>();
+
     public DbSet<Correspondent> Correspondents => Set<Correspondent>();
 
     public DbSet<DocumentType> DocumentTypes => Set<DocumentType>();
@@ -162,6 +166,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .WithMany()
                 .HasForeignKey(job => job.DocumentId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MailImportState>(entity =>
+        {
+            entity.ToTable("MailImportStates", table =>
+                table.HasCheckConstraint("CK_MailImportStates_LastUid", "\"LastUid\" >= 0"));
+            entity.Property(state => state.AccountName).HasMaxLength(120).IsRequired();
+            entity.Property(state => state.LastError).HasMaxLength(2000);
+            entity.HasIndex(state => state.AccountName).IsUnique();
+        });
+
+        modelBuilder.Entity<MailImportFailure>(entity =>
+        {
+            entity.ToTable("MailImportFailures", table =>
+                table.HasCheckConstraint("CK_MailImportFailures_Uid", "\"Uid\" >= 0"));
+            entity.Property(failure => failure.AccountName).HasMaxLength(120).IsRequired();
+            entity.Property(failure => failure.Error).HasMaxLength(2000).IsRequired();
+            entity.HasIndex(failure => new { failure.AccountName, failure.CreatedAt });
         });
     }
 }

@@ -49,6 +49,7 @@ builder.Services.AddScoped<TesseractOcrService>();
 builder.Services.AddScoped<OwnerAuthService>();
 builder.Services.AddHostedService<DocumentProcessingWorker>();
 builder.Services.AddHostedService<ConsumeDirectoryWorker>();
+builder.Services.AddHostedService<ImapMailImportWorker>();
 builder.Services.AddSingleton<EmailAttachmentExtractor>();
 builder.Services.AddScoped<PaperlessImportService>();
 

@@ -253,4 +253,18 @@ public sealed class StorageAndAnalysisTests
         Assert.AreEqual("rechnung.pdf", attachments[0].FileName);
         CollectionAssert.AreEqual("%PDF-"u8.ToArray(), attachments[0].Content);
     }
+
+    [TestMethod]
+    public void MailAccountOptionsRejectIncompleteConfiguration()
+    {
+        var options = new MailAccountOptions();
+
+        Assert.IsFalse(options.IsConfigured(out var error));
+        StringAssert.Contains(error, "host");
+
+        options.Host = "imap.example.test";
+        options.Username = "user";
+        options.Password = "secret";
+        Assert.IsTrue(options.IsConfigured(out error), error);
+    }
 }
