@@ -50,7 +50,73 @@ public sealed class DocumentRestoreService(
             await RestoreDocumentAsync(archive, entry, result, cancellationToken);
         }
 
+        await RestoreAnalysisRulesAsync(archive, result, cancellationToken);
+
         return result;
+    }
+
+    private async Task RestoreAnalysisRulesAsync(ZipArchive archive, RestoreResult result, CancellationToken cancellationToken)
+    {
+        var entry = archive.GetEntry("analysis-rules.json");
+        if (entry is null)
+        {
+            return;
+        }
+
+        List<AnalysisRuleBackupEntry>? rules;
+        await using (var stream = entry.Open())
+        {
+            rules = await JsonSerializer.DeserializeAsync<List<AnalysisRuleBackupEntry>>(stream, cancellationToken: cancellationToken);
+        }
+
+        if (rules is null || rules.Count > 100_000)
+        {
+            result.Errors.Add("Die Analyse-Regeln im Backup sind ungültig oder zu zahlreich.");
+            return;
+        }
+
+        foreach (var rule in rules)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var term = rule.Term?.Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(term) || term.Length > 80 || rule.UseCount < 1 ||
+                (string.IsNullOrWhiteSpace(rule.Correspondent) && string.IsNullOrWhiteSpace(rule.DocumentType) && string.IsNullOrWhiteSpace(rule.ShelfPath)))
+            {
+                continue;
+            }
+
+            var correspondent = await FindOrCreateCorrespondentAsync(rule.Correspondent, cancellationToken);
+            var documentType = await FindOrCreateDocumentTypeAsync(rule.DocumentType, cancellationToken);
+            var shelf = await FindOrCreateShelfAsync(rule.ShelfPath, cancellationToken);
+            await db.SaveChangesAsync(cancellationToken);
+            var correspondentId = correspondent?.Id;
+            var documentTypeId = documentType?.Id;
+            var shelfId = shelf?.Id;
+            var existing = await db.AnalysisRules.SingleOrDefaultAsync(item =>
+                item.Term == term &&
+                item.CorrespondentId == correspondentId &&
+                item.DocumentTypeId == documentTypeId &&
+                item.ShelfFolderId == shelfId, cancellationToken);
+            if (existing is not null)
+            {
+                existing.UseCount = Math.Max(existing.UseCount, rule.UseCount);
+                existing.UpdatedAt = rule.UpdatedAt == default ? timeProvider.GetUtcNow().UtcDateTime : rule.UpdatedAt;
+                continue;
+            }
+
+            db.AnalysisRules.Add(new AnalysisRule
+            {
+                Term = term,
+                CorrespondentId = correspondent?.Id,
+                DocumentTypeId = documentType?.Id,
+                ShelfFolderId = shelf?.Id,
+                UseCount = rule.UseCount,
+                CreatedAt = rule.CreatedAt == default ? timeProvider.GetUtcNow().UtcDateTime : rule.CreatedAt,
+                UpdatedAt = rule.UpdatedAt == default ? timeProvider.GetUtcNow().UtcDateTime : rule.UpdatedAt
+            });
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private async Task RestoreDocumentAsync(

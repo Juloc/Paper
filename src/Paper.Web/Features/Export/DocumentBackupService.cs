@@ -60,6 +60,23 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
             await using var source = storage.OpenRead(document.FilePath);
             await source.CopyToAsync(target, cancellationToken);
         }
+
+        var rules = await db.AnalysisRules.AsNoTracking()
+            .OrderBy(rule => rule.Term)
+            .Select(rule => new AnalysisRuleBackupEntry(
+                rule.Term,
+                rule.CorrespondentId == null ? null : db.Correspondents.Where(item => item.Id == rule.CorrespondentId).Select(item => item.Name).FirstOrDefault(),
+                rule.DocumentTypeId == null ? null : db.DocumentTypes.Where(item => item.Id == rule.DocumentTypeId).Select(item => item.Name).FirstOrDefault(),
+                rule.ShelfFolderId == null ? null : db.ShelfFolders.Where(item => item.Id == rule.ShelfFolderId).Select(item => item.RelativePath).FirstOrDefault(),
+                rule.UseCount,
+                rule.CreatedAt,
+                rule.UpdatedAt))
+            .ToListAsync(cancellationToken);
+        var rulesEntry = archive.CreateEntry("analysis-rules.json", CompressionLevel.Fastest);
+        await using (var rulesStream = rulesEntry.Open())
+        {
+            await JsonSerializer.SerializeAsync(rulesStream, rules, cancellationToken: cancellationToken);
+        }
     }
 }
 
@@ -84,3 +101,12 @@ public sealed record DocumentBackupManifestEntry(
     DocumentBackupCustomField[] CustomFields);
 
 public sealed record DocumentBackupCustomField(string Name, string Type, string Value);
+
+public sealed record AnalysisRuleBackupEntry(
+    string Term,
+    string? Correspondent,
+    string? DocumentType,
+    string? ShelfPath,
+    int UseCount,
+    DateTime CreatedAt,
+    DateTime UpdatedAt);
