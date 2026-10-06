@@ -5,6 +5,7 @@ namespace Paper.Web.Features.Import;
 public sealed class ConsumeDirectoryWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
+    EmailAttachmentExtractor emailAttachments,
     ILogger<ConsumeDirectoryWorker> logger) : BackgroundService
 {
     private static readonly IReadOnlyDictionary<string, string> ContentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -27,11 +28,12 @@ public sealed class ConsumeDirectoryWorker(
         Directory.CreateDirectory(failed);
 
         var pollSeconds = Math.Clamp(configuration.GetValue<int?>("Consume:PollSeconds") ?? 15, 5, 300);
+        var importEmailAttachments = configuration.GetValue("Consume:EmailAttachments", true);
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await ConsumeAvailableAsync(root, processing, failed, stoppingToken);
+                await ConsumeAvailableAsync(root, processing, failed, importEmailAttachments, stoppingToken);
                 await Task.Delay(TimeSpan.FromSeconds(pollSeconds), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -50,13 +52,15 @@ public sealed class ConsumeDirectoryWorker(
         string root,
         string processing,
         string failed,
+        bool importEmailAttachments,
         CancellationToken cancellationToken)
     {
         foreach (var sourcePath in Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var extension = Path.GetExtension(sourcePath);
-            if (!ContentTypes.ContainsKey(extension) || Path.GetFileName(sourcePath).StartsWith(".", StringComparison.Ordinal))
+            if ((!ContentTypes.ContainsKey(extension) && !(importEmailAttachments && extension.Equals(".eml", StringComparison.OrdinalIgnoreCase))) ||
+                Path.GetFileName(sourcePath).StartsWith(".", StringComparison.Ordinal))
             {
                 continue;
             }
@@ -76,19 +80,20 @@ public sealed class ConsumeDirectoryWorker(
                 continue;
             }
 
-            await ImportOneAsync(processingPath, failed, cancellationToken);
+            await ImportOneAsync(processingPath, failed, importEmailAttachments, cancellationToken);
         }
 
         foreach (var processingPath in Directory.EnumerateFiles(processing, "*", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await ImportOneAsync(processingPath, failed, cancellationToken);
+            await ImportOneAsync(processingPath, failed, importEmailAttachments, cancellationToken);
         }
     }
 
     private async Task ImportOneAsync(
         string processingPath,
         string failedDirectory,
+        bool importEmailAttachments,
         CancellationToken cancellationToken)
     {
         var processingName = Path.GetFileName(processingPath);
@@ -96,6 +101,12 @@ public sealed class ConsumeDirectoryWorker(
         var originalFileName = separator >= 0 ? processingName[(separator + 1)..] : processingName;
         try
         {
+            if (Path.GetExtension(originalFileName).Equals(".eml", StringComparison.OrdinalIgnoreCase))
+            {
+                await ImportEmailAsync(processingPath, originalFileName, failedDirectory, importEmailAttachments, cancellationToken);
+                return;
+            }
+
             ImportResult result;
             using (var scope = scopeFactory.CreateScope())
             await using (var file = new FileStream(processingPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true))
@@ -123,6 +134,64 @@ public sealed class ConsumeDirectoryWorker(
             logger.LogWarning(exception, "Could not consume {FileName}.", originalFileName);
             MoveFailed(processingPath, failedDirectory, originalFileName, exception.Message);
         }
+    }
+
+    private async Task ImportEmailAsync(
+        string processingPath,
+        string originalFileName,
+        string failedDirectory,
+        bool importEmailAttachments,
+        CancellationToken cancellationToken)
+    {
+        if (!importEmailAttachments)
+        {
+            MoveFailed(processingPath, failedDirectory, originalFileName, "E-Mail-Anhänge sind deaktiviert.");
+            return;
+        }
+
+        IReadOnlyList<EmailAttachment> attachments;
+        await using (var message = new FileStream(processingPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true))
+        {
+            attachments = await emailAttachments.ExtractAsync(message, cancellationToken);
+        }
+
+        if (attachments.Count == 0)
+        {
+            MoveFailed(processingPath, failedDirectory, originalFileName, "Die E-Mail enthält keine unterstützten Anhänge.");
+            return;
+        }
+
+        var errors = new List<string>();
+        var imported = 0;
+        using var scope = scopeFactory.CreateScope();
+        var importer = scope.ServiceProvider.GetRequiredService<DocumentImportService>();
+        foreach (var attachment in attachments)
+        {
+            await using var content = new MemoryStream(attachment.Content, writable: false);
+            var result = await importer.ImportAsync(
+                content,
+                SanitizeName(attachment.FileName),
+                attachment.ContentType,
+                attachment.Content.Length,
+                cancellationToken);
+            if (result.Success)
+            {
+                imported++;
+            }
+            else
+            {
+                errors.Add($"{attachment.FileName}: {result.Error}");
+            }
+        }
+
+        if (errors.Count > 0)
+        {
+            MoveFailed(processingPath, failedDirectory, originalFileName, $"E-Mail teilweise importiert ({imported}): {string.Join(" | ", errors)}");
+            return;
+        }
+
+        File.Delete(processingPath);
+        logger.LogInformation("Consumed {FileName} with {AttachmentCount} attachment(s).", originalFileName, attachments.Count);
     }
 
     private void MoveFailed(string processingPath, string failedDirectory, string originalFileName, string error)

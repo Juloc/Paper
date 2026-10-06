@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -223,5 +224,33 @@ public sealed class StorageAndAnalysisTests
                 Directory.Delete(root, recursive: true);
             }
         }
+    }
+
+    [TestMethod]
+    public void EmailExtractorFindsAndDecodesPdfAttachment()
+    {
+        var message = """
+            From: sender@example.test
+            MIME-Version: 1.0
+            Content-Type: multipart/mixed; boundary="paper-boundary"
+
+            --paper-boundary
+            Content-Type: text/plain; charset=utf-8
+
+            Siehe Anhang.
+            --paper-boundary
+            Content-Type: application/pdf; name="rechnung.pdf"
+            Content-Disposition: attachment; filename="rechnung.pdf"
+            Content-Transfer-Encoding: base64
+
+            JVBERi0=
+            --paper-boundary--
+            """;
+
+        var attachments = new EmailAttachmentExtractor().Extract(Encoding.ASCII.GetBytes(message.Replace("\r\n", "\n")));
+
+        Assert.AreEqual(1, attachments.Count);
+        Assert.AreEqual("rechnung.pdf", attachments[0].FileName);
+        CollectionAssert.AreEqual("%PDF-"u8.ToArray(), attachments[0].Content);
     }
 }

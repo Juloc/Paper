@@ -40,6 +40,8 @@ Für NAS-Betrieb kann Storage:Provider auf smb gesetzt und Storage:SmbRootPath a
 
 Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper wartet, bis eine Datei stabil ist, verschiebt sie intern in einen Verarbeitungspuffer und importiert sie danach in die Inbox. Ungültige Dateien oder Duplikate landen mit einer .error.txt-Begründung unter /data/consume/failed; dadurch entstehen keine wiederholten Fehlversuche.
 
+Auch stabile EML-Dateien werden verarbeitet: Paper liest verschachtelte MIME-Strukturen, dekodiert Base64- und Quoted-Printable-Anhänge und importiert unterstützte PDF-/Bildanhänge einzeln. Die E-Mail selbst wird nach erfolgreichem Import entfernt oder bei Fehlern mit einer Begründung nach failed verschoben.
+
 ## Export
 
 Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV exportiert werden. Das ZIP-Backup enthält zusätzlich ein Manifest und die Originaldateien. Die Originaldateien bleiben im menschenlesbaren Regal unter /data/documents und benötigen für die Betrachtung keine proprietäre Dateistruktur.
