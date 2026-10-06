@@ -54,3 +54,12 @@
     </form>
     <div asp-validation-summary="ModelOnly" class="validation"></div>
 </section>
+<section class="panel settings-card restore-card">
+    <h2>Paperless-ngx importieren</h2>
+    <p class="muted">Importiert unterstützte Paperless-Export-ZIPs in die Inbox. Die Dateien können danach geprüft und im Regal abgelegt werden.</p>
+    <form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form">
+        <input asp-for="PaperlessExport" accept=".zip" />
+        <button class="button button-primary" type="submit">Paperless-Export importieren</button>
+    </form>
+    <div asp-validation-summary="ModelOnly" class="validation"></div>
+</section>

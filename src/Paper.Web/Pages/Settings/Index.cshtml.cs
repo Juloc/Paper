@@ -4,6 +4,7 @@ using Paper.Web.Features.Correspondents;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.DocumentTypes;
 using Paper.Web.Features.Export;
+using Paper.Web.Features.Import;
 
 namespace Paper.Web.Pages.Settings;
 
@@ -12,7 +13,8 @@ public sealed class IndexModel(
     CorrespondentStore correspondents,
     DocumentTypeStore documentTypes,
     CustomFieldStore customFields,
-    DocumentRestoreService restore) : PageModel
+    DocumentRestoreService restore,
+    PaperlessImportService paperlessImport) : PageModel
 {
     [BindProperty]
     public string CorrespondentName { get; set; } = "";
@@ -28,6 +30,9 @@ public sealed class IndexModel(
 
     [BindProperty]
     public IFormFile? Backup { get; set; }
+
+    [BindProperty]
+    public IFormFile? PaperlessExport { get; set; }
 
     public string StoragePath => configuration["Storage:RootPath"] ?? "/data/documents";
     public string StorageProvider => configuration["Storage:Provider"] ?? "local";
@@ -97,6 +102,28 @@ public sealed class IndexModel(
         }
 
         TempData["Status"] = $"Backup importiert: {result.Imported} Dokument(e), {result.Skipped} Duplikat(e) übersprungen.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostImportPaperlessAsync(CancellationToken cancellationToken)
+    {
+        if (PaperlessExport is null)
+        {
+            ModelState.AddModelError(nameof(PaperlessExport), "Bitte wähle einen Paperless-Export als ZIP aus.");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        await using var stream = PaperlessExport.OpenReadStream();
+        var result = await paperlessImport.ImportAsync(stream, PaperlessExport.Length, cancellationToken);
+        if (result.Errors.Count > 0)
+        {
+            ModelState.AddModelError(nameof(PaperlessExport), $"Import mit {result.Errors.Count} Fehler(n): {string.Join(" | ", result.Errors.Take(3))}");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        TempData["Status"] = $"Paperless-Export importiert: {result.Imported} Dokument(e), {result.Skipped} Duplikat(e) übersprungen.";
         return RedirectToPage();
     }
 

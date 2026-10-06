@@ -49,6 +49,7 @@ builder.Services.AddScoped<TesseractOcrService>();
 builder.Services.AddScoped<OwnerAuthService>();
 builder.Services.AddHostedService<DocumentProcessingWorker>();
 builder.Services.AddHostedService<ConsumeDirectoryWorker>();
+builder.Services.AddScoped<PaperlessImportService>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

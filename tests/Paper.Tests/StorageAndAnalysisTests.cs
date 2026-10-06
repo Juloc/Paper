@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -7,6 +8,7 @@ using Paper.Web.Features.Storage;
 using Paper.Web.Features.Tags;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Search;
+using Paper.Web.Features.Import;
 
 namespace Paper.Tests;
 
@@ -180,5 +182,46 @@ public sealed class StorageAndAnalysisTests
         Assert.AreEqual("\\\\nas\\paper", options.EffectiveRootPath());
         Assert.AreEqual("data/documents", new StorageOptions { RootPath = "data/documents" }.EffectiveRootPath());
         Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "smb" }.EffectiveRootPath());
+    }
+
+    [TestMethod]
+    public async Task PaperlessImporterAcceptsEmptySingleManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            await using var zip = new MemoryStream();
+            using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, leaveOpen: true))
+            await using (var writer = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
+            {
+                await writer.WriteAsync("[]");
+            }
+
+            zip.Position = 0;
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql("Host=localhost;Database=paper")
+                .Options;
+            using var db = new AppDbContext(options);
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            var importer = new PaperlessImportService(db, storage, TimeProvider.System, NullLogger<PaperlessImportService>.Instance);
+
+            var result = await importer.ImportAsync(zip, zip.Length, CancellationToken.None);
+
+            Assert.AreEqual(0, result.Imported);
+            Assert.AreEqual(0, result.Skipped);
+            Assert.AreEqual(0, result.Errors.Count);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 }
