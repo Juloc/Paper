@@ -2,10 +2,15 @@ using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Documents;
 
-public sealed class DocumentStore(AppDbContext db, TimeProvider timeProvider)
+public sealed class DocumentStore(
+    AppDbContext db,
+    TimeProvider timeProvider,
+    IStorageProvider storage,
+    ILogger<DocumentStore> logger)
 {
     public const int PageSize = 100;
 
@@ -87,6 +92,76 @@ public sealed class DocumentStore(AppDbContext db, TimeProvider timeProvider)
         return true;
     }
 
+    public async Task<DocumentDeleteResult> DeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var document = await db.Documents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (document is null)
+        {
+            return DocumentDeleteResult.Missing;
+        }
+
+        var originalPath = document.FilePath;
+        var trashPath = StoragePathPolicy.Combine(
+            ".trash",
+            $"{Guid.NewGuid():N}_{StoragePathPolicy.SanitizeFileName(document.OriginalFileName)}");
+        var movedToTrash = false;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await storage.MoveAsync(originalPath, trashPath, cancellationToken);
+            movedToTrash = true;
+            db.Documents.Remove(document);
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (movedToTrash)
+            {
+                await TryRestoreAsync(trashPath, originalPath);
+            }
+
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (movedToTrash)
+            {
+                await TryRestoreAsync(trashPath, originalPath);
+            }
+
+            logger.LogError(exception, "Could not delete document {DocumentId} safely.", id);
+            return DocumentDeleteResult.Failed("Das Dokument konnte nicht sicher gelöscht werden.");
+        }
+
+        try
+        {
+            storage.Delete(trashPath);
+            storage.Delete($".thumbnails/{document.Hash}.jpg");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Document {DocumentId} was deleted but cleanup of storage artifacts failed.", id);
+        }
+
+        return DocumentDeleteResult.Success;
+    }
+
+    private async Task TryRestoreAsync(string trashPath, string originalPath)
+    {
+        try
+        {
+            await storage.MoveAsync(trashPath, originalPath, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            logger.LogCritical(exception, "Could not restore deleted document from {TrashPath} to {OriginalPath}.", trashPath, originalPath);
+        }
+    }
+
     private IQueryable<DocumentListItem> Query(DocumentStatus status) =>
         db.Documents.AsNoTracking()
             .Where(document => document.Status == status)
@@ -157,3 +232,10 @@ public sealed record DocumentDetails(
     string? ShelfPath,
     string[] Tags,
     CustomFieldValueDetails[] CustomFields);
+
+public sealed record DocumentDeleteResult(bool Succeeded, bool NotFound, string? Error)
+{
+    public static DocumentDeleteResult Success { get; } = new(true, false, null);
+    public static DocumentDeleteResult Missing { get; } = new(false, true, null);
+    public static DocumentDeleteResult Failed(string error) => new(false, false, error);
+}

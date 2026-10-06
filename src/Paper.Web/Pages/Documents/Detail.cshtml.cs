@@ -68,6 +68,25 @@ public sealed class DetailModel(
         return RedirectToPage(new { id });
     }
 
+    public async Task<IActionResult> OnPostDeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var result = await documents.DeleteAsync(id, cancellationToken);
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (!result.Succeeded)
+        {
+            ModelState.AddModelError(string.Empty, result.Error ?? "Das Dokument konnte nicht gelöscht werden.");
+            await ReloadAsync(id, cancellationToken);
+            return Document is null ? NotFound() : Page();
+        }
+
+        TempData["Status"] = "Dokument gelöscht.";
+        return RedirectToPage("/Inbox/Index");
+    }
+
     private async Task<IActionResult> SaveAsync(long id, bool fileFromInbox, string successMessage, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)

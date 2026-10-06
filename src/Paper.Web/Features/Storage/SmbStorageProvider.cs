@@ -19,6 +19,9 @@ public sealed class SmbStorageProvider(LocalDocumentStorage fileSystemStorage) :
         CancellationToken cancellationToken) =>
         fileSystemStorage.MoveToShelfAsync(sourceRelativePath, shelfRelativePath, documentDate, title, originalFileName, cancellationToken);
 
+    public Task MoveAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken) =>
+        fileSystemStorage.MoveAsync(sourceRelativePath, destinationRelativePath, cancellationToken);
+
     public Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken) =>
         fileSystemStorage.MoveBackAsync(sourceRelativePath, destinationRelativePath, cancellationToken);
 

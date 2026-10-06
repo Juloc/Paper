@@ -31,6 +31,8 @@ h2 { letter-spacing: -.03em; }
 .button:hover, .button:focus-visible { border-color: var(--accent); }
 .button-primary { background: var(--accent); border-color: var(--accent); color: white; }
 .button-primary:hover, .button-primary:focus-visible { background: var(--accent-dark); border-color: var(--accent-dark); }
+.button-danger { background: #fff1f1; border-color: #e4a5a5; color: #a12b2b; }
+.button-danger:hover, .button-danger:focus-visible { background: #ffe1e1; border-color: #b83d3d; }
 .button-quiet { background: transparent; border-color: transparent; color: var(--muted); }
 .panel, .document-row, .empty-state, .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 1rem; box-shadow: 0 10px 30px rgba(35, 65, 141, .04); }
 .document-list { display: grid; gap: .75rem; }

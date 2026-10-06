@@ -86,6 +86,9 @@
                 <button class="button" type="submit">In Inbox zurücklegen</button>
             </form>
         }
+        <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Dokument wirklich löschen?');">
+            <button class="button button-danger" type="submit">Dokument löschen</button>
+        </form>
         <dl class="facts">
             <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
             <div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div>

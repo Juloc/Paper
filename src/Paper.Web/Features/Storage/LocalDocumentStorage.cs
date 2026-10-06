@@ -8,6 +8,7 @@ public interface IStorageProvider
 {
     Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken);
     Task<string> MoveToShelfAsync(string sourceRelativePath, string shelfRelativePath, DateOnly? documentDate, string title, string originalFileName, CancellationToken cancellationToken);
+    Task MoveAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     bool DirectoryExists(string relativePath);
@@ -108,13 +109,26 @@ public sealed class LocalDocumentStorage : IStorageProvider
         return destinationRelativePath;
     }
 
-    public async Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken)
+    public async Task MoveAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken)
     {
         var sourcePath = GetSafePath(sourceRelativePath);
         var destinationPath = GetSafePath(destinationRelativePath);
+        if (!File.Exists(sourcePath))
+        {
+            throw new FileNotFoundException("Die Dokumentdatei wurde nicht gefunden.", sourcePath);
+        }
+
+        if (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+        {
+            throw new IOException("Der Zieldateipfad existiert bereits.");
+        }
+
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
         await Task.Run(() => File.Move(sourcePath, destinationPath), cancellationToken);
     }
+
+    public Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken) =>
+        MoveAsync(sourceRelativePath, destinationRelativePath, cancellationToken);
 
     public async Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken)
     {

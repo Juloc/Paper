@@ -117,6 +117,36 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageCanMoveAndRestoreAFileThroughTheTrashPath()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            await using var content = new MemoryStream("%PDF-test"u8.ToArray());
+            var stored = await storage.SaveAsync(content, "trash-test.pdf", CancellationToken.None);
+
+            await storage.MoveAsync(stored.RelativePath, ".trash/test_trash-test.pdf", CancellationToken.None);
+            Assert.IsFalse(File.Exists(storage.GetSafePath(stored.RelativePath)));
+
+            await storage.MoveBackAsync(".trash/test_trash-test.pdf", stored.RelativePath, CancellationToken.None);
+            Assert.IsTrue(File.Exists(storage.GetSafePath(stored.RelativePath)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task StorageDoesNotSilentlyIgnoreMissingShelfDirectories()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
