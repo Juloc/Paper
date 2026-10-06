@@ -74,10 +74,17 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .ocr-text { margin-top: 1.5rem; padding: 1.5rem; }
 .ocr-text pre { font-family: inherit; line-height: 1.55; white-space: pre-wrap; }
 .search-form { display: flex; gap: .6rem; margin-bottom: 1rem; }
+.search-panel { margin-bottom: 1.5rem; padding: 1.25rem; }
+.filter-grid { display: grid; gap: 1rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .settings-list { display: grid; max-width: 720px; }
 .settings-list div { border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; padding: 1.1rem 1.4rem; }
 .settings-list div:last-child { border-bottom: 0; }
 .settings-list strong { font-weight: 600; }
+.settings-grid { display: grid; gap: 1rem; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 1.5rem; }
+.settings-card { padding: 1.25rem; }
+.settings-card h2 { font-size: 1.1rem; }
+.inline-form { display: flex; gap: .5rem; }
+.settings-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: 1rem; }
 .form-heading { font-size: 1rem; margin: .4rem 0 -.3rem; }
 .shelf-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.5fr); }
 .shelf-tree, .shelf-content { padding: 1.25rem; }
@@ -85,6 +92,7 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .shelf-folder { border-radius: .55rem; display: block; padding: .55rem .7rem; }
 .shelf-folder:hover, .shelf-folder.active { background: var(--soft); color: var(--accent-dark); }
 .shelf-documents { display: grid; gap: .7rem; }
+.shelf-editor { border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; padding-bottom: 1.5rem; }
 details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 @media (max-width: 700px) {
     .topbar { align-items: start; flex-wrap: wrap; gap: .75rem 1rem; }
@@ -95,4 +103,6 @@ details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
     .document-detail { grid-template-columns: 1fr; }
     .metadata { position: static; }
     .settings-list div { align-items: start; flex-direction: column; gap: .35rem; }
+    .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-grid { grid-template-columns: 1fr; }
 }

@@ -9,6 +9,8 @@ using Paper.Web.Features.Correspondents;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.DocumentTypes;
+using Paper.Web.Features.Export;
+using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Search;
 using Paper.Web.Features.Shelf;
@@ -38,11 +40,13 @@ builder.Services.AddScoped<CorrespondentStore>();
 builder.Services.AddScoped<DocumentTypeStore>();
 builder.Services.AddScoped<ShelfFolderStore>();
 builder.Services.AddScoped<CustomFieldStore>();
+builder.Services.AddScoped<DocumentExportService>();
 builder.Services.AddScoped<ProcessingJobStore>();
 builder.Services.AddSingleton<DocumentAnalyzer>();
 builder.Services.AddScoped<TesseractOcrService>();
 builder.Services.AddScoped<OwnerAuthService>();
 builder.Services.AddHostedService<DocumentProcessingWorker>();
+builder.Services.AddHostedService<ConsumeDirectoryWorker>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -74,6 +78,18 @@ app.MapGet("/documents/{id:long}/file", async (long id, DocumentFileService file
 {
     var file = await files.OpenAsync(id, cancellationToken);
     return file is null ? Results.NotFound() : Results.File(file.Stream, file.ContentType, file.DownloadName, enableRangeProcessing: true);
+}).RequireAuthorization();
+app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
+{
+    response.ContentType = "application/json; charset=utf-8";
+    response.Headers.ContentDisposition = "attachment; filename=\"paper-documents.json\"";
+    await exporter.WriteJsonAsync(response.Body, cancellationToken);
+}).RequireAuthorization();
+app.MapGet("/export/documents.csv", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
+{
+    response.ContentType = "text/csv; charset=utf-8";
+    response.Headers.ContentDisposition = "attachment; filename=\"paper-documents.csv\"";
+    await exporter.WriteCsvAsync(response.Body, cancellationToken);
 }).RequireAuthorization();
 app.MapRazorPages();
 

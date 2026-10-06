@@ -1,11 +1,45 @@
 @page "/Settings"
 @model Paper.Web.Pages.Settings.IndexModel
+@using Paper.Web.Features.CustomFields
 @{
     ViewData["Title"] = "Einstellungen";
 }
-<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Die wichtigsten Laufzeitinformationen deines Archivs.</p></div></header>
+<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Stammdaten und Laufzeitinformationen deines Archivs.</p></div></header>
 <section class="panel settings-list">
     <div><span class="muted">Lokaler Speicher</span><strong>@Model.StoragePath</strong></div>
     <div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div>
     <div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div>
+    <div><span class="muted">Metadaten exportieren</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a></span></div>
 </section>
+<div class="settings-grid">
+    <section class="panel settings-card">
+        <h2>Korrespondenten</h2>
+        <form method="post" asp-page-handler="CreateCorrespondent" class="inline-form">
+            <input asp-for="CorrespondentName" placeholder="z. B. Stadtwerke Mannheim" />
+            <button class="button button-primary" type="submit">Hinzufügen</button>
+        </form>
+        <div class="settings-tags">@foreach (var item in Model.CorrespondentOptions) { <span class="tag">@item.Name</span> }</div>
+    </section>
+    <section class="panel settings-card">
+        <h2>Dokumenttypen</h2>
+        <form method="post" asp-page-handler="CreateDocumentType" class="inline-form">
+            <input asp-for="DocumentTypeName" placeholder="z. B. Rechnung" />
+            <button class="button button-primary" type="submit">Hinzufügen</button>
+        </form>
+        <div class="settings-tags">@foreach (var item in Model.DocumentTypeOptions) { <span class="tag">@item.Name</span> }</div>
+    </section>
+    <section class="panel settings-card">
+        <h2>Zusatzfelder</h2>
+        <form method="post" asp-page-handler="CreateCustomField" class="stack">
+            <input asp-for="CustomFieldName" placeholder="z. B. Vertragsnummer" />
+            <select asp-for="CustomFieldType">
+                @foreach (var type in Enum.GetValues<CustomFieldType>())
+                {
+                    <option value="@type">@type</option>
+                }
+            </select>
+            <button class="button button-primary" type="submit">Hinzufügen</button>
+        </form>
+        <div class="settings-tags">@foreach (var item in Model.CustomFieldOptions) { <span class="tag">@item.Name · @item.Type</span> }</div>
+    </section>
+</div>

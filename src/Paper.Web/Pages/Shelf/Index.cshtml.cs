@@ -38,4 +38,24 @@ public sealed class IndexModel(ShelfFolderStore folders) : PageModel
         TempData["Status"] = "Regalordner erstellt.";
         return RedirectToPage(new { folderId = folder.Id });
     }
+
+    public async Task<IActionResult> OnPostUpdateAsync(long id, long? parentId, string name, CancellationToken cancellationToken)
+    {
+        var result = await folders.UpdateLocationAsync(id, parentId, name, cancellationToken);
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (!result.Succeeded)
+        {
+            ModelState.AddModelError(nameof(NewFolderName), result.Error ?? "Der Ordner konnte nicht geändert werden.");
+            FolderId = id;
+            await OnGetAsync(cancellationToken);
+            return Page();
+        }
+
+        TempData["Status"] = "Regalordner geändert.";
+        return RedirectToPage(new { folderId = id });
+    }
 }

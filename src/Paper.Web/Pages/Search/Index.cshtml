@@ -3,21 +3,69 @@
 @{
     ViewData["Title"] = "Suche";
 }
-<header class="page-header"><div><div class="eyebrow">Schnell finden</div><h1>Suche</h1><p class="muted">Titel, OCR-Text und Tags werden gemeinsam durchsucht.</p></div></header>
-<form method="get" class="search-form">
-    <input asp-for="Query" placeholder="Suchbegriff eingeben" autofocus />
-    <button class="button button-primary" type="submit">Suchen</button>
+<header class="page-header"><div><div class="eyebrow">Schnell finden</div><h1>Suche</h1><p class="muted">Titel, OCR-Text und Metadaten werden gemeinsam durchsucht.</p></div></header>
+<form method="get" class="panel search-panel stack">
+    <div class="search-form">
+        <input asp-for="Query" placeholder="Suchbegriff eingeben" autofocus />
+        <button class="button button-primary" type="submit">Suchen</button>
+    </div>
+    <div class="filter-grid">
+        <label>Korrespondent
+            <select asp-for="CorrespondentId">
+                <option value="">Alle</option>
+                @foreach (var option in Model.Correspondents)
+                {
+                    <option value="@option.Id">@option.Name</option>
+                }
+            </select>
+        </label>
+        <label>Dokumenttyp
+            <select asp-for="DocumentTypeId">
+                <option value="">Alle</option>
+                @foreach (var option in Model.DocumentTypes)
+                {
+                    <option value="@option.Id">@option.Name</option>
+                }
+            </select>
+        </label>
+        <label>Regal
+            <select asp-for="ShelfFolderId">
+                <option value="">Alle</option>
+                @foreach (var option in Model.ShelfFolders)
+                {
+                    <option value="@option.Id">@option.RelativePath</option>
+                }
+            </select>
+        </label>
+        <label>Tag <input asp-for="Tag" placeholder="z. B. rechnung" /></label>
+        <label>Von <input asp-for="FromDate" type="date" /></label>
+        <label>Bis <input asp-for="ToDate" type="date" /></label>
+        <label>Zusatzfeld
+            <select asp-for="CustomFieldId">
+                <option value="">Kein Filter</option>
+                @foreach (var field in Model.CustomFields)
+                {
+                    <option value="@field.Id">@field.Name</option>
+                }
+            </select>
+        </label>
+        <label>Zusatzwert <input asp-for="CustomFieldValue" placeholder="Wert enthält ..." /></label>
+    </div>
 </form>
-@if (Model.Query.Length > 0)
+@if (Model.Query.Length > 0 || Model.CorrespondentId is not null || Model.DocumentTypeId is not null || Model.ShelfFolderId is not null || !string.IsNullOrWhiteSpace(Model.Tag) || Model.FromDate is not null || Model.ToDate is not null || Model.CustomFieldId is not null)
 {
-    <p class="muted">@Model.Results.Count Ergebnis(se) für „@Model.Query“</p>
+    <p class="muted">@Model.Results.Count Ergebnis(se)</p>
+}
+else
+{
+    <p class="muted">Gib einen Suchbegriff ein oder wähle einen Filter.</p>
 }
 <section class="document-list">
     @foreach (var document in Model.Results)
     {
         <article class="document-row">
             <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
-            <div class="document-copy"><a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a><span class="muted">@document.OriginalFileName</span></div>
+            <div class="document-copy"><a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a><span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span></div>
             <a class="button" asp-page="/Documents/Detail" asp-route-id="@document.Id">Öffnen</a>
         </article>
     }

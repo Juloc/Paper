@@ -35,6 +35,20 @@
         {
             <div class="eyebrow">Ordner</div>
             <h2>@Model.CurrentFolder.RelativePath</h2>
+            <form method="post" asp-page-handler="Update" class="stack shelf-editor">
+                <input type="hidden" name="id" value="@Model.CurrentFolder.Id" />
+                <label>Ordnername <input name="name" value="@Model.CurrentFolder.Name" /></label>
+                <label>Übergeordnetes Regal
+                    <select name="parentId">
+                        <option value="">Oberste Ebene</option>
+                        @foreach (var option in Model.Folders.Where(option => option.Id != Model.CurrentFolder.Id && !option.RelativePath.StartsWith(Model.CurrentFolder.RelativePath + "/", StringComparison.Ordinal)))
+                        {
+                            <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.ParentId ? "selected" : null)">@option.RelativePath</option>
+                        }
+                    </select>
+                </label>
+                <button class="button" type="submit">Ordner ändern</button>
+            </form>
             @if (Model.CurrentFolder.Documents.Count == 0)
             {
                 <p class="muted">Noch keine Dokumente in diesem Ordner.</p>

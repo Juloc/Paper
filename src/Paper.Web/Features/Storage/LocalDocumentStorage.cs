@@ -93,6 +93,24 @@ public sealed class LocalDocumentStorage(IConfiguration configuration, ILogger<L
         await Task.Run(() => File.Move(sourcePath, destinationPath), cancellationToken);
     }
 
+    public async Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken)
+    {
+        var sourcePath = GetSafePath(sourceRelativePath);
+        var destinationPath = GetSafePath(destinationRelativePath);
+        if (!Directory.Exists(sourcePath))
+        {
+            return;
+        }
+
+        if (Directory.Exists(destinationPath) || File.Exists(destinationPath))
+        {
+            throw new IOException("Der Zielordner existiert bereits.");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+        await Task.Run(() => Directory.Move(sourcePath, destinationPath), cancellationToken);
+    }
+
     public string GetSafePath(string relativePath)
     {
         var normalizedPath = StoragePathPolicy.NormalizeRelativePath(relativePath);

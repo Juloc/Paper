@@ -11,12 +11,14 @@ services:
       Auth__Username: $PAPER_ADMIN_USERNAME
       Auth__Password: $PAPER_ADMIN_PASSWORD
       Storage__RootPath: /data/documents
+      Consume__RootPath: /data/consume
       Ocr__Language: deu+eng
       DataProtection__KeysDirectory: /data/keys
     ports:
       - "8080:8080"
     volumes:
       - paper_documents:/data/documents
+      - paper_consume:/data/consume
       - paper_keys:/data/keys
     restart: unless-stopped
     read_only: true
@@ -44,5 +46,6 @@ services:
       - no-new-privileges:true
 volumes:
   paper_documents:
+  paper_consume:
   paper_keys:
   paper_postgres:

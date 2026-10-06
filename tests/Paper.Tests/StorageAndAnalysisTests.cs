@@ -6,6 +6,7 @@ using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
 using Paper.Web.Features.Tags;
 using Paper.Web.Features.CustomFields;
+using Paper.Web.Features.Search;
 
 namespace Paper.Tests;
 
@@ -127,5 +128,13 @@ public sealed class StorageAndAnalysisTests
             new[] { nameof(DocumentCustomFieldValue.DocumentId), nameof(DocumentCustomFieldValue.CustomFieldId) },
             customValue.FindPrimaryKey()!.Properties.Select(property => property.Name).ToArray());
         Assert.AreEqual(DeleteBehavior.Cascade, customValue.FindNavigation(nameof(DocumentCustomFieldValue.Document))!.ForeignKey.DeleteBehavior);
+    }
+
+    [TestMethod]
+    public void SearchCriteriaSupportsFilterOnlySearches()
+    {
+        var criteria = new SearchCriteria("", null, null, 4, null, null, null, null, null);
+        Assert.IsTrue(criteria.HasFilters);
+        Assert.IsFalse(new SearchCriteria("", null, null, null, null, null, null, null, null).HasFilters);
     }
 }
