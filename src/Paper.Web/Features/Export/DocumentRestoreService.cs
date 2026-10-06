@@ -218,6 +218,20 @@ public sealed class DocumentRestoreService(
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var createdAt = entry.CreatedAt == default ? now : entry.CreatedAt;
             var updatedAt = entry.UpdatedAt == default ? now : entry.UpdatedAt;
+            var restoredStatus = Enum.TryParse<DocumentStatus>(entry.Status, ignoreCase: true, out var parsedStatus)
+                ? parsedStatus
+                : DocumentStatus.Inbox;
+            if (restoredStatus == DocumentStatus.Filed && shelf is null)
+            {
+                if (!stored.AlreadyExisted)
+                {
+                    storage.Delete(stored.RelativePath);
+                }
+
+                result.Errors.Add($"{fileName}: Ein abgelegtes Dokument benötigt einen Regalpfad.");
+                return;
+            }
+
             var ocrStatus = Enum.TryParse<OcrStatus>(entry.OcrStatus, ignoreCase: true, out var parsedOcrStatus)
                 ? parsedOcrStatus
                 : OcrStatus.Pending;
@@ -232,7 +246,7 @@ public sealed class DocumentRestoreService(
                 OcrText = entry.OcrText,
                 OcrStatus = ocrStatus,
                 OcrError = entry.OcrError,
-                Status = DocumentStatus.Inbox,
+                Status = restoredStatus == DocumentStatus.Filed ? DocumentStatus.Inbox : restoredStatus,
                 Correspondent = correspondent,
                 DocumentType = documentType,
                 CreatedAt = createdAt,
@@ -255,30 +269,27 @@ public sealed class DocumentRestoreService(
             }
 
             await db.SaveChangesAsync(cancellationToken);
-            if (shelf is not null)
+            var customValues = customFieldDefinitions
+                .Select(field => (field.Id, Value: (entry.CustomFields ?? []).FirstOrDefault(value => value.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase))?.Value))
+                .Where(value => value.Value is not null)
+                .ToDictionary(value => value.Id, value => value.Value!);
+            var saved = await filing.SaveAsync(
+                document.Id,
+                new DocumentEdit(
+                    document.Title,
+                    document.DocumentDate,
+                    correspondent?.Id,
+                    documentType?.Id,
+                    shelf?.Id,
+                    string.Join(", ", entry.Tags ?? []),
+                    customValues),
+                fileFromInbox: restoredStatus == DocumentStatus.Filed,
+                cancellationToken);
+            if (!saved.Succeeded)
             {
-                var customValues = customFieldDefinitions
-                    .Select((field, index) => (field.Id, Value: (entry.CustomFields ?? []).FirstOrDefault(value => value.Name.Equals(field.Name, StringComparison.OrdinalIgnoreCase))?.Value))
-                    .Where(value => value.Value is not null)
-                    .ToDictionary(value => value.Id, value => value.Value!);
-                var filed = await filing.SaveAsync(
-                    document.Id,
-                    new DocumentEdit(
-                        document.Title,
-                        document.DocumentDate,
-                        correspondent?.Id,
-                        documentType?.Id,
-                        shelf.Id,
-                        string.Join(", ", entry.Tags ?? []),
-                        customValues),
-                    fileFromInbox: true,
-                    cancellationToken);
-                if (!filed.Succeeded)
-                {
-                    result.Errors.Add($"{fileName}: Metadaten konnten nicht abgelegt werden: {filed.Error}");
-                    result.Imported++;
-                    return;
-                }
+                result.Errors.Add($"{fileName}: Metadaten konnten nicht wiederhergestellt werden: {saved.Error}");
+                result.Imported++;
+                return;
             }
 
             result.Imported++;
