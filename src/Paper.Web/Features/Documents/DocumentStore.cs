@@ -5,7 +5,7 @@ using Paper.Web.Features.Processing;
 
 namespace Paper.Web.Features.Documents;
 
-public sealed class DocumentStore(AppDbContext db)
+public sealed class DocumentStore(AppDbContext db, TimeProvider timeProvider)
 {
     public const int PageSize = 100;
 
@@ -39,7 +39,7 @@ public sealed class DocumentStore(AppDbContext db)
         }
 
         document.Status = status;
-        document.UpdatedAt = DateTime.UtcNow;
+        document.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -81,7 +81,7 @@ public sealed class DocumentStore(AppDbContext db)
             State = ProcessingJobState.Pending,
             Priority = 20,
             Attempts = 0,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = timeProvider.GetUtcNow().UtcDateTime
         });
         await db.SaveChangesAsync(cancellationToken);
         return true;

@@ -22,7 +22,14 @@ public sealed class DocumentFileService(AppDbContext db, IStorageProvider storag
             ".tif" or ".tiff" => "image/tiff",
             _ => "application/octet-stream"
         };
-        return new DocumentFile(storage.OpenRead(document.FilePath), contentType, document.OriginalFileName);
+        try
+        {
+            return new DocumentFile(storage.OpenRead(document.FilePath), contentType, document.OriginalFileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
     }
 }
 

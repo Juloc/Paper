@@ -113,6 +113,37 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageDoesNotSilentlyIgnoreMissingShelfDirectories()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+
+            storage.EnsureDirectory("Wohnung/Leer");
+            Assert.IsTrue(storage.DirectoryExists("Wohnung/Leer"));
+            await storage.MoveDirectoryAsync("Wohnung/Leer", "Wohnung/Archiv", CancellationToken.None);
+
+            Assert.IsFalse(storage.DirectoryExists("Wohnung/Leer"));
+            Assert.IsTrue(storage.DirectoryExists("Wohnung/Archiv"));
+            await Assert.ThrowsExactlyAsync<DirectoryNotFoundException>(() =>
+                storage.MoveDirectoryAsync("Wohnung/Fehlt", "Wohnung/Archiv2", CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void StoragePolicyRejectsInboxAsShelfAndTraversal()
     {
         Assert.ThrowsExactly<ArgumentException>(() => StoragePathPolicy.NormalizeFolderPath("inbox"));

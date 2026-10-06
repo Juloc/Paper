@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Paper.Web.Data;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
@@ -88,6 +89,16 @@ public sealed class DocumentImportService(
             await db.SaveChangesAsync(cancellationToken);
             return ImportResult.Succeeded(document.Id);
         }
+        catch (DbUpdateException exception) when (IsDuplicateHash(exception))
+        {
+            if (!stored.AlreadyExisted)
+            {
+                storage.Delete(stored.RelativePath);
+            }
+
+            logger.LogInformation("Skipped concurrently imported duplicate document {FileName}.", fileName);
+            return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             if (!stored.AlreadyExisted)
@@ -98,6 +109,13 @@ public sealed class DocumentImportService(
             return ImportResult.Failed("Das Dokument konnte nicht in der Datenbank angelegt werden.");
         }
     }
+
+    private static bool IsDuplicateHash(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "IX_Documents_Hash"
+        };
 }
 
 public sealed record ImportResult(bool Success, long? DocumentId, string? Error)

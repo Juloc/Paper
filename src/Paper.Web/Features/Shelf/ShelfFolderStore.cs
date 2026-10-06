@@ -93,6 +93,17 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         };
         db.ShelfFolders.Add(folderEntity);
         await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            storage.EnsureDirectory(relativePath);
+        }
+        catch
+        {
+            db.ShelfFolders.Remove(folderEntity);
+            await db.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
+
         return folderEntity;
     }
 
@@ -150,11 +161,25 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         var documents = await db.Documents
             .Where(item => item.FilePath.StartsWith(oldPath + "/"))
             .ToListAsync(cancellationToken);
+        var sourceDirectoryExists = storage.DirectoryExists(oldPath);
+        if (!sourceDirectoryExists && documents.Count > 0)
+        {
+            throw new DirectoryNotFoundException($"Der physische Regalordner wurde nicht gefunden: {oldPath}");
+        }
+
         var movedDirectory = false;
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            await storage.MoveDirectoryAsync(oldPath, newPath, cancellationToken);
+            if (sourceDirectoryExists)
+            {
+                await storage.MoveDirectoryAsync(oldPath, newPath, cancellationToken);
+            }
+            else
+            {
+                storage.EnsureDirectory(newPath);
+            }
+
             movedDirectory = true;
             folder.ParentId = parentId;
             folder.Name = normalizedName;

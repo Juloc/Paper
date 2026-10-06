@@ -25,6 +25,10 @@ public sealed class SmbStorageProvider(LocalDocumentStorage fileSystemStorage) :
     public Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken) =>
         fileSystemStorage.MoveDirectoryAsync(sourceRelativePath, destinationRelativePath, cancellationToken);
 
+    public bool DirectoryExists(string relativePath) => fileSystemStorage.DirectoryExists(relativePath);
+
+    public void EnsureDirectory(string relativePath) => fileSystemStorage.EnsureDirectory(relativePath);
+
     public string GetSafePath(string relativePath) => fileSystemStorage.GetSafePath(relativePath);
 
     public FileStream OpenRead(string relativePath) => fileSystemStorage.OpenRead(relativePath);

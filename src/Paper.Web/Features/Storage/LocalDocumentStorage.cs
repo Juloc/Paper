@@ -10,6 +10,8 @@ public interface IStorageProvider
     Task<string> MoveToShelfAsync(string sourceRelativePath, string shelfRelativePath, DateOnly? documentDate, string title, string originalFileName, CancellationToken cancellationToken);
     Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
+    bool DirectoryExists(string relativePath);
+    void EnsureDirectory(string relativePath);
     string GetSafePath(string relativePath);
     FileStream OpenRead(string relativePath);
     void Delete(string relativePath);
@@ -120,7 +122,7 @@ public sealed class LocalDocumentStorage : IStorageProvider
         var destinationPath = GetSafePath(destinationRelativePath);
         if (!Directory.Exists(sourcePath))
         {
-            return;
+            throw new DirectoryNotFoundException($"Der Regalordner wurde nicht gefunden: {sourceRelativePath}");
         }
 
         if (Directory.Exists(destinationPath) || File.Exists(destinationPath))
@@ -131,6 +133,10 @@ public sealed class LocalDocumentStorage : IStorageProvider
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
         await Task.Run(() => Directory.Move(sourcePath, destinationPath), cancellationToken);
     }
+
+    public bool DirectoryExists(string relativePath) => Directory.Exists(GetSafePath(relativePath));
+
+    public void EnsureDirectory(string relativePath) => Directory.CreateDirectory(GetSafePath(relativePath));
 
     public string GetSafePath(string relativePath)
     {
