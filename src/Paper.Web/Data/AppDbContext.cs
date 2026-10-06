@@ -191,7 +191,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<AnalysisRule>(entity =>
         {
             entity.ToTable("AnalysisRules", table =>
-                table.HasCheckConstraint("CK_AnalysisRules_UseCount", "\"UseCount\" > 0"));
+            {
+                table.HasCheckConstraint("CK_AnalysisRules_UseCount", "\"UseCount\" > 0");
+                table.HasCheckConstraint("CK_AnalysisRules_Target", "\"CorrespondentId\" IS NOT NULL OR \"DocumentTypeId\" IS NOT NULL OR \"ShelfFolderId\" IS NOT NULL");
+            });
             entity.Property(rule => rule.Term).HasMaxLength(80).IsRequired();
             entity.HasIndex(rule => new { rule.Term, rule.UseCount });
             entity.HasOne<Correspondent>().WithMany().HasForeignKey(rule => rule.CorrespondentId).OnDelete(DeleteBehavior.Restrict);
