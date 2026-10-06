@@ -30,7 +30,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         ?? throw new InvalidOperationException("ConnectionStrings:Default is required.")));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<LocalDocumentStorage>();
-builder.Services.AddSingleton<IStorageProvider>(services => services.GetRequiredService<LocalDocumentStorage>());
+builder.Services.AddSingleton<SmbStorageProvider>();
+builder.Services.AddSingleton<IStorageProvider>(services =>
+    (builder.Configuration["Storage:Provider"] ?? "local").Equals("smb", StringComparison.OrdinalIgnoreCase)
+        ? services.GetRequiredService<SmbStorageProvider>()
+        : services.GetRequiredService<LocalDocumentStorage>());
 builder.Services.AddScoped<DocumentImportService>();
 builder.Services.AddScoped<DocumentStore>();
 builder.Services.AddScoped<DocumentFilingService>();
