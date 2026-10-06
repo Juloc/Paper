@@ -38,8 +38,10 @@ public sealed class IndexModel(
     [BindProperty]
     public IFormFile? PaperlessExport { get; set; }
 
-    public string StoragePath => configuration["Storage:RootPath"] ?? "/data/documents";
     public string StorageProvider => configuration["Storage:Provider"] ?? "local";
+    public string StoragePath => StorageProvider.Equals("smb", StringComparison.OrdinalIgnoreCase)
+        ? configuration["Storage:SmbRootPath"] ?? "(nicht konfiguriert)"
+        : configuration["Storage:RootPath"] ?? "/data/documents";
     public string WakePolicy => configuration["Storage:WakePolicy"] ?? "Never";
     public string OcrLanguage => configuration["Ocr:Language"] ?? "eng";
     public bool MailEnabled => configuration.GetValue<bool>("Mail:Enabled");

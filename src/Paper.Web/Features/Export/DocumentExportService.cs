@@ -26,6 +26,10 @@ public sealed class DocumentExportService(AppDbContext db)
             writer.WriteString("hash", document.Hash);
             writer.WriteString("status", document.Status.ToString());
             writer.WriteString("ocrStatus", document.OcrStatus.ToString());
+            writer.WriteString("ocrText", document.OcrText);
+            writer.WriteString("ocrError", document.OcrError);
+            writer.WriteString("createdAt", document.CreatedAt);
+            writer.WriteString("updatedAt", document.UpdatedAt);
             writer.WriteString("correspondent", document.Correspondent?.Name);
             writer.WriteString("documentType", document.DocumentType?.Name);
             writer.WriteString("shelfPath", document.ShelfFolder?.RelativePath);
@@ -58,7 +62,7 @@ public sealed class DocumentExportService(AppDbContext db)
     public async Task WriteCsvAsync(Stream destination, CancellationToken cancellationToken)
     {
         await using var writer = new StreamWriter(destination, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 16 * 1024, leaveOpen: true);
-        await writer.WriteLineAsync("Id;Titel;Dokumentdatum;Originaldatei;Dateipfad;Größe;Hash;Status;OCR;Korrespondent;Dokumenttyp;Regal;Tags;Zusatzfelder");
+        await writer.WriteLineAsync("Id;Titel;Dokumentdatum;Originaldatei;Dateipfad;Größe;Hash;Status;OCR;OCR-Text;OCR-Fehler;Erstellt;Geändert;Korrespondent;Dokumenttyp;Regal;Tags;Zusatzfelder");
         await writer.FlushAsync(cancellationToken);
         await foreach (var document in Query().AsAsyncEnumerable().WithCancellation(cancellationToken))
         {
@@ -76,6 +80,10 @@ public sealed class DocumentExportService(AppDbContext db)
                 document.Hash,
                 document.Status.ToString(),
                 document.OcrStatus.ToString(),
+                document.OcrText,
+                document.OcrError,
+                document.CreatedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                document.UpdatedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
                 document.Correspondent?.Name,
                 document.DocumentType?.Name,
                 document.ShelfFolder?.RelativePath,
