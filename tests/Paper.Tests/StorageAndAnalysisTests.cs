@@ -349,6 +349,47 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task BackupRestoreReportsMalformedManifest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            await using var zip = new MemoryStream();
+            using (var archive = new ZipArchive(zip, ZipArchiveMode.Create, leaveOpen: true))
+            await using (var writer = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
+            {
+                await writer.WriteAsync("{");
+            }
+
+            zip.Position = 0;
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql("Host=localhost;Database=paper")
+                .Options;
+            using var db = new AppDbContext(options);
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            var filing = new DocumentFilingService(db, storage, TimeProvider.System, NullLogger<DocumentFilingService>.Instance);
+            var restore = new DocumentRestoreService(db, storage, filing, TimeProvider.System, NullLogger<DocumentRestoreService>.Instance);
+
+            var result = await restore.RestoreAsync(zip, zip.Length, CancellationToken.None);
+
+            Assert.AreEqual(1, result.Errors.Count);
+            StringAssert.Contains(result.Errors[0], "ungültig");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task PaperlessImporterReportsMalformedZipInsteadOfThrowing()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
