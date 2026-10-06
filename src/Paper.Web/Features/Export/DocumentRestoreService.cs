@@ -146,7 +146,7 @@ public sealed class DocumentRestoreService(
         RestoreResult result,
         CancellationToken cancellationToken)
     {
-        var fileName = Path.GetFileName(entry.OriginalFileName);
+        var fileName = StoragePathPolicy.SanitizeFileName(Path.GetFileName(entry.OriginalFileName.Replace('\\', '/')));
         var backupPath = $"documents/{entry.Id:D8}_{StoragePathPolicy.SanitizeFileName(fileName)}";
         var fileEntry = archive.GetEntry(backupPath);
         if (fileEntry is null)

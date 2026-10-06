@@ -24,6 +24,7 @@ public sealed class DocumentImportService(
         long length,
         CancellationToken cancellationToken)
     {
+        fileName = StoragePathPolicy.SanitizeFileName(Path.GetFileName(fileName.Replace('\\', '/')));
         if (length > DocumentInputValidator.MaximumFileSize || length <= 0)
         {
             return ImportResult.Failed("Die Datei ist leer oder größer als 50 MB.");

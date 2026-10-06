@@ -85,7 +85,7 @@ public sealed class PaperlessImportService(
     {
         var fields = fixture.TryGetProperty("fields", out var fieldElement) ? fieldElement : default;
         var originalName = GetString(fields, "original_filename") ?? GetString(fields, "filename") ?? $"paperless-{GetString(fixture, "pk")}.pdf";
-        originalName = Path.GetFileName(originalName);
+        originalName = StoragePathPolicy.SanitizeFileName(Path.GetFileName(originalName.Replace('\\', '/')));
         var fileEntry = FindDocumentEntry(archive, fields);
         if (fileEntry is null)
         {
