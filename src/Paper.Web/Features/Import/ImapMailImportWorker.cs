@@ -96,15 +96,28 @@ public sealed class ImapMailImportWorker(
             {
                 var message = await client.FetchMessageAsync(uid);
                 var attachments = emailAttachments.Extract(message);
-                var errors = new List<string>();
-                var imported = 0;
-                foreach (var attachment in attachments)
+                var candidates = attachments
+                    .Where(attachment => allowedExtensions.Count == 0 || allowedExtensions.Contains(Path.GetExtension(attachment.FileName)))
+                    .ToArray();
+                if (candidates.Length == 0)
                 {
-                    if (allowedExtensions.Count > 0 && !allowedExtensions.Contains(Path.GetExtension(attachment.FileName)))
+                    state.LastUid = uid;
+                    state.LastSyncAt = DateTime.UtcNow;
+                    state.LastError = null;
+                    await db.SaveChangesAsync(cancellationToken);
+                    if (options.MarkSeen)
                     {
-                        continue;
+                        await client.MarkSeenAsync(uid);
                     }
 
+                    processed++;
+                    continue;
+                }
+
+                var errors = new List<string>();
+                var imported = 0;
+                foreach (var attachment in candidates)
+                {
                     await using var content = new MemoryStream(attachment.Content, writable: false);
                     var result = await importer.ImportAsync(
                         content,
@@ -122,12 +135,6 @@ public sealed class ImapMailImportWorker(
                     }
                 }
 
-                if (imported == 0 && errors.Count == 0)
-                {
-                    errors.Add("Die E-Mail enthält keine unterstützten Anhänge.");
-                }
-
-                state.LastUid = uid;
                 state.LastSyncAt = DateTime.UtcNow;
                 state.LastError = errors.Count == 0 ? null : $"UID {uid}: {string.Join(" | ", errors)}";
                 if (errors.Count > 0)
@@ -141,8 +148,20 @@ public sealed class ImapMailImportWorker(
                     });
                 }
 
+                if (errors.Count == 0)
+                {
+                    state.LastUid = uid;
+                }
+
                 await db.SaveChangesAsync(cancellationToken);
-                if (errors.Count == 0 && options.MarkSeen)
+                if (errors.Count > 0)
+                {
+                    logger.LogWarning("IMAP UID {Uid} remains pending after an attachment error.", uid);
+                    processed++;
+                    break;
+                }
+
+                if (options.MarkSeen)
                 {
                     await client.MarkSeenAsync(uid);
                 }
@@ -153,7 +172,6 @@ public sealed class ImapMailImportWorker(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                state.LastUid = uid;
                 state.LastSyncAt = DateTime.UtcNow;
                 var error = $"UID {uid}: {exception.Message}";
                 state.LastError = error[..Math.Min(2000, error.Length)];
@@ -167,6 +185,7 @@ public sealed class ImapMailImportWorker(
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogWarning(exception, "Could not process IMAP UID {Uid}.", uid);
                 processed++;
+                break;
             }
         }
 
