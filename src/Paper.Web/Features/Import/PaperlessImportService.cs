@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
@@ -52,22 +53,15 @@ public sealed class PaperlessImportService(
             return PaperlessImportResult.Failed("Das Paperless-Manifest ist zu groß.");
         }
 
-        using var manifestStream = manifestEntry.Open();
-        using var manifest = await JsonDocument.ParseAsync(manifestStream, cancellationToken: cancellationToken);
-        if (manifest.RootElement.ValueKind != JsonValueKind.Array)
-        {
-            return PaperlessImportResult.Failed("Dieses Paperless-Manifest ist kein unterstütztes Single-Manifest-Format.");
-        }
-
-        if (manifest.RootElement.GetArrayLength() > DocumentRestoreLimit.MaximumManifestEntries)
+        var catalogs = await ReadCatalogsAsync(manifestEntry, cancellationToken);
+        if (catalogs is null)
         {
             return PaperlessImportResult.Failed("Das Paperless-Manifest enthält zu viele Einträge.");
         }
 
-        var catalogs = ReadCatalogs(manifest.RootElement);
         await ReadSplitCustomValuesAsync(archive, catalogs, cancellationToken);
         var result = new PaperlessImportResult();
-        foreach (var fixture in manifest.RootElement.EnumerateArray())
+        await foreach (var fixture in ReadManifestAsync(manifestEntry, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!string.Equals(GetString(fixture, "model"), "documents.document", StringComparison.OrdinalIgnoreCase))
@@ -273,56 +267,80 @@ public sealed class PaperlessImportService(
         return null;
     }
 
-    private static PaperlessCatalogs ReadCatalogs(JsonElement root)
+    private static async Task<PaperlessCatalogs?> ReadCatalogsAsync(
+        ZipArchiveEntry manifestEntry,
+        CancellationToken cancellationToken)
     {
         var catalogs = new PaperlessCatalogs();
-        foreach (var fixture in root.EnumerateArray())
+        var count = 0;
+        await foreach (var fixture in ReadManifestAsync(manifestEntry, cancellationToken))
         {
-            var model = GetString(fixture, "model")?.ToLowerInvariant();
-            var id = GetLong(fixture, "pk");
-            if (id is null || !fixture.TryGetProperty("fields", out var fields))
+            if (++count > DocumentRestoreLimit.MaximumManifestEntries)
             {
-                continue;
+                return null;
             }
 
-            if (model is "documents.customfieldinstance")
-            {
-                var documentId = GetLong(fields, "document");
-                var fieldId = GetLong(fields, "field");
-                var value = GetString(fields, "value");
-                if (documentId is not null && fieldId is not null && value is not null)
-                {
-                    catalogs.GetOrAdd(documentId.Value).Add(new PaperlessCustomValue(fieldId.Value, value));
-                }
-
-                continue;
-            }
-
-            var name = GetString(fields, "name");
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                continue;
-            }
-
-            if (model is "documents.tag")
-            {
-                catalogs.Tags[id.Value] = name;
-            }
-            else if (model is "documents.correspondent")
-            {
-                catalogs.Correspondents[id.Value] = name;
-            }
-            else if (model is "documents.doctype" or "documents.documenttype")
-            {
-                catalogs.DocumentTypes[id.Value] = name;
-            }
-            else if (model is "documents.customfield")
-            {
-                catalogs.CustomFields[id.Value] = new PaperlessCustomField(name, MapType(GetString(fields, "data_type")));
-            }
+            AddCatalogEntry(catalogs, fixture);
         }
 
         return catalogs;
+    }
+
+    private static async IAsyncEnumerable<JsonElement> ReadManifestAsync(
+        ZipArchiveEntry manifestEntry,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await using var stream = manifestEntry.Open();
+        await foreach (var fixture in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(stream, cancellationToken: cancellationToken))
+        {
+            yield return fixture;
+        }
+    }
+
+    private static void AddCatalogEntry(PaperlessCatalogs catalogs, JsonElement fixture)
+    {
+        var model = GetString(fixture, "model")?.ToLowerInvariant();
+        var id = GetLong(fixture, "pk");
+        if (id is null || !fixture.TryGetProperty("fields", out var fields))
+        {
+            return;
+        }
+
+        if (model is "documents.customfieldinstance")
+        {
+            var documentId = GetLong(fields, "document");
+            var fieldId = GetLong(fields, "field");
+            var value = GetString(fields, "value");
+            if (documentId is not null && fieldId is not null && value is not null)
+            {
+                catalogs.GetOrAdd(documentId.Value).Add(new PaperlessCustomValue(fieldId.Value, value));
+            }
+
+            return;
+        }
+
+        var name = GetString(fields, "name");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return;
+        }
+
+        if (model is "documents.tag")
+        {
+            catalogs.Tags[id.Value] = name;
+        }
+        else if (model is "documents.correspondent")
+        {
+            catalogs.Correspondents[id.Value] = name;
+        }
+        else if (model is "documents.doctype" or "documents.documenttype")
+        {
+            catalogs.DocumentTypes[id.Value] = name;
+        }
+        else if (model is "documents.customfield")
+        {
+            catalogs.CustomFields[id.Value] = new PaperlessCustomField(name, MapType(GetString(fields, "data_type")));
+        }
     }
 
     private static IEnumerable<PaperlessValue> ReadCustomValues(JsonElement fields, long? documentId, PaperlessCatalogs catalogs)
