@@ -72,7 +72,15 @@ public sealed class DocumentProcessingWorker(
         {
             var ocr = services.GetRequiredService<TesseractOcrService>();
             var text = await ocr.ExtractAsync(document.FilePath, cancellationToken);
-            var analysis = services.GetRequiredService<DocumentAnalyzer>().Analyze(document.Title, text);
+            var knownCorrespondents = await db.Correspondents.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
+            var knownDocumentTypes = await db.DocumentTypes.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
+            var knownTags = await db.Tags.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
+            var analysis = services.GetRequiredService<DocumentAnalyzer>().Analyze(
+                document.Title,
+                text,
+                knownCorrespondents,
+                knownDocumentTypes,
+                knownTags);
             var learned = await services.GetRequiredService<DocumentLearningStore>().SuggestAsync($"{document.Title} {document.OriginalFileName} {text}", cancellationToken);
             document.OcrText = text;
             document.OcrStatus = OcrStatus.Completed;

@@ -287,15 +287,28 @@ public sealed class DocumentRestoreService(
                 cancellationToken);
             if (!saved.Succeeded)
             {
+                db.Documents.Remove(document);
+                await db.SaveChangesAsync(cancellationToken);
                 result.Errors.Add($"{fileName}: Metadaten konnten nicht wiederhergestellt werden: {saved.Error}");
-                result.Imported++;
                 return;
             }
 
             result.Imported++;
         }
+        catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
+        {
+            db.ChangeTracker.Clear();
+            if (stored is not null && !stored.AlreadyExisted)
+            {
+                storage.Delete(stored.RelativePath);
+            }
+
+            logger.LogInformation("Skipped concurrently restored duplicate document {FileName}.", fileName);
+            result.Skipped++;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            db.ChangeTracker.Clear();
             if (stored is not null && !stored.AlreadyExisted)
             {
                 storage.Delete(stored.RelativePath);

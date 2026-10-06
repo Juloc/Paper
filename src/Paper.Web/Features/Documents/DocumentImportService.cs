@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using Paper.Web.Data;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
@@ -89,7 +88,7 @@ public sealed class DocumentImportService(
             await db.SaveChangesAsync(cancellationToken);
             return ImportResult.Succeeded(document.Id);
         }
-        catch (DbUpdateException exception) when (IsDuplicateHash(exception))
+        catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
         {
             if (!stored.AlreadyExisted)
             {
@@ -110,12 +109,6 @@ public sealed class DocumentImportService(
         }
     }
 
-    private static bool IsDuplicateHash(DbUpdateException exception) =>
-        exception.InnerException is PostgresException
-        {
-            SqlState: PostgresErrorCodes.UniqueViolation,
-            ConstraintName: "IX_Documents_Hash"
-        };
 }
 
 public sealed record ImportResult(bool Success, long? DocumentId, string? Error)

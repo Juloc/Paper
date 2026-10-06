@@ -208,8 +208,20 @@ public sealed class PaperlessImportService(
             await db.SaveChangesAsync(cancellationToken);
             result.Imported++;
         }
+        catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
+        {
+            db.ChangeTracker.Clear();
+            if (stored is not null && !stored.AlreadyExisted)
+            {
+                storage.Delete(stored.RelativePath);
+            }
+
+            logger.LogInformation("Skipped concurrently imported Paperless duplicate document {FileName}.", originalName);
+            result.Skipped++;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
+            db.ChangeTracker.Clear();
             if (stored is not null && !stored.AlreadyExisted)
             {
                 storage.Delete(stored.RelativePath);

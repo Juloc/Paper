@@ -12,7 +12,12 @@ public sealed class DocumentAnalyzer
     private static readonly Regex IbanPattern = new(@"\b(?<value>[A-Z]{2}[ \t]?\d{2}(?:[ \t]?[A-Z0-9]){10,30})\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex AmountPattern = new(@"(?im)\b(?:betrag|gesamt(?:betrag)?|summe)\s*[:#]?\s*(?<value>\d{1,3}(?:[.\s]\d{3})*(?:[,.]\d{2})?)\s*(?:EUR|€)?", RegexOptions.Compiled);
 
-    public AnalysisResult Analyze(string fallbackTitle, string text)
+    public AnalysisResult Analyze(
+        string fallbackTitle,
+        string text,
+        IReadOnlyCollection<string>? knownCorrespondents = null,
+        IReadOnlyCollection<string>? knownDocumentTypes = null,
+        IReadOnlyCollection<string>? knownTags = null)
     {
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var title = lines.FirstOrDefault(line => line.Length is > 2 and <= 120) ?? fallbackTitle;
@@ -28,7 +33,22 @@ public sealed class DocumentAnalyzer
         AddTagIfFound(tags, text, "vertrag", "vertrag", "agreement", "kündigung");
         AddTagIfFound(tags, text, "versicherung", "versicherung", "insurance", "police");
         AddTagIfFound(tags, text, "steuer", "steuer", "finanzamt", "tax");
-        var correspondent = FindFirst(text, "Stadtwerke Mannheim", "Allianz", "Sparkasse", "Amazon", "Finanzamt Mannheim");
+        foreach (var knownTag in knownTags ?? [])
+        {
+            if (knownTag.Length >= 3 && text.Contains(knownTag, StringComparison.OrdinalIgnoreCase))
+            {
+                tags.Add(knownTag);
+            }
+        }
+
+        var correspondent = FindFirst(
+            text,
+            (knownCorrespondents ?? [])
+                .Concat(["Stadtwerke Mannheim", "Allianz", "Sparkasse", "Amazon", "Finanzamt Mannheim"])
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderByDescending(value => value.Length)
+                .ToArray());
         var documentType = new[]
         {
             ("Rechnung", new[] { "rechnung", "invoice", "betrag", "mwst" }),
@@ -36,7 +56,13 @@ public sealed class DocumentAnalyzer
             ("Bescheid", new[] { "bescheid", "finanzamt" }),
             ("Kontoauszug", new[] { "kontoauszug", "kontostand" }),
             ("Versicherung", new[] { "versicherung", "police" })
-        }.FirstOrDefault(item => item.Item2.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase))).Item1;
+        }
+        .Concat((knownDocumentTypes ?? [])
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(value => (value, new[] { value })))
+        .OrderByDescending(item => item.Item1.Length)
+        .FirstOrDefault(item => item.Item2.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase))).Item1;
         var customFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         AddFieldIfFound(customFields, "Rechnungsnummer", InvoiceNumberPattern, text);
         AddFieldIfFound(customFields, "Kundennummer", CustomerNumberPattern, text);
