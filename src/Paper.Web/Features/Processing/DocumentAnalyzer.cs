@@ -35,7 +35,9 @@ public sealed class DocumentAnalyzer
         AddTagIfFound(tags, text, "steuer", "steuer", "finanzamt", "tax");
         foreach (var knownTag in knownTags ?? [])
         {
-            if (knownTag.Length >= 3 && text.Contains(knownTag, StringComparison.OrdinalIgnoreCase))
+            if (knownTag.Length >= 3 &&
+                !tags.Contains(knownTag, StringComparer.OrdinalIgnoreCase) &&
+                text.Contains(knownTag, StringComparison.OrdinalIgnoreCase))
             {
                 tags.Add(knownTag);
             }

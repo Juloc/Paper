@@ -235,9 +235,13 @@ public sealed class DocumentRestoreService(
             var ocrStatus = Enum.TryParse<OcrStatus>(entry.OcrStatus, ignoreCase: true, out var parsedOcrStatus)
                 ? parsedOcrStatus
                 : OcrStatus.Pending;
+            var restoredTitle = string.IsNullOrWhiteSpace(entry.Title)
+                ? Path.GetFileNameWithoutExtension(fileName).Trim()
+                : entry.Title.Trim();
+            restoredTitle = string.IsNullOrWhiteSpace(restoredTitle) ? "Dokument" : restoredTitle[..Math.Min(300, restoredTitle.Length)];
             var document = new Document
             {
-                Title = string.IsNullOrWhiteSpace(entry.Title) ? Path.GetFileNameWithoutExtension(fileName) : entry.Title.Trim(),
+                Title = restoredTitle,
                 DocumentDate = entry.DocumentDate,
                 OriginalFileName = fileName,
                 FilePath = stored.RelativePath,
