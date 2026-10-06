@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
+using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Tags;
 
 namespace Paper.Web.Features.Processing;
@@ -61,6 +62,7 @@ public sealed class DocumentProcessingWorker(
             .Include(item => item.Correspondent)
             .Include(item => item.DocumentType)
             .Include(item => item.ShelfFolder)
+            .Include(item => item.CustomFields)
             .SingleAsync(item => item.Id == job.DocumentId, cancellationToken);
         document.OcrStatus = OcrStatus.Processing;
         await db.SaveChangesAsync(cancellationToken);
@@ -105,6 +107,24 @@ public sealed class DocumentProcessingWorker(
             if (document.ShelfFolder is null && learned?.ShelfFolderId is not null)
             {
                 document.ShelfFolder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.Id == learned.ShelfFolderId, cancellationToken);
+            }
+
+            var customFields = await db.CustomFields.ToDictionaryAsync(field => field.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+            foreach (var suggestion in analysis.SuggestedCustomFields)
+            {
+                if (!customFields.TryGetValue(suggestion.Key, out var field) ||
+                    document.CustomFields.Any(value => value.CustomFieldId == field.Id))
+                {
+                    continue;
+                }
+
+                document.CustomFields.Add(new DocumentCustomFieldValue
+                {
+                    Document = document,
+                    CustomField = field,
+                    CustomFieldId = field.Id,
+                    Value = suggestion.Value
+                });
             }
 
             await services.GetRequiredService<TagStore>().AddNamesAsync(document, analysis.SuggestedTags, cancellationToken);

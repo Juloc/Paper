@@ -133,6 +133,17 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void AnalyzerExtractsConservativeCustomFieldValues()
+    {
+        var result = new DocumentAnalyzer().Analyze("scan", "Rechnungsnummer: RE-2026/42\nKundennummer: K-1234\nIBAN: DE89 3704 0044 0532 0130 00\nBetrag: 1.234,50 EUR");
+
+        Assert.AreEqual("RE-2026/42", result.SuggestedCustomFields["Rechnungsnummer"]);
+        Assert.AreEqual("K-1234", result.SuggestedCustomFields["Kundennummer"]);
+        Assert.AreEqual("DE89 3704 0044 0532 0130 00", result.SuggestedCustomFields["IBAN"]);
+        Assert.AreEqual("1.234,50", result.SuggestedCustomFields["Betrag"]);
+    }
+
+    [TestMethod]
     public void SearchTextCombinesTitleOcrAndTags()
     {
         var document = new Document { Title = "Strom", OcrText = "Januar", Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }] };

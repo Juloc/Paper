@@ -6,6 +6,11 @@ namespace Paper.Web.Features.Processing;
 public sealed class DocumentAnalyzer
 {
     private static readonly Regex DatePattern = new(@"\b(?<day>\d{1,2})[./-](?<month>\d{1,2})[./-](?<year>20\d{2}|19\d{2})\b", RegexOptions.Compiled);
+    private static readonly Regex InvoiceNumberPattern = new(@"(?im)\b(?:rechnungsnummer|rechnung\s*(?:nr\.?|nummer))\s*[:#]?\s*(?<value>[A-Z0-9][A-Z0-9./_-]{2,80})", RegexOptions.Compiled);
+    private static readonly Regex CustomerNumberPattern = new(@"(?im)\b(?:kundennummer|kunden\s*(?:nr\.?|nummer))\s*[:#]?\s*(?<value>[A-Z0-9][A-Z0-9./_-]{2,80})", RegexOptions.Compiled);
+    private static readonly Regex ContractNumberPattern = new(@"(?im)\b(?:vertragsnummer|vertrags\s*(?:nr\.?|nummer))\s*[:#]?\s*(?<value>[A-Z0-9][A-Z0-9./_-]{2,80})", RegexOptions.Compiled);
+    private static readonly Regex IbanPattern = new(@"\b(?<value>[A-Z]{2}[ \t]?\d{2}(?:[ \t]?[A-Z0-9]){10,30})\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex AmountPattern = new(@"(?im)\b(?:betrag|gesamt(?:betrag)?|summe)\s*[:#]?\s*(?<value>\d{1,3}(?:[.\s]\d{3})*(?:[,.]\d{2})?)\s*(?:EUR|€)?", RegexOptions.Compiled);
 
     public AnalysisResult Analyze(string fallbackTitle, string text)
     {
@@ -32,7 +37,13 @@ public sealed class DocumentAnalyzer
             ("Kontoauszug", new[] { "kontoauszug", "kontostand" }),
             ("Versicherung", new[] { "versicherung", "police" })
         }.FirstOrDefault(item => item.Item2.Any(term => text.Contains(term, StringComparison.OrdinalIgnoreCase))).Item1;
-        return new AnalysisResult(title, date, tags, correspondent, string.IsNullOrWhiteSpace(documentType) ? null : documentType);
+        var customFields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        AddFieldIfFound(customFields, "Rechnungsnummer", InvoiceNumberPattern, text);
+        AddFieldIfFound(customFields, "Kundennummer", CustomerNumberPattern, text);
+        AddFieldIfFound(customFields, "Vertragsnummer", ContractNumberPattern, text);
+        AddFieldIfFound(customFields, "IBAN", IbanPattern, text);
+        AddFieldIfFound(customFields, "Betrag", AmountPattern, text);
+        return new AnalysisResult(title, date, tags, correspondent, string.IsNullOrWhiteSpace(documentType) ? null : documentType, customFields);
     }
 
     private static void AddTagIfFound(List<string> tags, string text, string tag, params string[] terms)
@@ -45,6 +56,15 @@ public sealed class DocumentAnalyzer
 
     private static string? FindFirst(string text, params string[] values) =>
         values.FirstOrDefault(value => text.Contains(value, StringComparison.OrdinalIgnoreCase));
+
+    private static void AddFieldIfFound(Dictionary<string, string> fields, string name, Regex pattern, string text)
+    {
+        var match = pattern.Match(text);
+        if (match.Success)
+        {
+            fields[name] = match.Groups["value"].Value.Trim();
+        }
+    }
 }
 
 public sealed record AnalysisResult(
@@ -52,4 +72,5 @@ public sealed record AnalysisResult(
     DateOnly? DocumentDate,
     IReadOnlyList<string> SuggestedTags,
     string? SuggestedCorrespondent,
-    string? SuggestedDocumentType);
+    string? SuggestedDocumentType,
+    IReadOnlyDictionary<string, string> SuggestedCustomFields);
