@@ -41,6 +41,7 @@ builder.Services.AddScoped<DocumentTypeStore>();
 builder.Services.AddScoped<ShelfFolderStore>();
 builder.Services.AddScoped<CustomFieldStore>();
 builder.Services.AddScoped<DocumentExportService>();
+builder.Services.AddScoped<DocumentBackupService>();
 builder.Services.AddScoped<ProcessingJobStore>();
 builder.Services.AddSingleton<DocumentAnalyzer>();
 builder.Services.AddScoped<TesseractOcrService>();
@@ -90,6 +91,12 @@ app.MapGet("/export/documents.csv", async (HttpResponse response, DocumentExport
     response.ContentType = "text/csv; charset=utf-8";
     response.Headers.ContentDisposition = "attachment; filename=\"paper-documents.csv\"";
     await exporter.WriteCsvAsync(response.Body, cancellationToken);
+}).RequireAuthorization();
+app.MapGet("/export/backup.zip", async (HttpResponse response, DocumentBackupService backup, CancellationToken cancellationToken) =>
+{
+    response.ContentType = "application/zip";
+    response.Headers.ContentDisposition = "attachment; filename=\"paper-backup.zip\"";
+    await backup.WriteZipAsync(response.Body, cancellationToken);
 }).RequireAuthorization();
 app.MapRazorPages();
 
