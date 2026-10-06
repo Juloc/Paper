@@ -1,0 +1,19 @@
+@page "/Add"
+@model Paper.Web.Pages.Add.IndexModel
+@{
+    ViewData["Title"] = "Hinzufügen";
+}
+<header class="page-header">
+    <div><div class="eyebrow">Neues Dokument</div><h1>Hinzufügen</h1><p class="muted">PDF, JPG, JPEG, PNG oder TIFF · maximal 50 MB</p></div>
+</header>
+<section class="panel upload-panel">
+    <form method="post" enctype="multipart/form-data" class="stack">
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+        <label class="file-drop">
+            <span>Datei auswählen</span>
+            <input asp-for="Upload" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" />
+        </label>
+        <p class="muted small">Der Upload wird sicher geprüft, gehasht und anschließend asynchron per Tesseract verarbeitet.</p>
+        <button class="button button-primary" type="submit">Hochladen</button>
+    </form>
+</section>

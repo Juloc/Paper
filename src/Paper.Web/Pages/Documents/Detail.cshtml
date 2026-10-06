@@ -1,0 +1,52 @@
+@page "/Documents/{id:long}"
+@model Paper.Web.Pages.Documents.DetailModel
+@{
+    ViewData["Title"] = Model.Document?.Title ?? "Dokument";
+    var document = Model.Document!;
+    Model.Input.Title = document.Title;
+    Model.Input.DocumentDate = document.DocumentDate;
+    Model.Input.Tags = string.Join(", ", document.Tags);
+}
+<header class="page-header">
+    <div><div class="eyebrow">Dokument</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
+    <a class="button" asp-page="/Inbox/Index">Zurück</a>
+</header>
+<div class="document-detail">
+    <section class="preview panel">
+        @if (document.OriginalFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            <iframe src="/documents/@document.Id/file" title="Dokumentvorschau"></iframe>
+        }
+        else
+        {
+            <img src="/documents/@document.Id/file" alt="Vorschau von @document.Title" />
+        }
+        <a class="button" href="/documents/@document.Id/file">Datei herunterladen</a>
+    </section>
+    <aside class="panel metadata">
+        <form method="post" asp-page-handler="Save" class="stack">
+            <div asp-validation-summary="ModelOnly" class="validation"></div>
+            <label>Titel <input asp-for="Input.Title" /></label>
+            <label>Dokumentdatum <input asp-for="Input.DocumentDate" type="date" /></label>
+            <label>Tags <input asp-for="Input.Tags" placeholder="z. B. rechnung, privat" /></label>
+            <button class="button button-primary" type="submit">Speichern</button>
+        </form>
+        <dl class="facts">
+            <div><dt>OCR</dt><dd>@document.OcrStatus</dd></div>
+            <div><dt>Größe</dt><dd>@($"{document.FileSize / 1024d / 1024d:0.0} MB")</dd></div>
+            <div><dt>Hash</dt><dd class="hash">@document.Hash</dd></div>
+        </dl>
+        @if (document.OcrStatus == OcrStatus.Failed)
+        {
+            <p class="error-text">@document.OcrError</p>
+        }
+        <form method="post" asp-page-handler="Archive">
+            <input type="hidden" name="id" value="@document.Id" />
+            <button class="button button-quiet" type="submit">Archivieren</button>
+        </form>
+    </aside>
+</div>
+@if (!string.IsNullOrWhiteSpace(document.OcrText))
+{
+    <section class="panel ocr-text"><h2>Erkannter Text</h2><pre>@document.OcrText</pre></section>
+}

@@ -1,0 +1,34 @@
+@page "/Documents"
+@model Paper.Web.Pages.Documents.IndexModel
+@{
+    ViewData["Title"] = "Dokumente";
+}
+<header class="page-header">
+    <div>
+        <div class="eyebrow">Archiv</div>
+        <h1>Dokumente</h1>
+        <p class="muted">Dein ruhiger, durchsuchbarer Bestand.</p>
+    </div>
+    <a class="button button-primary" asp-page="/Search/Index">Suche öffnen</a>
+</header>
+@if (Model.Documents.Count == 0)
+{
+    <section class="empty-state"><h2>Noch keine archivierten Dokumente</h2><p>Prüfe zuerst ein Dokument aus der Inbox.</p></section>
+}
+else
+{
+    <section class="document-list">
+        @foreach (var document in Model.Documents)
+        {
+            <article class="document-row">
+                <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
+                <div class="document-copy">
+                    <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
+                    <span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span>
+                    <div class="tag-list">@foreach (var tag in document.Tags) { <span class="tag">@tag</span> }</div>
+                </div>
+                <a class="button" asp-page="/Documents/Detail" asp-route-id="@document.Id">Öffnen</a>
+            </article>
+        }
+    </section>
+}

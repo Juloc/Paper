@@ -1,0 +1,48 @@
+@page "/Inbox"
+@model Paper.Web.Pages.Inbox.IndexModel
+@{
+    ViewData["Title"] = "Inbox";
+}
+<header class="page-header">
+    <div>
+        <div class="eyebrow">Zu prüfen</div>
+        <h1>Inbox</h1>
+        <p class="muted">Neue Dokumente bleiben hier, bis du sie kurz geprüft und archiviert hast.</p>
+    </div>
+    <a class="button button-primary" asp-page="/Add/Index">Dokument hinzufügen</a>
+</header>
+@if (Model.Documents.Count == 0)
+{
+    <section class="empty-state">
+        <h2>Deine Inbox ist leer</h2>
+        <p>Neue Uploads erscheinen hier nach der Verarbeitung.</p>
+    </section>
+}
+else
+{
+    <section class="document-list" aria-label="Dokumente in der Inbox">
+        @foreach (var document in Model.Documents)
+        {
+            <article class="document-row">
+                <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
+                <div class="document-copy">
+                    <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
+                    <span class="muted">@document.OriginalFileName · @($"{document.FileSize / 1024d / 1024d:0.0} MB")</span>
+                    <div class="tag-list">
+                        @foreach (var tag in document.Tags)
+                        {
+                            <span class="tag">@tag</span>
+                        }
+                    </div>
+                </div>
+                <div class="document-state">
+                    <span class="status status-@document.OcrStatus.ToString().ToLowerInvariant()">@document.OcrStatus switch { OcrStatus.Pending => "Wartet auf OCR", OcrStatus.Processing => "Wird verarbeitet", OcrStatus.Completed => "OCR fertig", _ => "OCR fehlgeschlagen" }</span>
+                    <form method="post" asp-page-handler="Archive">
+                        <input type="hidden" name="id" value="@document.Id" />
+                        <button class="button button-primary" type="submit">Archivieren</button>
+                    </form>
+                </div>
+            </article>
+        }
+    </section>
+}

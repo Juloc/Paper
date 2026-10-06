@@ -1,0 +1,43 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: src/Paper.Web/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=paper;Username=paper;Password=$PAPER_POSTGRES_PASSWORD;Maximum Pool Size=10
+      Auth__Username: $PAPER_ADMIN_USERNAME
+      Auth__Password: $PAPER_ADMIN_PASSWORD
+      Storage__RootPath: /data/documents
+      Ocr__Language: deu+eng
+      DataProtection__KeysDirectory: /data/keys
+    ports:
+      - "8080:8080"
+    volumes:
+      - paper_documents:/data/documents
+      - paper_keys:/data/keys
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: paper
+      POSTGRES_USER: paper
+      POSTGRES_PASSWORD: $PAPER_POSTGRES_PASSWORD
+    volumes:
+      - paper_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paper -d paper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  paper_documents:
+  paper_keys:
+  paper_postgres:

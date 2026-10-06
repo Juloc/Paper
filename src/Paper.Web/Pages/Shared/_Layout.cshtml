@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f3f1" />
+    <title>@ViewData["Title"] · Paper</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <header class="topbar">
+            <a class="brand" asp-page="/Inbox/Index">Paper</a>
+            <nav aria-label="Hauptnavigation">
+                <a asp-page="/Inbox/Index">Inbox</a>
+                <a asp-page="/Documents/Index">Dokumente</a>
+                <a asp-page="/Add/Index">Hinzufügen</a>
+                <a asp-page="/Search/Index">Suche</a>
+                <a asp-page="/Settings/Index">Einstellungen</a>
+            </nav>
+            <form method="post" asp-page="/Account/Logout">
+                <button class="button button-quiet" type="submit">Abmelden</button>
+            </form>
+        </header>
+    }
+    <main class="page">
+        @if (TempData["Status"] is string status)
+        {
+            <div class="notice" role="status">@status</div>
+        }
+        @RenderBody()
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

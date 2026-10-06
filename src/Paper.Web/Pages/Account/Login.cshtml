@@ -1,0 +1,16 @@
+@page "/Account/Login"
+@model Paper.Web.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Anmelden";
+}
+<section class="auth-card">
+    <div class="eyebrow">Dokumentenarchiv</div>
+    <h1>Willkommen bei Paper</h1>
+    <p class="muted">Melde dich an, um deine Dokumente zu verwalten.</p>
+    <form method="post" class="stack">
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+        <label>Benutzername <input asp-for="Input.Username" autocomplete="username" /></label>
+        <label>Passwort <input asp-for="Input.Password" type="password" autocomplete="current-password" /></label>
+        <button class="button button-primary" type="submit">Anmelden</button>
+    </form>
+</section>
