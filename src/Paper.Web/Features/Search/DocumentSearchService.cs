@@ -52,11 +52,18 @@ public sealed class DocumentSearchService(AppDbContext db)
             documents = documents.Where(document => document.DocumentDate <= criteria.ToDate);
         }
 
-        if (criteria.CustomFieldId is not null && !string.IsNullOrWhiteSpace(criteria.CustomFieldValue))
+        if (criteria.CustomFieldId is not null)
         {
-            var value = criteria.CustomFieldValue.Trim();
-            documents = documents.Where(document => document.CustomFields.Any(field =>
-                field.CustomFieldId == criteria.CustomFieldId && EF.Functions.ILike(field.Value, $"%{value}%")));
+            if (string.IsNullOrWhiteSpace(criteria.CustomFieldValue))
+            {
+                documents = documents.Where(document => document.CustomFields.Any(field => field.CustomFieldId == criteria.CustomFieldId));
+            }
+            else
+            {
+                var value = criteria.CustomFieldValue.Trim();
+                documents = documents.Where(document => document.CustomFields.Any(field =>
+                    field.CustomFieldId == criteria.CustomFieldId && EF.Functions.ILike(field.Value, $"%{value}%")));
+            }
         }
 
         return documents
@@ -95,5 +102,5 @@ public sealed record SearchCriteria(
         !string.IsNullOrWhiteSpace(Tag) ||
         FromDate is not null ||
         ToDate is not null ||
-        CustomFieldId is not null && !string.IsNullOrWhiteSpace(CustomFieldValue);
+        CustomFieldId is not null;
 }

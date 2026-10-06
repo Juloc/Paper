@@ -140,6 +140,7 @@ public sealed class StorageAndAnalysisTests
     {
         var criteria = new SearchCriteria("", null, null, 4, null, null, null, null, null);
         Assert.IsTrue(criteria.HasFilters);
+        Assert.IsTrue(new SearchCriteria("", null, null, null, null, null, null, 3, "").HasFilters);
         Assert.IsFalse(new SearchCriteria("", null, null, null, null, null, null, null, null).HasFilters);
     }
 }

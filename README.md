@@ -21,6 +21,8 @@ Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpas
 - Tesseract OCR und kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
 - PostgreSQL Full Text Search über Titel, OCR-Text, Dateiname, Regalpfad und Metadaten
 - responsive Razor-UI und sichere Cookie-Authentifizierung
+- optionaler Consume-Eingang unter /data/consume mit stabiler Dateiprüfung und Fehlerablage
+- JSON-/CSV-Metadatenexport aus den Einstellungen
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.
 
@@ -31,3 +33,11 @@ Neue Uploads landen zunächst unter inbox/. Nach der Prüfung erzeugt Paper beis
     Wohnung/Strom/2026-10-05 Stadtwerke Mannheim Rechnung.pdf
 
 Das Verschieben der Datei und die Datenbankänderung werden konsistent behandelt. Bei einem Datenbankfehler wird ein bereits verschobenes Dokument nach Möglichkeit in den Inbox-Pfad zurückgelegt.
+
+## Automatischer Import
+
+Dateien können in den gemounteten Ordner /data/consume gelegt werden. Paper wartet, bis eine Datei stabil ist, verschiebt sie intern in einen Verarbeitungspuffer und importiert sie danach in die Inbox. Ungültige Dateien oder Duplikate landen mit einer .error.txt-Begründung unter /data/consume/failed; dadurch entstehen keine wiederholten Fehlversuche.
+
+## Export
+
+Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV exportiert werden. Die Originaldateien bleiben im menschenlesbaren Regal unter /data/documents und benötigen für die Betrachtung keine proprietäre Dateistruktur.
