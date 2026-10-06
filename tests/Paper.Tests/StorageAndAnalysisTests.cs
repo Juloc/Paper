@@ -65,6 +65,11 @@ public sealed class StorageAndAnalysisTests
             Assert.AreEqual("Wohnung/Strom/2026-10-05 Stadtwerke Mannheim Rechnung (2).pdf", secondPath);
             Assert.IsTrue(File.Exists(storage.GetSafePath(firstPath)));
             Assert.IsTrue(File.Exists(storage.GetSafePath(secondPath)));
+
+            var renamedPath = await storage.MoveToShelfAsync(firstPath, "Wohnung/Strom", new DateOnly(2026, 10, 5), "Stadtwerke Mannheim Abschlag", "rechnung.pdf", CancellationToken.None);
+            Assert.AreEqual("Wohnung/Strom/2026-10-05 Stadtwerke Mannheim Abschlag.pdf", renamedPath);
+            Assert.IsFalse(File.Exists(storage.GetSafePath(firstPath)));
+            Assert.IsTrue(File.Exists(storage.GetSafePath(renamedPath)));
         }
         finally
         {

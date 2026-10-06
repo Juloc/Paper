@@ -73,7 +73,7 @@ public sealed class LocalDocumentStorage(IConfiguration configuration, ILogger<L
         var directoryPath = GetSafePath(folderPath);
         Directory.CreateDirectory(directoryPath);
         var fileName = StoragePathPolicy.CreateShelfFileName(documentDate, title, originalFileName);
-        var destinationRelativePath = GetAvailablePath(folderPath, fileName);
+        var destinationRelativePath = GetAvailablePath(folderPath, fileName, sourceRelativePath);
         var destinationPath = GetSafePath(destinationRelativePath);
         if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -140,13 +140,14 @@ public sealed class LocalDocumentStorage(IConfiguration configuration, ILogger<L
         }
     }
 
-    private string GetAvailablePath(string folderPath, string fileName)
+    private string GetAvailablePath(string folderPath, string fileName, string sourceRelativePath)
     {
         var extension = Path.GetExtension(fileName);
         var stem = Path.GetFileNameWithoutExtension(fileName);
         var attempt = 1;
         var relativePath = StoragePathPolicy.Combine(folderPath, fileName);
-        while (File.Exists(GetSafePath(relativePath)))
+        while (File.Exists(GetSafePath(relativePath)) &&
+               !string.Equals(relativePath, StoragePathPolicy.NormalizeRelativePath(sourceRelativePath), StringComparison.OrdinalIgnoreCase))
         {
             attempt++;
             relativePath = StoragePathPolicy.Combine(folderPath, $"{stem} ({attempt}){extension}");

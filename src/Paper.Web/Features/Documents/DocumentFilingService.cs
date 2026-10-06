@@ -46,9 +46,9 @@ public sealed class DocumentFilingService(
             }
         }
 
-        if (fileFromInbox && shelf is null)
+        if ((fileFromInbox || document.Status == DocumentStatus.Filed) && shelf is null)
         {
-            return DocumentSaveResult.Invalid("Bitte zuerst einen Regalordner auswählen.");
+            return DocumentSaveResult.Invalid("Bitte einen Regalordner auswählen.");
         }
 
         Correspondent? correspondent = null;
@@ -87,10 +87,11 @@ public sealed class DocumentFilingService(
 
         var oldPath = document.FilePath;
         string? newPath = null;
+        var movedFile = false;
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            if (fileFromInbox)
+            if (fileFromInbox || document.Status == DocumentStatus.Filed)
             {
                 newPath = await storage.MoveToShelfAsync(
                     document.FilePath,
@@ -100,6 +101,7 @@ public sealed class DocumentFilingService(
                     document.OriginalFileName,
                     cancellationToken);
                 document.FilePath = newPath;
+                movedFile = !string.Equals(newPath, oldPath, StringComparison.OrdinalIgnoreCase);
             }
 
             document.Title = title;
@@ -123,7 +125,7 @@ public sealed class DocumentFilingService(
         catch
         {
             await transaction.RollbackAsync(CancellationToken.None);
-            if (newPath is not null)
+            if (movedFile && newPath is not null)
             {
                 try
                 {
