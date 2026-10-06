@@ -122,6 +122,25 @@ public sealed class DocumentFilingService(
             await transaction.CommitAsync(cancellationToken);
             return DocumentSaveResult.Success;
         }
+        catch (IOException exception)
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (movedFile && newPath is not null)
+            {
+                try
+                {
+                    await storage.MoveBackAsync(newPath, oldPath, CancellationToken.None);
+                }
+                catch (Exception rollbackError)
+                {
+                    logger.LogCritical(rollbackError, "Could not roll back document move after a storage error from {NewPath} to {OldPath}.", newPath, oldPath);
+                    return DocumentSaveResult.Invalid("Die Datei konnte nicht verschoben werden; auch das Zurücksetzen ist fehlgeschlagen. Bitte prüfe den Speicher.");
+                }
+            }
+
+            logger.LogWarning(exception, "Could not move document {DocumentId} while saving its metadata.", id);
+            return DocumentSaveResult.Invalid("Die Datei konnte nicht sicher verschoben werden. Bitte prüfe den Dokumentenspeicher.");
+        }
         catch
         {
             await transaction.RollbackAsync(CancellationToken.None);
