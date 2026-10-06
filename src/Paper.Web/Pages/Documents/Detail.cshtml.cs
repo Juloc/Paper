@@ -57,6 +57,17 @@ public sealed class DetailModel(
         return RedirectToPage(new { id });
     }
 
+    public async Task<IActionResult> OnPostRestoreToInboxAsync(long id, CancellationToken cancellationToken)
+    {
+        if (!await documents.SetInboxStatusAsync(id, DocumentStatus.Inbox, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        TempData["Status"] = "Dokument wieder in die Inbox gelegt.";
+        return RedirectToPage(new { id });
+    }
+
     private async Task<IActionResult> SaveAsync(long id, bool fileFromInbox, string successMessage, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)

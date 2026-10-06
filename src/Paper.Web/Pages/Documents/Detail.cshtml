@@ -7,10 +7,11 @@
     ViewData["Title"] = Model.Document?.Title ?? "Dokument";
     var document = Model.Document!;
     var inInbox = document.Status == DocumentStatus.Inbox;
+    var inboxLike = document.Status is DocumentStatus.Inbox or DocumentStatus.Deferred or DocumentStatus.Ignored;
 }
 <header class="page-header">
-    <div><div class="eyebrow">@(inInbox ? "Inbox" : "Dokument")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
-    <a class="button" asp-page="@(inInbox ? "/Inbox/Index" : "/Documents/Index")">Zurück</a>
+    <div><div class="eyebrow">@(inboxLike ? document.Status switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" } : "Dokument")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
+    <a class="button" asp-page="@(inboxLike ? "/Inbox/Index" : "/Documents/Index")" asp-route-view="@(inboxLike && !inInbox ? document.Status.ToString() : null)">Zurück</a>
 </header>
 <div class="document-detail">
     <section class="preview panel">
@@ -79,6 +80,12 @@
         <form method="post" asp-page-handler="Reanalyze">
             <button class="button" type="submit">Neu analysieren</button>
         </form>
+        @if (document.Status is DocumentStatus.Deferred or DocumentStatus.Ignored)
+        {
+            <form method="post" asp-page-handler="RestoreToInbox">
+                <button class="button" type="submit">In Inbox zurücklegen</button>
+            </form>
+        }
         <dl class="facts">
             <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
             <div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div>
