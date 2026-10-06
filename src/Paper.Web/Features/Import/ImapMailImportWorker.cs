@@ -8,6 +8,7 @@ public sealed class ImapMailImportWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
     EmailAttachmentExtractor emailAttachments,
+    TimeProvider timeProvider,
     ILogger<ImapMailImportWorker> logger) : BackgroundService
 {
     private readonly SemaphoreSlim runGate = new(1, 1);
@@ -102,7 +103,7 @@ public sealed class ImapMailImportWorker(
                 if (candidates.Length == 0)
                 {
                     state.LastUid = uid;
-                    state.LastSyncAt = DateTime.UtcNow;
+                    state.LastSyncAt = timeProvider.GetUtcNow().UtcDateTime;
                     state.LastError = null;
                     await db.SaveChangesAsync(cancellationToken);
                     if (options.MarkSeen)
@@ -135,7 +136,7 @@ public sealed class ImapMailImportWorker(
                     }
                 }
 
-                state.LastSyncAt = DateTime.UtcNow;
+                state.LastSyncAt = timeProvider.GetUtcNow().UtcDateTime;
                 state.LastError = errors.Count == 0 ? null : $"UID {uid}: {string.Join(" | ", errors)}";
                 if (errors.Count > 0)
                 {
@@ -144,7 +145,7 @@ public sealed class ImapMailImportWorker(
                         AccountName = options.AccountName,
                         Uid = uid,
                         Error = state.LastError ?? "Mail import failed.",
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = timeProvider.GetUtcNow().UtcDateTime
                     });
                 }
 
@@ -172,7 +173,7 @@ public sealed class ImapMailImportWorker(
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                state.LastSyncAt = DateTime.UtcNow;
+                state.LastSyncAt = timeProvider.GetUtcNow().UtcDateTime;
                 var error = $"UID {uid}: {exception.Message}";
                 state.LastError = error[..Math.Min(2000, error.Length)];
                 db.MailImportFailures.Add(new MailImportFailure
@@ -180,7 +181,7 @@ public sealed class ImapMailImportWorker(
                     AccountName = options.AccountName,
                     Uid = uid,
                     Error = state.LastError ?? error,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = timeProvider.GetUtcNow().UtcDateTime
                 });
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogWarning(exception, "Could not process IMAP UID {Uid}.", uid);

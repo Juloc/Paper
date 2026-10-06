@@ -95,10 +95,20 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapGet("/health", async (AppDbContext db, CancellationToken cancellationToken) =>
-    await db.Database.CanConnectAsync(cancellationToken)
-        ? Results.Ok(new { status = "ok" })
-        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
+app.MapGet("/health", async Task<IResult> (AppDbContext db, ILogger<Program> logger, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        return await db.Database.CanConnectAsync(cancellationToken)
+            ? Results.Ok(new { status = "ok" })
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception exception) when (exception is not OperationCanceledException)
+    {
+        logger.LogWarning(exception, "Health check could not connect to the database.");
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
 app.MapGet("/documents/{id:long}/file", async (long id, bool? download, DocumentFileService files, CancellationToken cancellationToken) =>
 {
     var file = await files.OpenAsync(id, cancellationToken);

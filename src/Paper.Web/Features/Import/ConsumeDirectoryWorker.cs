@@ -6,6 +6,7 @@ public sealed class ConsumeDirectoryWorker(
     IServiceScopeFactory scopeFactory,
     IConfiguration configuration,
     EmailAttachmentExtractor emailAttachments,
+    TimeProvider timeProvider,
     ILogger<ConsumeDirectoryWorker> logger) : BackgroundService
 {
     private static readonly IReadOnlyDictionary<string, string> ContentTypes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -202,12 +203,12 @@ public sealed class ConsumeDirectoryWorker(
         }
 
         var safeName = SanitizeName(originalFileName);
-        var destination = Path.Combine(failedDirectory, $"{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid():N}_{safeName}");
+        var destination = Path.Combine(failedDirectory, $"{timeProvider.GetUtcNow():yyyyMMddHHmmss}_{Guid.NewGuid():N}_{safeName}");
         File.Move(processingPath, destination);
         File.WriteAllText(destination + ".error.txt", error[..Math.Min(2000, error.Length)]);
     }
 
-    private static bool IsStable(string path)
+    private bool IsStable(string path)
     {
         var info = new FileInfo(path);
         if (info.Length == 0)
@@ -215,7 +216,7 @@ public sealed class ConsumeDirectoryWorker(
             return false;
         }
 
-        var age = DateTime.UtcNow - info.LastWriteTimeUtc;
+        var age = timeProvider.GetUtcNow().UtcDateTime - info.LastWriteTimeUtc;
         return age >= TimeSpan.FromSeconds(5);
     }
 
