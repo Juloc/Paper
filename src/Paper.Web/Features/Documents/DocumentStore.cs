@@ -8,10 +8,35 @@ namespace Paper.Web.Features.Documents;
 public sealed class DocumentStore(AppDbContext db)
 {
     public Task<List<DocumentListItem>> ListInboxAsync(CancellationToken cancellationToken) =>
-        Query(DocumentStatus.Inbox).ToListAsync(cancellationToken);
+        ListAsync(DocumentStatus.Inbox, cancellationToken);
+
+    public Task<List<DocumentListItem>> ListAsync(DocumentStatus status, CancellationToken cancellationToken) =>
+        Query(status).ToListAsync(cancellationToken);
 
     public Task<List<DocumentListItem>> ListFiledAsync(CancellationToken cancellationToken) =>
         Query(DocumentStatus.Filed).ToListAsync(cancellationToken);
+
+    public Task<int> CountAsync(DocumentStatus status, CancellationToken cancellationToken) =>
+        db.Documents.CountAsync(document => document.Status == status, cancellationToken);
+
+    public async Task<bool> SetInboxStatusAsync(long id, DocumentStatus status, CancellationToken cancellationToken)
+    {
+        if (status is not (DocumentStatus.Inbox or DocumentStatus.Deferred or DocumentStatus.Ignored))
+        {
+            return false;
+        }
+
+        var document = await db.Documents.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (document is null || document.Status == DocumentStatus.Filed)
+        {
+            return false;
+        }
+
+        document.Status = status;
+        document.UpdatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 
     public async Task<DocumentDetails?> GetAsync(long id, CancellationToken cancellationToken)
     {

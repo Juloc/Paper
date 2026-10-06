@@ -6,11 +6,16 @@
 <header class="page-header">
     <div>
         <div class="eyebrow">Zu prüfen</div>
-        <h1>Inbox</h1>
-        <p class="muted">Neue Dokumente bleiben hier, bis du sie kurz prüfst und ablegst.</p>
+        <h1>@(Model.View switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" })</h1>
+        <p class="muted">@(Model.View switch { DocumentStatus.Deferred => "Zurückgestellte Dokumente, die du später prüfen möchtest.", DocumentStatus.Ignored => "Ignorierte Dokumente bleiben erhalten und können wieder aufgenommen werden.", _ => "Neue Dokumente bleiben hier, bis du sie kurz prüfst und ablegst." })</p>
     </div>
     <a class="button button-primary" asp-page="/Add/Index">Dokument hinzufügen</a>
 </header>
+<nav class="inbox-tabs" aria-label="Inbox-Ansichten">
+    <a class="@(Model.View == DocumentStatus.Inbox ? "active" : "")" asp-page="/Inbox/Index">Inbox</a>
+    <a class="@(Model.View == DocumentStatus.Deferred ? "active" : "")" asp-page="/Inbox/Index" asp-route-view="Deferred">Später <span>@Model.DeferredCount</span></a>
+    <a class="@(Model.View == DocumentStatus.Ignored ? "active" : "")" asp-page="/Inbox/Index" asp-route-view="Ignored">Ignoriert <span>@Model.IgnoredCount</span></a>
+</nav>
 @if (Model.Documents.Count == 0)
 {
     <section class="empty-state">
@@ -44,7 +49,18 @@ else
                 </div>
                 <div class="document-state">
                     <span class="status status-@document.OcrStatus.ToString().ToLowerInvariant()">@document.OcrStatus switch { OcrStatus.Pending => "Wartet auf OCR", OcrStatus.Processing => "Wird verarbeitet", OcrStatus.Completed => "OCR fertig", _ => "OCR fehlgeschlagen" }</span>
-                    <a class="button button-primary" asp-page="/Documents/Detail" asp-route-id="@document.Id">Prüfen und ablegen</a>
+                    <div class="inbox-actions">
+                        <a class="button button-primary" asp-page="/Documents/Detail" asp-route-id="@document.Id">@(Model.View == DocumentStatus.Inbox ? "Prüfen und ablegen" : "Öffnen")</a>
+                        @if (Model.View == DocumentStatus.Inbox)
+                        {
+                            <form method="post" asp-page-handler="Defer"><input type="hidden" name="id" value="@document.Id" /><button class="button" type="submit">Später</button></form>
+                            <form method="post" asp-page-handler="Ignore"><input type="hidden" name="id" value="@document.Id" /><button class="button button-quiet" type="submit">Ignorieren</button></form>
+                        }
+                        else
+                        {
+                            <form method="post" asp-page-handler="Restore"><input type="hidden" name="id" value="@document.Id" /><button class="button" type="submit">In Inbox</button></form>
+                        }
+                    </div>
                 </div>
             </article>
         }

@@ -15,6 +15,7 @@ Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpas
 - sicherer Upload mit Dateisignaturprüfung, Größenlimit und SHA-256-Duplikaterkennung
 - lokale, menschenlesbare Ablage unter /data/documents
 - Inbox → Metadaten prüfen → Regalordner auswählen → Ablegen
+- Inbox-Aktionen für späteres Zurückstellen und Ignorieren ohne Datenverlust
 - Regalansicht mit echten Unterordnern und kollisionssicheren Dateinamen
 - Korrespondenten, Dokumenttypen, Tags und relationale Custom Fields
 - persistente PostgreSQL-Verarbeitungsjobs mit Retry und Crash-Recovery

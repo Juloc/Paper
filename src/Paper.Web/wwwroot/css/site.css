@@ -41,6 +41,12 @@ h2 { letter-spacing: -.03em; }
 .document-title { font-size: 1.05rem; font-weight: 700; }
 .document-title:hover { color: var(--accent-dark); }
 .document-state { align-items: end; display: flex; flex-direction: column; gap: .6rem; margin-left: auto; }
+.inbox-actions { align-items: center; display: flex; flex-wrap: wrap; gap: .4rem; justify-content: end; }
+.inbox-actions form { display: inline-flex; }
+.inbox-tabs { border-bottom: 1px solid var(--line); display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+.inbox-tabs a { color: var(--muted); padding: .7rem .2rem; }
+.inbox-tabs a.active { border-bottom: 2px solid var(--accent); color: var(--accent-dark); font-weight: 700; }
+.inbox-tabs span { background: var(--soft); border-radius: 999px; font-size: .72rem; padding: .15rem .4rem; }
 .status { border-radius: 999px; font-size: .72rem; padding: .35rem .6rem; white-space: nowrap; }
 .status-completed { background: #e6f1e9; color: #2d7045; }
 .status-processing { background: #f7eed3; color: #795e16; }

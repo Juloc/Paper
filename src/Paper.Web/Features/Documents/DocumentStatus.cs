@@ -3,5 +3,7 @@ namespace Paper.Web.Features.Documents;
 public enum DocumentStatus
 {
     Inbox,
-    Filed
+    Filed,
+    Deferred,
+    Ignored
 }
