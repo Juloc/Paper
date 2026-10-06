@@ -1,6 +1,7 @@
 @page "/Documents/{id:long}"
 @model Paper.Web.Pages.Documents.DetailModel
 @using Paper.Web.Features.Documents
+@using Paper.Web.Features.CustomFields
 @using Paper.Web.Features.Processing
 @{
     ViewData["Title"] = Model.Document?.Title ?? "Dokument";
@@ -62,7 +63,15 @@
                 @foreach (var field in Model.CustomFields)
                 {
                     var value = Model.Input.CustomFields.GetValueOrDefault(field.Id, "");
-                    <label>@field.Name <input name="Input.CustomFields[@field.Id]" value="@value" /></label>
+                    @if (field.Type == CustomFieldType.Boolean)
+                    {
+                        <label class="checkbox-field"><input type="checkbox" name="Input.CustomFields[@field.Id]" value="true" checked="@(value.Equals("true", StringComparison.OrdinalIgnoreCase) ? "checked" : null)" /> @field.Name</label>
+                    }
+                    else
+                    {
+                        var inputType = field.Type switch { CustomFieldType.Date => "date", CustomFieldType.Number => "number", _ => "text" };
+                        <label>@field.Name <input type="@inputType" step="@(field.Type == CustomFieldType.Number ? "any" : null)" name="Input.CustomFields[@field.Id]" value="@value" /></label>
+                    }
                 }
             }
             <button class="button button-primary" type="submit">@(inInbox ? "Ablegen" : "Änderungen speichern")</button>

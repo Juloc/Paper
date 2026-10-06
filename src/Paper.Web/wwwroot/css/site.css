@@ -61,6 +61,8 @@ h2 { letter-spacing: -.03em; }
 .processing-footer a { color: var(--accent-dark); font-weight: 650; }
 .stack { display: grid; gap: 1rem; }
 label { display: grid; font-size: .88rem; font-weight: 650; gap: .45rem; }
+.checkbox-field { align-items: center; display: flex; gap: .55rem; }
+.checkbox-field input { accent-color: var(--accent); width: auto; }
 input { background: white; border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); font: inherit; padding: .75rem .8rem; width: 100%; }
 select { background: white; border: 1px solid var(--line); border-radius: .6rem; color: var(--ink); font: inherit; padding: .75rem .8rem; width: 100%; }
 input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba(49, 89, 184, .18); }
