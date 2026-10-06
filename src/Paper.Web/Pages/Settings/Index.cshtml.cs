@@ -7,6 +7,7 @@ using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.DocumentTypes;
 using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
+using Paper.Web.Features.Processing;
 
 namespace Paper.Web.Pages.Settings;
 
@@ -18,6 +19,7 @@ public sealed class IndexModel(
     DocumentRestoreService restore,
     PaperlessImportService paperlessImport,
     ImapMailImportWorker mailImport,
+    AnalysisRuleStore analysisRules,
     AppDbContext db) : PageModel
 {
     [BindProperty]
@@ -48,6 +50,7 @@ public sealed class IndexModel(
     public IReadOnlyList<CorrespondentOption> CorrespondentOptions { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypeOptions { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFieldOptions { get; private set; } = [];
+    public IReadOnlyList<AnalysisRuleView> AnalysisRules { get; private set; } = [];
     public MailImportState? MailState { get; private set; }
     public IReadOnlyList<MailImportFailure> MailFailures { get; private set; } = [];
 
@@ -155,11 +158,22 @@ public sealed class IndexModel(
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostDeleteAnalysisRuleAsync(long id, CancellationToken cancellationToken)
+    {
+        if (await analysisRules.DeleteAsync(id, cancellationToken))
+        {
+            TempData["Status"] = "Lernregel entfernt.";
+        }
+
+        return RedirectToPage();
+    }
+
     private async Task LoadAsync(CancellationToken cancellationToken)
     {
         CorrespondentOptions = await correspondents.ListAsync(cancellationToken);
         DocumentTypeOptions = await documentTypes.ListAsync(cancellationToken);
         CustomFieldOptions = await customFields.ListAsync(cancellationToken);
+        AnalysisRules = await analysisRules.ListAsync(cancellationToken);
         MailState = await db.MailImportStates.AsNoTracking()
             .OrderByDescending(state => state.LastSyncAt)
             .FirstOrDefaultAsync(cancellationToken);

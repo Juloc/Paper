@@ -46,6 +46,33 @@
     </section>
 </div>
 <section class="panel settings-card restore-card">
+    <h2>Gelernte Analyse</h2>
+    <p class="muted">Paper merkt sich wiederkehrende Korrekturen. Die Regeln bleiben sichtbar und können einzeln entfernt werden.</p>
+    @if (Model.AnalysisRules.Count == 0)
+    {
+        <p class="small muted">Noch keine Lernregeln vorhanden.</p>
+    }
+    else
+    {
+        <div class="analysis-rules">
+            @foreach (var rule in Model.AnalysisRules)
+            {
+                <div class="analysis-rule">
+                    <div>
+                        <strong>@rule.Term</strong>
+                        <span class="small muted">@rule.UseCount Verwendung(en) · @rule.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
+                        <span class="small muted">@(rule.Correspondent ?? "")@(rule.DocumentType is null ? "" : $" · {rule.DocumentType}")@(rule.ShelfPath is null ? "" : $" · {rule.ShelfPath}")</span>
+                    </div>
+                    <form method="post" asp-page-handler="DeleteAnalysisRule">
+                        <input type="hidden" name="id" value="@rule.Id" />
+                        <button class="button button-quiet" type="submit">Entfernen</button>
+                    </form>
+                </div>
+            }
+        </div>
+    }
+</section>
+<section class="panel settings-card restore-card">
     <h2>Backup wiederherstellen</h2>
     <p class="muted">Importiert Dateien und Metadaten aus einem Paper-ZIP-Backup. Vorhandene Hashes werden übersprungen.</p>
     <form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form">

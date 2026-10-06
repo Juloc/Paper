@@ -97,6 +97,9 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .settings-card h2 { font-size: 1.1rem; }
 .inline-form { display: flex; gap: .5rem; }
 .settings-tags { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: 1rem; }
+.analysis-rules { display: grid; gap: .5rem; margin-top: 1rem; }
+.analysis-rule { align-items: center; border-top: 1px solid var(--line); display: flex; gap: 1rem; justify-content: space-between; padding-top: .75rem; }
+.analysis-rule > div { display: grid; gap: .15rem; }
 .form-heading { font-size: 1rem; margin: .4rem 0 -.3rem; }
 .shelf-layout { display: grid; gap: 1.5rem; grid-template-columns: minmax(220px, .7fr) minmax(0, 1.5fr); }
 .shelf-tree, .shelf-content { padding: 1.25rem; }
