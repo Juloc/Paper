@@ -152,6 +152,7 @@ public sealed class StorageAndAnalysisTests
         Assert.ThrowsExactly<ArgumentException>(() => StoragePathPolicy.NormalizeFolderPath("Wohnung/../Secrets"));
         Assert.ThrowsExactly<ArgumentException>(() => StoragePathPolicy.NormalizeFolderPath("C:/Secrets"));
         Assert.AreEqual("undated Vertrag.pdf", StoragePathPolicy.CreateShelfFileName(null, "Vertrag", "scan.pdf"));
+        Assert.AreEqual("rechnung_2026_.pdf", StoragePathPolicy.SanitizeFileName("rechnung:2026?.pdf"));
     }
 
     [TestMethod]

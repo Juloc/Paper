@@ -58,7 +58,9 @@ public static class StoragePathPolicy
         var invalidCharacters = Path.GetInvalidFileNameChars();
         var sanitized = new string(value
             .Trim()
-            .Select(character => character < 32 || invalidCharacters.Contains(character) || character is '/' or '\\' ? '_' : character)
+            .Select(character => character < 32 ||
+                                 invalidCharacters.Contains(character) ||
+                                 character is '/' or '\\' or ':' or '*' or '?' or '"' or '<' or '>' or '|' ? '_' : character)
             .ToArray());
         sanitized = string.Join(' ', sanitized.Split(' ', StringSplitOptions.RemoveEmptyEntries));
         return string.IsNullOrWhiteSpace(sanitized) ? "Dokument" : sanitized[..Math.Min(220, sanitized.Length)];
