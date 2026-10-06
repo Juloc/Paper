@@ -11,48 +11,31 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
     public async Task WriteZipAsync(Stream destination, CancellationToken cancellationToken)
     {
         using var archive = new ZipArchive(new SynchronousWriteThroughStream(destination), ZipArchiveMode.Create, leaveOpen: true);
-        var documents = await db.Documents
-            .AsNoTracking()
-            .AsSplitQuery()
-            .Include(document => document.Correspondent)
-            .Include(document => document.DocumentType)
-            .Include(document => document.ShelfFolder)
-            .Include(document => document.Tags).ThenInclude(link => link.Tag)
-            .Include(document => document.CustomFields).ThenInclude(field => field.CustomField)
-            .OrderBy(document => document.Id)
-            .ToListAsync(cancellationToken);
-
         var manifestEntry = archive.CreateEntry("manifest.json", CompressionLevel.Fastest);
         await using (var manifestStream = manifestEntry.Open())
         {
-            await JsonSerializer.SerializeAsync(
-                manifestStream,
-                documents.Select(document => new DocumentBackupManifestEntry(
-                    document.Id,
-                    document.Title,
-                    document.DocumentDate,
-                    document.OriginalFileName,
-                    document.FilePath,
-                    document.FileSize,
-                    document.Hash,
-                    document.Status.ToString(),
-                    document.OcrStatus.ToString(),
-                    document.OcrText,
-                    document.OcrError,
-                    document.CreatedAt,
-                    document.UpdatedAt,
-                    document.Correspondent?.Name,
-                    document.DocumentType?.Name,
-                    document.ShelfFolder?.RelativePath,
-                    document.Tags.Select(link => link.Tag.Name).OrderBy(name => name).ToArray(),
-                    document.CustomFields
-                        .OrderBy(field => field.CustomField.Name)
-                        .Select(field => new DocumentBackupCustomField(field.CustomField.Name, field.CustomField.Type.ToString(), field.Value))
-                        .ToArray())),
-                cancellationToken: cancellationToken);
+            using var writer = new Utf8JsonWriter(manifestStream);
+            writer.WriteStartArray();
+            var count = 0;
+            await foreach (var document in QueryDocuments().AsAsyncEnumerable().WithCancellation(cancellationToken))
+            {
+                JsonSerializer.Serialize(writer, ToManifest(document));
+                if (++count % 16 == 0)
+                {
+                    await writer.FlushAsync(cancellationToken);
+                }
+            }
+
+            writer.WriteEndArray();
+            await writer.FlushAsync(cancellationToken);
         }
 
-        foreach (var document in documents)
+        await foreach (var document in db.Documents
+                           .AsNoTracking()
+                           .OrderBy(document => document.Id)
+                           .Select(document => new { document.Id, document.OriginalFileName, document.FilePath })
+                           .AsAsyncEnumerable()
+                           .WithCancellation(cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
             var entryName = $"documents/{document.Id:D8}_{StoragePathPolicy.SanitizeFileName(document.OriginalFileName)}";
@@ -81,6 +64,40 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
 
         await destination.FlushAsync(cancellationToken);
     }
+
+    private IQueryable<Document> QueryDocuments() =>
+        db.Documents
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(document => document.Correspondent)
+            .Include(document => document.DocumentType)
+            .Include(document => document.ShelfFolder)
+            .Include(document => document.Tags).ThenInclude(link => link.Tag)
+            .Include(document => document.CustomFields).ThenInclude(field => field.CustomField)
+            .OrderBy(document => document.Id);
+
+    private static DocumentBackupManifestEntry ToManifest(Document document) => new(
+        document.Id,
+        document.Title,
+        document.DocumentDate,
+        document.OriginalFileName,
+        document.FilePath,
+        document.FileSize,
+        document.Hash,
+        document.Status.ToString(),
+        document.OcrStatus.ToString(),
+        document.OcrText,
+        document.OcrError,
+        document.CreatedAt,
+        document.UpdatedAt,
+        document.Correspondent?.Name,
+        document.DocumentType?.Name,
+        document.ShelfFolder?.RelativePath,
+        document.Tags.Select(link => link.Tag.Name).OrderBy(name => name).ToArray(),
+        document.CustomFields
+            .OrderBy(field => field.CustomField.Name)
+            .Select(field => new DocumentBackupCustomField(field.CustomField.Name, field.CustomField.Type.ToString(), field.Value))
+            .ToArray());
 
     /// <summary>
     /// ZipArchive still finalizes its central directory synchronously. Kestrel's response
