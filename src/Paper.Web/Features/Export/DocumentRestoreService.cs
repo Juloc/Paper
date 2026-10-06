@@ -17,6 +17,7 @@ public sealed class DocumentRestoreService(
     ILogger<DocumentRestoreService> logger)
 {
     public const long MaximumBackupSize = 2L * 1024 * 1024 * 1024;
+    private const long MaximumManifestSize = 256L * 1024 * 1024;
 
     public async Task<RestoreResult> RestoreAsync(Stream source, long length, CancellationToken cancellationToken)
     {
@@ -48,32 +49,50 @@ public sealed class DocumentRestoreService(
             return RestoreResult.Failed("Das Backup enthält kein manifest.json.");
         }
 
-        List<DocumentBackupManifestEntry>? manifest;
-        await using (var manifestStream = manifestEntry.Open())
+        if (manifestEntry.Length > MaximumManifestSize)
         {
-            manifest = await JsonSerializer.DeserializeAsync<List<DocumentBackupManifestEntry>>(manifestStream, cancellationToken: cancellationToken);
+            return RestoreResult.Failed("Das Backup-Manifest ist zu groß.");
         }
 
-        if (manifest is null)
+        if (!await IsValidManifestAsync(manifestEntry, cancellationToken))
         {
             return RestoreResult.Failed("Das Backup-Manifest ist ungültig.");
         }
 
-        if (manifest.Count > 100_000)
-        {
-            return RestoreResult.Failed("Das Backup enthält zu viele Dokumente.");
-        }
-
         var result = new RestoreResult();
-        foreach (var entry in manifest)
+        await using (var manifestStream = manifestEntry.Open())
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await RestoreDocumentAsync(archive, entry, result, cancellationToken);
+            var count = 0;
+            await foreach (var entry in JsonSerializer.DeserializeAsyncEnumerable<DocumentBackupManifestEntry>(manifestStream, cancellationToken: cancellationToken))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (entry is null || ++count > 100_000)
+                {
+                    return RestoreResult.Failed("Das Backup enthält zu viele oder ungültige Dokumente.");
+                }
+
+                await RestoreDocumentAsync(archive, entry, result, cancellationToken);
+            }
         }
 
         await RestoreAnalysisRulesAsync(archive, result, cancellationToken);
 
         return result;
+    }
+
+    private static async Task<bool> IsValidManifestAsync(ZipArchiveEntry manifestEntry, CancellationToken cancellationToken)
+    {
+        await using var stream = manifestEntry.Open();
+        var count = 0;
+        await foreach (var entry in JsonSerializer.DeserializeAsyncEnumerable<DocumentBackupManifestEntry>(stream, cancellationToken: cancellationToken))
+        {
+            if (entry is null || ++count > 100_000)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task RestoreAnalysisRulesAsync(ZipArchive archive, RestoreResult result, CancellationToken cancellationToken)

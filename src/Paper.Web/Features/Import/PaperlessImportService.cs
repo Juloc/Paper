@@ -47,6 +47,11 @@ public sealed class PaperlessImportService(
             return PaperlessImportResult.Failed("Der Paperless-Export enthält kein manifest.json.");
         }
 
+        if (manifestEntry.Length > DocumentRestoreLimit.MaximumManifestSize)
+        {
+            return PaperlessImportResult.Failed("Das Paperless-Manifest ist zu groß.");
+        }
+
         using var manifestStream = manifestEntry.Open();
         using var manifest = await JsonDocument.ParseAsync(manifestStream, cancellationToken: cancellationToken);
         if (manifest.RootElement.ValueKind != JsonValueKind.Array)
@@ -539,5 +544,6 @@ public sealed class PaperlessImportResult
 internal static class DocumentRestoreLimit
 {
     public const long MaximumBackupSize = 2L * 1024 * 1024 * 1024;
+    public const long MaximumManifestSize = 256L * 1024 * 1024;
     public const int MaximumManifestEntries = 100_000;
 }
