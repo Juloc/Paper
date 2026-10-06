@@ -8,6 +8,7 @@ Paper ist ein leichtes, selbst gehostetes Dokumentenarchiv für Home-Server und 
     docker compose up -d
 
 Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpasswörter in .env vor dem Einsatz.
+Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_POSTGRES_PASSWORD` müssen gesetzt sein; Compose bricht bei fehlenden Werten bewusst früh ab.
 
 ## MVP
 
@@ -20,14 +21,19 @@ Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpas
 - Korrespondenten, Dokumenttypen, Tags und relationale Custom Fields
 - persistente PostgreSQL-Verarbeitungsjobs mit Retry und Crash-Recovery
 - dezenter Processing-Status mit Fehlerliste und manuellem Retry
-- Tesseract OCR und kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
+- Tesseract OCR für Bilder sowie PDF-OCR mit eingebettetem Text und Poppler-Rasterisierung als Fallback
+- kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
 - PostgreSQL Full Text Search über Titel, OCR-Text, Dateiname, Regalpfad und Metadaten
+- paginierte Inbox- und Bestandsansichten für große Archive
 - responsive Razor-UI und sichere Cookie-Authentifizierung
 - optionaler Consume-Eingang unter /data/consume mit stabiler Dateiprüfung und Fehlerablage
 - JSON-/CSV-Metadatenexport aus den Einstellungen
 - On-Demand-Bild-Thumbnails als lokaler, wegwerfbarer Preview-Cache; PDFs bleiben direkt im Browser betrachtbar
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.
+Das Container-Image bringt Poppler, Tesseract und die deutschen/englischen Sprachdaten mit. Ein nicht erreichbares OCR-Programm blockiert den Webserver nicht; der persistente Job bleibt sichtbar und wiederholbar.
+
+Für Monitoring steht `GET /health` ohne Anmeldung zur Verfügung. Der Endpunkt bestätigt nur eine erreichbare Datenbank und enthält keine Archiv- oder Konfigurationsdaten.
 
 ## Datenablage
 
@@ -38,6 +44,7 @@ Neue Uploads landen zunächst unter inbox/. Nach der Prüfung erzeugt Paper beis
 Das Verschieben der Datei und die Datenbankänderung werden konsistent behandelt. Bei einem Datenbankfehler wird ein bereits verschobenes Dokument nach Möglichkeit in den Inbox-Pfad zurückgelegt.
 
 Für NAS-Betrieb kann Storage:Provider auf smb gesetzt und Storage:SmbRootPath auf einen erreichbaren UNC-/SMB-Pfad gesetzt werden. Der SMB-Provider nutzt die native Dateisystem-/UNC-Anbindung des Betriebssystems; Zugangsdaten und Verbindungslebenszyklus bleiben außerhalb der Anwendung. WakePolicy: Never vermeidet unnötige Zugriffe auf ein schlafendes NAS; OnDemand ist für eine spätere gezielte Wake-Integration vorbereitet. Lokal bleibt der Provider ohne weitere Abhängigkeiten aktiv.
+Beim ersten Compose-Start richtet ein kurzlebiger Init-Container die Eigentümer der gemounteten Datenvolumes auf den non-root App-Benutzer ein. Der App-Container selbst bleibt danach read-only, non-root, ohne Linux-Capabilities und mit `no-new-privileges`.
 
 ## Automatischer Import
 

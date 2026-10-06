@@ -58,6 +58,7 @@ public sealed class DocumentProcessingWorker(
         var db = services.GetRequiredService<AppDbContext>();
         var jobStore = services.GetRequiredService<ProcessingJobStore>();
         var document = await db.Documents
+            .AsSplitQuery()
             .Include(item => item.Tags).ThenInclude(item => item.Tag)
             .Include(item => item.Correspondent)
             .Include(item => item.DocumentType)
@@ -136,7 +137,7 @@ public sealed class DocumentProcessingWorker(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            document.OcrStatus = OcrStatus.Failed;
+            document.OcrStatus = job.Attempts >= 3 ? OcrStatus.Failed : OcrStatus.Pending;
             document.OcrError = exception.Message[..Math.Min(2000, exception.Message.Length)];
             await db.SaveChangesAsync(cancellationToken);
             await jobStore.FailAsync(job.Id, exception, cancellationToken);

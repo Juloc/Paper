@@ -13,6 +13,7 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
         using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);
         var documents = await db.Documents
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(document => document.Correspondent)
             .Include(document => document.DocumentType)
             .Include(document => document.ShelfFolder)

@@ -9,9 +9,14 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
     [BindProperty(SupportsGet = true)]
     public DocumentStatus View { get; set; } = DocumentStatus.Inbox;
 
+    [BindProperty(SupportsGet = true)]
+    public int PageNumber { get; set; } = 1;
+
     public IReadOnlyList<DocumentListItem> Documents { get; private set; } = [];
     public int DeferredCount { get; private set; }
     public int IgnoredCount { get; private set; }
+    public int CurrentCount { get; private set; }
+    public int PageCount { get; private set; }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -20,7 +25,11 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
             View = DocumentStatus.Inbox;
         }
 
-        Documents = await documents.ListAsync(View, cancellationToken);
+        var page = await documents.ListPageAsync(View, PageNumber, cancellationToken);
+        Documents = page.Documents;
+        PageNumber = page.PageNumber;
+        PageCount = page.PageCount;
+        CurrentCount = page.TotalCount;
         DeferredCount = await documents.CountAsync(DocumentStatus.Deferred, cancellationToken);
         IgnoredCount = await documents.CountAsync(DocumentStatus.Ignored, cancellationToken);
     }
@@ -42,7 +51,7 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
         }
 
         TempData["Status"] = message;
-        return RedirectToPage(new { view = View });
+        return RedirectToPage(new { view = View, pageNumber = PageNumber });
     }
 
 }

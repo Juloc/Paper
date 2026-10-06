@@ -17,6 +17,7 @@
 }
 else
 {
+    <p class="muted">@Model.TotalCount Dokument(e)</p>
     <section class="document-list">
         @foreach (var document in Model.Documents)
         {
@@ -38,4 +39,18 @@ else
             </article>
         }
     </section>
+    @if (Model.PageCount > 1)
+    {
+        <nav class="pagination" aria-label="Dokumentseiten">
+            @if (Model.PageNumber > 1)
+            {
+                <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)">Zurück</a>
+            }
+            <span class="muted">Seite @Model.PageNumber von @Model.PageCount</span>
+            @if (Model.PageNumber < Model.PageCount)
+            {
+                <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)">Weiter</a>
+            }
+        </nav>
+    }
 }

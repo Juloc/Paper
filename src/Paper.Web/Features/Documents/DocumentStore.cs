@@ -7,14 +7,20 @@ namespace Paper.Web.Features.Documents;
 
 public sealed class DocumentStore(AppDbContext db)
 {
-    public Task<List<DocumentListItem>> ListInboxAsync(CancellationToken cancellationToken) =>
-        ListAsync(DocumentStatus.Inbox, cancellationToken);
+    public const int PageSize = 100;
 
-    public Task<List<DocumentListItem>> ListAsync(DocumentStatus status, CancellationToken cancellationToken) =>
-        Query(status).ToListAsync(cancellationToken);
-
-    public Task<List<DocumentListItem>> ListFiledAsync(CancellationToken cancellationToken) =>
-        Query(DocumentStatus.Filed).ToListAsync(cancellationToken);
+    public async Task<DocumentPage> ListPageAsync(DocumentStatus status, int pageNumber, CancellationToken cancellationToken)
+    {
+        pageNumber = Math.Max(1, pageNumber);
+        var totalCount = await db.Documents.CountAsync(document => document.Status == status, cancellationToken);
+        var pageCount = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+        pageNumber = Math.Min(pageNumber, pageCount);
+        var documents = await Query(status)
+            .Skip((pageNumber - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync(cancellationToken);
+        return new DocumentPage(documents, pageNumber, pageCount, totalCount);
+    }
 
     public Task<int> CountAsync(DocumentStatus status, CancellationToken cancellationToken) =>
         db.Documents.CountAsync(document => document.Status == status, cancellationToken);
@@ -40,7 +46,7 @@ public sealed class DocumentStore(AppDbContext db)
 
     public async Task<DocumentDetails?> GetAsync(long id, CancellationToken cancellationToken)
     {
-        var document = await db.Documents.AsNoTracking()
+        var document = await db.Documents.AsNoTracking().AsSplitQuery()
             .Include(item => item.Tags).ThenInclude(item => item.Tag)
             .Include(item => item.Correspondent)
             .Include(item => item.DocumentType)
@@ -124,6 +130,8 @@ public sealed class DocumentStore(AppDbContext db)
 }
 
 public sealed record DocumentListItem(long Id, string Title, DateOnly? DocumentDate, string OriginalFileName, long FileSize, OcrStatus OcrStatus, DocumentStatus Status, DateTime UpdatedAt, string[] Tags);
+
+public sealed record DocumentPage(IReadOnlyList<DocumentListItem> Documents, int PageNumber, int PageCount, int TotalCount);
 
 public sealed record CustomFieldValueDetails(long CustomFieldId, string Name, CustomFieldType Type, string Value);
 

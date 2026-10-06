@@ -18,7 +18,7 @@ public sealed class DocumentFilingService(
         bool fileFromInbox,
         CancellationToken cancellationToken)
     {
-        var document = await db.Documents
+        var document = await db.Documents.AsSplitQuery()
             .Include(item => item.Tags).ThenInclude(item => item.Tag)
             .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
             .Include(item => item.ShelfFolder)

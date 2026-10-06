@@ -116,6 +116,7 @@ details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
 .processing-row { border-top: 1px solid var(--line); display: grid; gap: .6rem; padding: 1rem 0; }
 .processing-row > div:first-child { display: grid; gap: .25rem; }
 .processing-row-state { align-items: center; display: flex; flex-wrap: wrap; gap: .5rem; }
+.pagination { align-items: center; display: flex; gap: .8rem; justify-content: center; margin-top: 1.5rem; }
 @media (max-width: 700px) {
     .topbar { align-items: start; flex-wrap: wrap; gap: .75rem 1rem; }
     nav { flex-basis: 100%; gap: .8rem; order: 3; overflow-x: auto; }

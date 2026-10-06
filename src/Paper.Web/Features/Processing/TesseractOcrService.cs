@@ -1,14 +1,108 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Processing;
 
 public sealed class TesseractOcrService(IConfiguration configuration, IStorageProvider storage, ILogger<TesseractOcrService> logger)
 {
+    private const int MaximumOcrTextCharacters = 2_000_000;
+
     public async Task<string> ExtractAsync(string relativePath, CancellationToken cancellationToken)
+    {
+        var safePath = storage.GetSafePath(relativePath);
+        return Path.GetExtension(safePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase)
+            ? await ExtractPdfAsync(safePath, cancellationToken)
+            : await RunTesseractAsync(safePath, cancellationToken);
+    }
+
+    private async Task<string> ExtractPdfAsync(string path, CancellationToken cancellationToken)
+    {
+        var textExecutable = configuration["Ocr:PdfTextExecutablePath"] ?? "pdftotext";
+        var textResult = await RunProcessAsync(textExecutable, [path, "-"], cancellationToken);
+        if (textResult.ExitCode == 0 && !string.IsNullOrWhiteSpace(textResult.StandardOutput))
+        {
+            return LimitText(textResult.StandardOutput);
+        }
+
+        var renderExecutable = configuration["Ocr:PdfRenderExecutablePath"] ?? "pdftoppm";
+        var dpi = Math.Clamp(configuration.GetValue<int?>("Ocr:PdfRenderDpi") ?? 200, 120, 300);
+        var temporaryDirectory = Directory.CreateTempSubdirectory("paper-pdf-ocr-");
+        try
+        {
+            var prefix = Path.Combine(temporaryDirectory.FullName, "page");
+            var renderResult = await RunProcessAsync(
+                renderExecutable,
+                ["-r", dpi.ToString(CultureInfo.InvariantCulture), "-png", path, prefix],
+                cancellationToken);
+            if (renderResult.ExitCode != 0)
+            {
+                throw new InvalidOperationException("Das PDF konnte nicht für die OCR verarbeitet werden.");
+            }
+
+            var pages = Directory.EnumerateFiles(temporaryDirectory.FullName, "page-*.png")
+                .OrderBy(page => page, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (pages.Length == 0)
+            {
+                throw new InvalidOperationException("Das PDF enthält keine lesbaren Seiten.");
+            }
+
+            var text = new StringBuilder();
+            foreach (var page in pages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var pageText = await RunTesseractAsync(page, cancellationToken);
+                if (pageText.Length == 0)
+                {
+                    continue;
+                }
+
+                if (text.Length > 0)
+                {
+                    text.AppendLine();
+                    text.AppendLine();
+                }
+
+                text.Append(pageText);
+                if (text.Length >= MaximumOcrTextCharacters)
+                {
+                    break;
+                }
+            }
+
+            return LimitText(text.ToString());
+        }
+        finally
+        {
+            try
+            {
+                temporaryDirectory.Delete(recursive: true);
+            }
+            catch (Exception exception)
+            {
+                logger.LogDebug(exception, "Could not remove temporary PDF OCR directory.");
+            }
+        }
+    }
+
+    private async Task<string> RunTesseractAsync(string path, CancellationToken cancellationToken)
     {
         var executable = configuration["Ocr:ExecutablePath"] ?? "tesseract";
         var language = configuration["Ocr:Language"] ?? "eng";
+        var result = await RunProcessAsync(executable, [path, "stdout", "-l", language], cancellationToken);
+        if (result.ExitCode != 0)
+        {
+            logger.LogWarning("Tesseract failed for {Path} with exit code {ExitCode}.", path, result.ExitCode);
+            throw new InvalidOperationException("OCR konnte nicht abgeschlossen werden.");
+        }
+
+        return LimitText(result.StandardOutput);
+    }
+
+    private static async Task<ProcessResult> RunProcessAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    {
         var processStartInfo = new ProcessStartInfo
         {
             FileName = executable,
@@ -17,23 +111,42 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        processStartInfo.ArgumentList.Add(storage.GetSafePath(relativePath));
-        processStartInfo.ArgumentList.Add("stdout");
-        processStartInfo.ArgumentList.Add("-l");
-        processStartInfo.ArgumentList.Add(language);
-
-        using var process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Tesseract konnte nicht gestartet werden.");
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var output = await outputTask;
-        var error = await errorTask;
-        if (process.ExitCode != 0)
+        foreach (var argument in arguments)
         {
-            logger.LogWarning("Tesseract failed for {Path}: {Error}", relativePath, error.Trim());
-            throw new InvalidOperationException("OCR konnte nicht abgeschlossen werden.");
+            processStartInfo.ArgumentList.Add(argument);
         }
 
-        return output.Trim();
+        using var process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Tesseract konnte nicht gestartet werden.");
+        try
+        {
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            return new ProcessResult(process.ExitCode, await outputTask, await errorTask);
+        }
+        catch (OperationCanceledException)
+        {
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // The process exited while cancellation cleanup was running.
+            }
+
+            throw;
+        }
     }
+
+    private static string LimitText(string value)
+    {
+        var normalized = value.Trim();
+        return normalized.Length <= MaximumOcrTextCharacters ? normalized : normalized[..MaximumOcrTextCharacters];
+    }
+
+    private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError);
 }

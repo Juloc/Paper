@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.Auth;
@@ -20,6 +21,7 @@ using Paper.Web.Features.Tags;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = DocumentInputValidator.MaximumFileSize + 1024 * 1024);
 var dataProtectionDirectory = new DirectoryInfo(builder.Configuration["DataProtection:KeysDirectory"] ?? "/data/keys");
 Directory.CreateDirectory(dataProtectionDirectory.FullName);
 builder.Services.AddDataProtection()
@@ -81,6 +83,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
     });
 builder.Services.AddAuthorization(options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.Configure<ForwardedHeadersOptions>(options => options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto);
+if (builder.Environment.IsProduction() &&
+    (string.IsNullOrWhiteSpace(builder.Configuration["Auth:Password"]) || builder.Configuration["Auth:Password"] == "change-me"))
+{
+    throw new InvalidOperationException("Auth:Password muss in Produktionsumgebungen gesetzt werden.");
+}
 
 var app = builder.Build();
 app.UseForwardedHeaders();
@@ -88,6 +95,10 @@ app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapGet("/health", async (AppDbContext db, CancellationToken cancellationToken) =>
+    await db.Database.CanConnectAsync(cancellationToken)
+        ? Results.Ok(new { status = "ok" })
+        : Results.StatusCode(StatusCodes.Status503ServiceUnavailable)).AllowAnonymous();
 app.MapGet("/documents/{id:long}/file", async (long id, bool? download, DocumentFileService files, CancellationToken cancellationToken) =>
 {
     var file = await files.OpenAsync(id, cancellationToken);

@@ -1,15 +1,26 @@
 services:
+  storage-init:
+    image: alpine:3.21
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1654:1654 /data/documents /data/consume /data/keys"]
+    volumes:
+      - paper_documents:/data/documents
+      - paper_consume:/data/consume
+      - paper_keys:/data/keys
+    restart: "no"
   app:
     build:
       context: .
       dockerfile: src/Paper.Web/Dockerfile
     depends_on:
+      storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: Host=postgres;Port=5432;Database=paper;Username=paper;Password=$PAPER_POSTGRES_PASSWORD;Maximum Pool Size=10
-      Auth__Username: $PAPER_ADMIN_USERNAME
-      Auth__Password: $PAPER_ADMIN_PASSWORD
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=paper;Username=paper;Password=${PAPER_POSTGRES_PASSWORD:?PAPER_POSTGRES_PASSWORD muss gesetzt sein};Maximum Pool Size=10
+      Auth__Username: ${PAPER_ADMIN_USERNAME:?PAPER_ADMIN_USERNAME muss gesetzt sein}
+      Auth__Password: ${PAPER_ADMIN_PASSWORD:?PAPER_ADMIN_PASSWORD muss gesetzt sein}
       Storage__RootPath: /data/documents
       Storage__Provider: local
       Consume__RootPath: /data/consume
@@ -29,6 +40,7 @@ services:
       Mail__SubjectContains: ${PAPER_MAIL_SUBJECT_CONTAINS:-}
       Mail__AttachmentExtensions: ${PAPER_MAIL_ATTACHMENT_EXTENSIONS:-.pdf,.jpg,.jpeg,.png,.tif,.tiff}
       Ocr__Language: deu+eng
+      Ocr__PdfRenderDpi: ${PAPER_OCR_PDF_RENDER_DPI:-200}
       DataProtection__KeysDirectory: /data/keys
     ports:
       - "8080:8080"
@@ -44,12 +56,17 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
   postgres:
     image: postgres:17-alpine
     environment:
       POSTGRES_DB: paper
       POSTGRES_USER: paper
-      POSTGRES_PASSWORD: $PAPER_POSTGRES_PASSWORD
+      POSTGRES_PASSWORD: ${PAPER_POSTGRES_PASSWORD:?PAPER_POSTGRES_PASSWORD muss gesetzt sein}
     volumes:
       - paper_postgres:/var/lib/postgresql/data
     healthcheck:
