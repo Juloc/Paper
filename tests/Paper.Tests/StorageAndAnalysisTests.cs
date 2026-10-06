@@ -290,6 +290,15 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void SearchQueryPolicyKeepsIdentifiersSearchableAsLiterals()
+    {
+        Assert.IsFalse(SearchQueryPolicy.NeedsLiteralFallback("Stadtwerke Mannheim"));
+        Assert.IsTrue(SearchQueryPolicy.NeedsLiteralFallback("RE-2026/42"));
+        Assert.AreEqual("%RE-2026/42%", SearchQueryPolicy.ToLikePattern("RE-2026/42"));
+        Assert.AreEqual("%100\\%\\_fertig%", SearchQueryPolicy.ToLikePattern("100%_fertig"));
+    }
+
+    [TestMethod]
     public void StorageOptionsSelectsSmbRootWithoutChangingLocalDefault()
     {
         var options = new StorageOptions { Provider = "smb", SmbRootPath = "\\\\nas\\paper" };

@@ -47,8 +47,18 @@ public sealed class DocumentSearchService(AppDbContext db)
         var documents = db.Documents.AsNoTracking().AsQueryable();
         if (normalizedQuery.Length > 0)
         {
-            documents = documents.Where(document =>
-                document.SearchVector.Matches(EF.Functions.PlainToTsQuery("german", normalizedQuery)));
+            var fullTextQuery = EF.Functions.PlainToTsQuery("german", normalizedQuery);
+            if (SearchQueryPolicy.NeedsLiteralFallback(normalizedQuery))
+            {
+                var literalPattern = SearchQueryPolicy.ToLikePattern(normalizedQuery);
+                documents = documents.Where(document =>
+                    document.SearchVector.Matches(fullTextQuery) ||
+                    EF.Functions.ILike(document.SearchText, literalPattern, "\\"));
+            }
+            else
+            {
+                documents = documents.Where(document => document.SearchVector.Matches(fullTextQuery));
+            }
         }
 
         if (criteria.CorrespondentId is not null)
@@ -121,4 +131,11 @@ public sealed record SearchCriteria(
         FromDate is not null ||
         ToDate is not null ||
         CustomFieldId is not null;
+}
+
+public static class SearchQueryPolicy
+{
+    public static bool NeedsLiteralFallback(string query) => query.Any(character => char.IsDigit(character) || !char.IsLetterOrDigit(character) && !char.IsWhiteSpace(character));
+
+    public static string ToLikePattern(string query) => $"%{query.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("%", "\\%", StringComparison.Ordinal).Replace("_", "\\_", StringComparison.Ordinal)}%";
 }
