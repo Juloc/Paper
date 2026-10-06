@@ -24,6 +24,22 @@ public sealed class PaperlessImportService(
             return PaperlessImportResult.Failed("Der Paperless-Export ist leer, zu groß oder nicht lesbar.");
         }
 
+        try
+        {
+            return await ImportArchiveAsync(source, cancellationToken);
+        }
+        catch (InvalidDataException)
+        {
+            return PaperlessImportResult.Failed("Der Paperless-Export ist kein gültiges ZIP-Archiv.");
+        }
+        catch (JsonException)
+        {
+            return PaperlessImportResult.Failed("Das Paperless-Manifest enthält ungültiges JSON.");
+        }
+    }
+
+    private async Task<PaperlessImportResult> ImportArchiveAsync(Stream source, CancellationToken cancellationToken)
+    {
         using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
         var manifestEntry = archive.GetEntry("manifest.json");
         if (manifestEntry is null)
@@ -36,6 +52,11 @@ public sealed class PaperlessImportService(
         if (manifest.RootElement.ValueKind != JsonValueKind.Array)
         {
             return PaperlessImportResult.Failed("Dieses Paperless-Manifest ist kein unterstütztes Single-Manifest-Format.");
+        }
+
+        if (manifest.RootElement.GetArrayLength() > DocumentRestoreLimit.MaximumManifestEntries)
+        {
+            return PaperlessImportResult.Failed("Das Paperless-Manifest enthält zu viele Einträge.");
         }
 
         var catalogs = ReadCatalogs(manifest.RootElement);
@@ -503,4 +524,5 @@ public sealed class PaperlessImportResult
 internal static class DocumentRestoreLimit
 {
     public const long MaximumBackupSize = 2L * 1024 * 1024 * 1024;
+    public const int MaximumManifestEntries = 100_000;
 }

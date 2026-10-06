@@ -279,6 +279,39 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task PaperlessImporterReportsMalformedZipInsteadOfThrowing()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseNpgsql("Host=localhost;Database=paper")
+                .Options;
+            using var db = new AppDbContext(options);
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            var importer = new PaperlessImportService(db, storage, TimeProvider.System, NullLogger<PaperlessImportService>.Instance);
+            await using var malformed = new MemoryStream("not a zip"u8.ToArray());
+
+            var result = await importer.ImportAsync(malformed, malformed.Length, CancellationToken.None);
+
+            Assert.AreEqual(1, result.Errors.Count);
+            StringAssert.Contains(result.Errors[0], "gültiges ZIP");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public void EmailExtractorFindsAndDecodesPdfAttachment()
     {
         var message = """

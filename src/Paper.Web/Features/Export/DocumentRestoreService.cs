@@ -25,6 +25,22 @@ public sealed class DocumentRestoreService(
             return RestoreResult.Failed("Das Backup ist leer, zu groß oder nicht lesbar.");
         }
 
+        try
+        {
+            return await RestoreArchiveAsync(source, cancellationToken);
+        }
+        catch (InvalidDataException)
+        {
+            return RestoreResult.Failed("Das Backup ist kein gültiges ZIP-Archiv.");
+        }
+        catch (JsonException)
+        {
+            return RestoreResult.Failed("Das Backup-Manifest enthält ungültiges JSON.");
+        }
+    }
+
+    private async Task<RestoreResult> RestoreArchiveAsync(Stream source, CancellationToken cancellationToken)
+    {
         using var archive = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true);
         var manifestEntry = archive.GetEntry("manifest.json");
         if (manifestEntry is null)
@@ -41,6 +57,11 @@ public sealed class DocumentRestoreService(
         if (manifest is null)
         {
             return RestoreResult.Failed("Das Backup-Manifest ist ungültig.");
+        }
+
+        if (manifest.Count > 100_000)
+        {
+            return RestoreResult.Failed("Das Backup enthält zu viele Dokumente.");
         }
 
         var result = new RestoreResult();

@@ -21,7 +21,7 @@ using Paper.Web.Features.Tags;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddRazorPages();
-builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = DocumentInputValidator.MaximumFileSize + 1024 * 1024);
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = DocumentRestoreService.MaximumBackupSize + 1024 * 1024);
 var dataProtectionDirectory = new DirectoryInfo(builder.Configuration["DataProtection:KeysDirectory"] ?? "/data/keys");
 Directory.CreateDirectory(dataProtectionDirectory.FullName);
 builder.Services.AddDataProtection()
