@@ -37,7 +37,8 @@ public static class StoragePathPolicy
 
         var normalized = path.Replace('\\', '/').Trim('/');
         var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        if (segments.Length == 0 || segments.Any(segment => segment is "." or ".."))
+        if (segments.Length == 0 ||
+            segments.Any(segment => segment is "." or ".." || segment.Contains(':') || segment.Any(character => character < 32 || Path.GetInvalidFileNameChars().Contains(character))))
         {
             throw new ArgumentException("Der Speicherpfad ist ungültig.", nameof(path));
         }

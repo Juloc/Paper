@@ -36,7 +36,11 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider)
     public async Task<ShelfFolder?> CreateAsync(long? parentId, string name, CancellationToken cancellationToken)
     {
         var normalizedName = name.Trim();
-        if (normalizedName.Length is 0 or > 120 || normalizedName.Contains('/') || normalizedName.Contains('\\'))
+        if (normalizedName.Length is 0 or > 120 ||
+            normalizedName.Contains('/') ||
+            normalizedName.Contains('\\') ||
+            normalizedName.Contains(':') ||
+            normalizedName.Any(character => character < 32 || Path.GetInvalidFileNameChars().Contains(character)))
         {
             return null;
         }
