@@ -50,6 +50,6 @@ Fehler werden zusätzlich als Mail-Fehlerhistorie mit Konto und UID gespeichert,
 
 Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV exportiert werden. Das ZIP-Backup enthält zusätzlich ein Manifest und die Originaldateien. Die Originaldateien bleiben im menschenlesbaren Regal unter /data/documents und benötigen für die Betrachtung keine proprietäre Dateistruktur.
 
-Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner sowie Metadaten bei Bedarf wieder an.
+Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner, Metadaten und gelernte Analyse-Regeln bei Bedarf wieder an.
 
 Paperless-ngx-Exporte können ebenfalls als ZIP unter Einstellungen importiert werden. Unterstützte Dokumente werden mit OCR-Text, Titel, Datum, Korrespondent, Dokumenttyp, Tags und Custom Fields in die Paper-Inbox übernommen; die physische Regalablage erfolgt anschließend bewusst nach einer kurzen Prüfung. Einzelne Manifestdateien aus Paperless im Split-Manifest-Modus werden für Custom-Field-Instanzen ebenfalls berücksichtigt.

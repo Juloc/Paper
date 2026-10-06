@@ -33,6 +33,14 @@ public sealed class DocumentStore(AppDbContext db)
             return false;
         }
 
+        if (await db.ProcessingJobs.AnyAsync(job =>
+                job.DocumentId == id &&
+                job.Type == ProcessingJobType.OcrAndAnalyze &&
+                (job.State == ProcessingJobState.Pending || job.State == ProcessingJobState.Running), cancellationToken))
+        {
+            return true;
+        }
+
         document.OcrStatus = OcrStatus.Pending;
         document.OcrError = null;
         db.ProcessingJobs.Add(new ProcessingJob
