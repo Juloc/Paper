@@ -36,6 +36,7 @@ h2 { letter-spacing: -.03em; }
 .document-list { display: grid; gap: .75rem; }
 .document-row { align-items: center; display: flex; gap: 1rem; padding: 1rem; }
 .document-icon { align-items: center; background: var(--soft); border-radius: .7rem; color: var(--accent-dark); display: flex; flex: 0 0 3.25rem; font-size: .67rem; font-weight: 750; height: 3.25rem; justify-content: center; }
+.document-thumbnail { background: var(--soft); border-radius: .7rem; flex: 0 0 3.25rem; height: 3.25rem; object-fit: cover; width: 3.25rem; }
 .document-copy { display: grid; gap: .3rem; min-width: 0; }
 .document-title { font-size: 1.05rem; font-weight: 700; }
 .document-title:hover { color: var(--accent-dark); }

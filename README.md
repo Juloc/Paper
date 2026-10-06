@@ -23,6 +23,7 @@ Danach ist Paper unter http://localhost:8080 erreichbar. Ändere die Beispielpas
 - responsive Razor-UI und sichere Cookie-Authentifizierung
 - optionaler Consume-Eingang unter /data/consume mit stabiler Dateiprüfung und Fehlerablage
 - JSON-/CSV-Metadatenexport aus den Einstellungen
+- On-Demand-Bild-Thumbnails als lokaler, wegwerfbarer Preview-Cache; PDFs bleiben direkt im Browser betrachtbar
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.
 

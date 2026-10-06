@@ -24,7 +24,14 @@ else
         @foreach (var document in Model.Documents)
         {
             <article class="document-row">
-                <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
+                @if (document.OriginalFileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tif", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase))
+                {
+                    <img class="document-thumbnail" src="/documents/@document.Id/thumbnail" alt="" loading="lazy" />
+                }
+                else
+                {
+                    <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
+                }
                 <div class="document-copy">
                     <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
                     <span class="muted">@document.OriginalFileName · @($"{document.FileSize / 1024d / 1024d:0.0} MB")</span>

@@ -35,6 +35,7 @@ builder.Services.AddScoped<DocumentImportService>();
 builder.Services.AddScoped<DocumentStore>();
 builder.Services.AddScoped<DocumentFilingService>();
 builder.Services.AddScoped<DocumentFileService>();
+builder.Services.AddScoped<ThumbnailService>();
 builder.Services.AddScoped<DocumentSearchService>();
 builder.Services.AddScoped<TagStore>();
 builder.Services.AddScoped<CorrespondentStore>();
@@ -88,6 +89,11 @@ app.MapGet("/documents/{id:long}/file", async (long id, bool? download, Document
     return file is null
         ? Results.NotFound()
         : Results.File(file.Stream, file.ContentType, download == true ? file.DownloadName : null, enableRangeProcessing: true);
+}).RequireAuthorization();
+app.MapGet("/documents/{id:long}/thumbnail", async (long id, ThumbnailService thumbnails, CancellationToken cancellationToken) =>
+{
+    var file = await thumbnails.OpenAsync(id, cancellationToken);
+    return file is null ? Results.NotFound() : Results.File(file.Stream, file.ContentType, enableRangeProcessing: true);
 }).RequireAuthorization();
 app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {
