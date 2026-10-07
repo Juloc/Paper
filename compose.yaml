@@ -48,6 +48,7 @@ services:
       Mail__AttachmentExtensions: ${PAPER_MAIL_ATTACHMENT_EXTENSIONS:-.pdf,.jpg,.jpeg,.png,.tif,.tiff}
       Ocr__Language: deu+eng
       Ocr__PdfRenderDpi: ${PAPER_OCR_PDF_RENDER_DPI:-200}
+      Ocr__ProcessTimeoutSeconds: ${PAPER_OCR_PROCESS_TIMEOUT_SECONDS:-300}
       DataProtection__KeysDirectory: /data/keys
     ports:
       - "8080:8080"

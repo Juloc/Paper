@@ -35,6 +35,7 @@ Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.
 Das Container-Image bringt Poppler, Tesseract und die deutschen/englischen Sprachdaten mit. Ein nicht erreichbares OCR-Programm blockiert den Webserver nicht; der persistente Job bleibt sichtbar und wiederholbar.
+Ein einzelner externer OCR-Prozess läuft standardmäßig höchstens fünf Minuten. Das Limit kann über `PAPER_OCR_PROCESS_TIMEOUT_SECONDS` (30 bis 1800 Sekunden) an langsame NAS-/Home-Server angepasst werden.
 
 Für Monitoring steht `GET /health` ohne Anmeldung zur Verfügung. Der Endpunkt bestätigt nur eine erreichbare Datenbank und enthält keine Archiv- oder Konfigurationsdaten.
 
