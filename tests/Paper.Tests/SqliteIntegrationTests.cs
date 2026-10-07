@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -5,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Paper.Web.Data;
 using Paper.Web.Features.Documents;
+using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
@@ -312,6 +315,147 @@ public sealed class SqliteIntegrationTests
         }
     }
 
+    [TestMethod]
+    public async Task PaperlessImportPersistsCatalogsTagsAndCustomFieldsInTheInbox()
+    {
+        var root = CreateStorageRoot();
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+        var storage = CreateStorage(root);
+        var importer = new PaperlessImportService(
+            db,
+            storage,
+            TimeProvider.System,
+            NullLogger<PaperlessImportService>.Instance);
+
+        try
+        {
+            await using var archive = CreatePaperlessArchive();
+            var result = await importer.ImportAsync(archive, archive.Length, CancellationToken.None);
+
+            Assert.AreEqual(1, result.Imported);
+            Assert.AreEqual(0, result.Skipped);
+            Assert.IsEmpty(result.Errors);
+            var document = await db.Documents
+                .Include(item => item.Correspondent)
+                .Include(item => item.DocumentType)
+                .Include(item => item.Tags).ThenInclude(item => item.Tag)
+                .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
+                .SingleAsync();
+            Assert.AreEqual("Stadtwerke Rechnung", document.Title);
+            Assert.AreEqual(new DateOnly(2026, 10, 5), document.DocumentDate);
+            Assert.AreEqual("Stadtwerke Mannheim", document.Correspondent!.Name);
+            Assert.AreEqual("Rechnung", document.DocumentType!.Name);
+            Assert.AreEqual("energie", document.Tags.Single().Tag.Name);
+            Assert.AreEqual("RE-42", document.CustomFields.Single().Value);
+            Assert.AreEqual(DocumentStatus.Inbox, document.Status);
+            Assert.IsTrue(storage.FileExists(document.FilePath));
+            Assert.AreEqual(0, await db.ProcessingJobs.CountAsync());
+
+            await using var duplicateArchive = CreatePaperlessArchive();
+            var duplicate = await importer.ImportAsync(duplicateArchive, duplicateArchive.Length, CancellationToken.None);
+            Assert.AreEqual(0, duplicate.Imported);
+            Assert.AreEqual(1, duplicate.Skipped);
+            Assert.AreEqual(1, await db.Documents.CountAsync());
+        }
+        finally
+        {
+            DeleteStorageRoot(root);
+        }
+    }
+
+    [TestMethod]
+    public async Task BackupRestoreRoundTripKeepsFiledDocumentAndHumanReadablePath()
+    {
+        var sourceRoot = CreateStorageRoot();
+        var restoreRoot = CreateStorageRoot();
+        await using var sourceConnection = new SqliteConnection("Data Source=:memory:");
+        await sourceConnection.OpenAsync();
+        await using var sourceDb = CreateDatabase(sourceConnection);
+        await sourceDb.Database.EnsureCreatedAsync();
+        var sourceStorage = CreateStorage(sourceRoot);
+        var importer = new DocumentImportService(
+            sourceDb,
+            sourceStorage,
+            TimeProvider.System,
+            NullLogger<DocumentImportService>.Instance);
+        try
+        {
+            var imported = await importer.ImportAsync(
+                new MemoryStream("%PDF-backup"u8.ToArray()),
+                "strom.pdf",
+                "application/pdf",
+                11,
+                CancellationToken.None);
+            Assert.IsTrue(imported.Success);
+            var folder = new ShelfFolder
+            {
+                Name = "Strom",
+                RelativePath = "Wohnung/Strom",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            sourceDb.ShelfFolders.Add(folder);
+            await sourceDb.SaveChangesAsync();
+            sourceStorage.EnsureDirectory(folder.RelativePath);
+            var filing = new DocumentFilingService(
+                sourceDb,
+                sourceStorage,
+                TimeProvider.System,
+                NullLogger<DocumentFilingService>.Instance);
+            var filed = await filing.SaveAsync(
+                imported.DocumentId!.Value,
+                new DocumentEdit(
+                    "Stromrechnung",
+                    new DateOnly(2026, 10, 5),
+                    null,
+                    null,
+                    folder.Id,
+                    "energie",
+                    new Dictionary<long, string>()),
+                fileFromInbox: true,
+                CancellationToken.None);
+            Assert.IsTrue(filed.Succeeded);
+
+            await using var backup = new MemoryStream();
+            await new DocumentBackupService(sourceDb, sourceStorage).WriteZipAsync(backup, CancellationToken.None);
+            backup.Position = 0;
+
+            await using var restoreConnection = new SqliteConnection("Data Source=:memory:");
+            await restoreConnection.OpenAsync();
+            await using var restoreDb = CreateDatabase(restoreConnection);
+            await restoreDb.Database.EnsureCreatedAsync();
+            var restoreStorage = CreateStorage(restoreRoot);
+            var restoreFiling = new DocumentFilingService(
+                restoreDb,
+                restoreStorage,
+                TimeProvider.System,
+                NullLogger<DocumentFilingService>.Instance);
+            var restore = await new DocumentRestoreService(
+                restoreDb,
+                restoreStorage,
+                restoreFiling,
+                TimeProvider.System,
+                NullLogger<DocumentRestoreService>.Instance)
+                .RestoreAsync(backup, backup.Length, CancellationToken.None);
+
+            Assert.AreEqual(1, restore.Imported);
+            Assert.IsEmpty(restore.Errors);
+            var restored = await restoreDb.Documents.SingleAsync();
+            Assert.AreEqual(DocumentStatus.Filed, restored.Status);
+            Assert.AreEqual("Wohnung/Strom/2026-10-05 Stromrechnung.pdf", restored.FilePath);
+            Assert.IsTrue(restoreStorage.FileExists(restored.FilePath));
+            Assert.AreEqual(0, await restoreDb.ShelfFolders.CountAsync(folder => folder.RelativePath == "inbox"));
+        }
+        finally
+        {
+            DeleteStorageRoot(sourceRoot);
+            DeleteStorageRoot(restoreRoot);
+        }
+    }
+
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
@@ -347,6 +491,48 @@ public sealed class SqliteIntegrationTests
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         return root;
+    }
+
+    private static MemoryStream CreatePaperlessArchive()
+    {
+        var manifest = JsonSerializer.Serialize(new object[]
+        {
+            new { model = "documents.tag", pk = 1, fields = new { name = "Energie" } },
+            new { model = "documents.correspondent", pk = 2, fields = new { name = "Stadtwerke Mannheim" } },
+            new { model = "documents.doctype", pk = 3, fields = new { name = "Rechnung" } },
+            new { model = "documents.customfield", pk = 4, fields = new { name = "Rechnungsnummer", data_type = "string" } },
+            new
+            {
+                model = "documents.document",
+                pk = 10,
+                fields = new
+                {
+                    title = "Stadtwerke Rechnung",
+                    document_date = "2026-10-05",
+                    original_filename = "rechnung.pdf",
+                    filename = "originals/rechnung.pdf",
+                    correspondent = 2,
+                    document_type = 3,
+                    tags = new[] { 1 },
+                    content = "Stadtwerke Mannheim Rechnung",
+                    custom_fields = new[] { new { field = 4, value = "RE-42" } }
+                }
+            }
+        });
+        var archiveStream = new MemoryStream();
+        using (var archive = new ZipArchive(archiveStream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using (var manifestEntry = new StreamWriter(archive.CreateEntry("manifest.json").Open()))
+            {
+                manifestEntry.Write(manifest);
+            }
+
+            using var documentEntry = archive.CreateEntry("originals/rechnung.pdf").Open();
+            documentEntry.Write("%PDF-paperless"u8);
+        }
+
+        archiveStream.Position = 0;
+        return archiveStream;
     }
 
     private static void DeleteStorageRoot(string root)
