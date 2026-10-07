@@ -54,74 +54,76 @@ public sealed class DocumentImportService(
             return ImportResult.Failed("Das Dokument konnte nicht im Dokumentenspeicher abgelegt werden. Bitte prüfe die Speicherverbindung.");
         }
 
-        var duplicate = await db.Documents.AsNoTracking().AnyAsync(document => document.Hash == stored.Hash, cancellationToken);
-        if (duplicate)
-        {
-            if (!stored.AlreadyExisted)
-            {
-                TryDeleteStored(stored.RelativePath, fileName);
-            }
-            return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
-        }
-
-        var now = timeProvider.GetUtcNow().UtcDateTime;
-        var title = Path.GetFileNameWithoutExtension(fileName).Trim();
-        if (title.Length == 0)
-        {
-            title = "Dokument";
-        }
-
-        var document = new Document
-        {
-            Title = title,
-            OriginalFileName = Path.GetFileName(fileName),
-            FilePath = stored.RelativePath,
-            FileSize = stored.Size,
-            Hash = stored.Hash,
-            OcrStatus = OcrStatus.Pending,
-            Status = DocumentStatus.Inbox,
-            CreatedAt = now,
-            UpdatedAt = now,
-            SearchText = string.Join(' ', title, fileName)
-        };
-        db.Documents.Add(document);
-        db.ProcessingJobs.Add(new ProcessingJob
-        {
-            Document = document,
-            Type = ProcessingJobType.OcrAndAnalyze,
-            State = ProcessingJobState.Pending,
-            Priority = 10,
-            Attempts = 0,
-            CreatedAt = now
-        });
         try
         {
+            var duplicate = await db.Documents.AsNoTracking().AnyAsync(document => document.Hash == stored.Hash, cancellationToken);
+            if (duplicate)
+            {
+                TryDeleteStored(stored.RelativePath, fileName, stored.AlreadyExisted);
+                return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
+            }
+
+            var now = timeProvider.GetUtcNow().UtcDateTime;
+            var title = Path.GetFileNameWithoutExtension(fileName).Trim();
+            if (title.Length == 0)
+            {
+                title = "Dokument";
+            }
+
+            var document = new Document
+            {
+                Title = title,
+                OriginalFileName = Path.GetFileName(fileName),
+                FilePath = stored.RelativePath,
+                FileSize = stored.Size,
+                Hash = stored.Hash,
+                OcrStatus = OcrStatus.Pending,
+                Status = DocumentStatus.Inbox,
+                CreatedAt = now,
+                UpdatedAt = now,
+                SearchText = string.Join(' ', title, fileName)
+            };
+            db.Documents.Add(document);
+            db.ProcessingJobs.Add(new ProcessingJob
+            {
+                Document = document,
+                Type = ProcessingJobType.OcrAndAnalyze,
+                State = ProcessingJobState.Pending,
+                Priority = 10,
+                Attempts = 0,
+                CreatedAt = now
+            });
+
             await db.SaveChangesAsync(cancellationToken);
             return ImportResult.Succeeded(document.Id);
         }
         catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
         {
-            if (!stored.AlreadyExisted)
-            {
-                TryDeleteStored(stored.RelativePath, fileName);
-            }
+            TryDeleteStored(stored.RelativePath, fileName, stored.AlreadyExisted);
 
             logger.LogInformation("Skipped concurrently imported duplicate document {FileName}.", fileName);
             return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
         }
+        catch (OperationCanceledException)
+        {
+            TryDeleteStored(stored.RelativePath, fileName, stored.AlreadyExisted);
+            throw;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            if (!stored.AlreadyExisted)
-            {
-                TryDeleteStored(stored.RelativePath, fileName);
-            }
+            TryDeleteStored(stored.RelativePath, fileName, stored.AlreadyExisted);
             logger.LogError(exception, "Could not persist imported document {FileName}; stored file was removed.", fileName);
             return ImportResult.Failed("Das Dokument konnte nicht in der Datenbank angelegt werden.");
         }
     }
 
-    private void TryDeleteStored(string relativePath, string fileName)
+    private void TryDeleteStored(string relativePath, string fileName, bool alreadyExisted)
     {
+        if (alreadyExisted)
+        {
+            return;
+        }
+
         try
         {
             storage.Delete(relativePath);
