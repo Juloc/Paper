@@ -276,10 +276,18 @@ public sealed class StorageAndAnalysisTests
             Title = "Strom",
             OriginalFileName = "stromrechnung.pdf",
             OcrText = "Januar",
-            Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }]
+            Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }],
+            CustomFields =
+            [
+                new DocumentCustomFieldValue
+                {
+                    CustomField = new CustomField { Name = "Rechnungsnummer" },
+                    Value = "RE-42"
+                }
+            ]
         };
 
-        Assert.AreEqual("Strom stromrechnung.pdf Januar vertrag", TagStore.BuildSearchText(document));
+        Assert.AreEqual("Strom stromrechnung.pdf Januar vertrag Rechnungsnummer RE-42", TagStore.BuildSearchText(document));
     }
 
     [TestMethod]

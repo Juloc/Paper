@@ -63,7 +63,7 @@ public sealed class DocumentProcessingWorker(
             .Include(item => item.Correspondent)
             .Include(item => item.DocumentType)
             .Include(item => item.ShelfFolder)
-            .Include(item => item.CustomFields)
+            .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
             .SingleAsync(item => item.Id == job.DocumentId, cancellationToken);
         document.OcrStatus = OcrStatus.Processing;
         await db.SaveChangesAsync(cancellationToken);
