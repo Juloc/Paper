@@ -425,13 +425,15 @@ public sealed class StorageAndAnalysisTests
 
         for (var attempt = 0; attempt < LoginAttemptLimiter.MaximumFailures; attempt++)
         {
-            Assert.IsTrue(limiter.TryBegin("192.0.2.10", start, out _));
-            limiter.RecordFailure("192.0.2.10", start);
+            var failureAt = attempt == LoginAttemptLimiter.MaximumFailures - 1 ? start.AddMinutes(14) : start;
+            Assert.IsTrue(limiter.TryBegin("192.0.2.10", failureAt, out _));
+            limiter.RecordFailure("192.0.2.10", failureAt);
         }
 
-        Assert.IsFalse(limiter.TryBegin("192.0.2.10", start.AddMinutes(1), out var retryAfter));
+        Assert.IsFalse(limiter.TryBegin("192.0.2.10", start.AddMinutes(15), out var retryAfter));
         Assert.IsTrue(retryAfter > TimeSpan.Zero);
-        Assert.IsTrue(limiter.TryBegin("192.0.2.11", start.AddMinutes(1), out _));
+        Assert.IsTrue(limiter.TryBegin("192.0.2.11", start.AddMinutes(15), out _));
+        Assert.IsFalse(limiter.TryBegin("192.0.2.10", start.AddMinutes(16), out _));
         Assert.IsTrue(limiter.TryBegin("192.0.2.10", start.AddMinutes(31), out _));
     }
 

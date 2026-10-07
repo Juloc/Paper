@@ -72,11 +72,23 @@ public sealed class LoginAttemptLimiter
             return;
         }
 
+        if (state.BlockedUntil is { } blockedUntil)
+        {
+            if (blockedUntil > now)
+            {
+                return;
+            }
+
+            state.WindowStarted = now;
+            state.Failures = 0;
+            state.BlockedUntil = null;
+            return;
+        }
+
         if (state.WindowStarted.Add(Window) <= now)
         {
             state.WindowStarted = now;
             state.Failures = 0;
-            state.BlockedUntil = null;
         }
     }
 
