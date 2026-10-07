@@ -568,7 +568,9 @@ public sealed class SqliteIntegrationTests
         Assert.AreEqual(created.Id, duplicate!.Id);
 
         var document = NewDocument("energie.pdf", DateTime.UtcNow);
+        document.Title = "Stromrechnung";
         document.Tags.Add(new DocumentTag { Document = document, Tag = created });
+        document.SearchText = "Stromrechnung energie.pdf energie";
         db.Documents.Add(document);
         await db.SaveChangesAsync();
 
@@ -579,6 +581,7 @@ public sealed class SqliteIntegrationTests
         Assert.IsTrue(await tags.DeleteAsync(created.Id, CancellationToken.None));
         Assert.AreEqual(0, await db.Tags.CountAsync());
         Assert.AreEqual(0, await db.DocumentTags.CountAsync());
+        Assert.AreEqual("Stromrechnung energie.pdf", await db.Documents.Select(item => item.SearchText).SingleAsync());
     }
 
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>

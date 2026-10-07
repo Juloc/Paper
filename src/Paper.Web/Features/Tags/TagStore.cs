@@ -39,6 +39,27 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
             return false;
         }
 
+        var documents = await db.Documents
+            .AsSplitQuery()
+            .Include(document => document.Tags).ThenInclude(documentTag => documentTag.Tag)
+            .Include(document => document.CustomFields).ThenInclude(value => value.CustomField)
+            .Include(document => document.Correspondent)
+            .Include(document => document.DocumentType)
+            .Include(document => document.ShelfFolder)
+            .Where(document => document.Tags.Any(documentTag => documentTag.TagId == id))
+            .ToListAsync(cancellationToken);
+        foreach (var document in documents)
+        {
+            foreach (var link in document.Tags.Where(documentTag => documentTag.TagId == id).ToArray())
+            {
+                db.DocumentTags.Remove(link);
+                document.Tags.Remove(link);
+            }
+
+            document.SearchText = BuildSearchText(document);
+            document.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
+        }
+
         db.Tags.Remove(tag);
         await db.SaveChangesAsync(cancellationToken);
         return true;
