@@ -36,6 +36,7 @@ public sealed class DetailModel(
             return NotFound();
         }
 
+        ViewData["Title"] = Document.Title;
         Input.Load(Document);
         await LoadOptionsAsync(cancellationToken);
         return Page();
@@ -125,6 +126,10 @@ public sealed class DetailModel(
     private async Task ReloadAsync(long id, CancellationToken cancellationToken)
     {
         Document = await documents.GetAsync(id, cancellationToken);
+        if (Document is not null)
+        {
+            ViewData["Title"] = Document.Title;
+        }
         await LoadOptionsAsync(cancellationToken);
     }
 

@@ -16,6 +16,7 @@
 <body>
     @inject Paper.Web.Features.Processing.ProcessingStatusStore ProcessingStatus
     @inject Paper.Web.Features.Storage.StorageConfigurationStore StorageConfiguration
+    @inject Paper.Web.Features.Documents.DocumentStore Documents
     @if (User.Identity?.IsAuthenticated == true)
     {
         var processingSummary = await ProcessingStatus.GetSummaryAsync(Context.RequestAborted);
@@ -59,9 +60,24 @@
                             : Context.Request.Path.StartsWithSegments("/Processing") ? "Verarbeitung"
                             : Context.Request.Path.StartsWithSegments("/Inbox") ? "Inbox"
                             : "Paper";
+                        var documentId = 0L;
+                        var hasDocumentRoute = Context.Request.RouteValues.TryGetValue("id", out var routeId)
+                            && long.TryParse(routeId?.ToString(), out documentId);
+                        var topbarDocumentTitle = hasDocumentRoute
+                            ? ViewData["Title"]?.ToString() ?? (await Documents.GetAsync(documentId, Context.RequestAborted))?.Title
+                            : null;
                     }
                     <nav class="topbar-breadcrumb" aria-label="Brotkrümelnavigation">
-                        <span>@topbarSection</span>
+                        @if (topbarDocumentTitle is not null)
+                        {
+                            <a asp-page="/Documents/Index">@topbarSection</a>
+                            <span aria-hidden="true">/</span>
+                            <span title="@topbarDocumentTitle">@topbarDocumentTitle</span>
+                        }
+                        else
+                        {
+                            <span>@topbarSection</span>
+                        }
                     </nav>
                     <form class="global-search" method="get" action="/Search" role="search">
                         <span class="search-icon">⌕</span>
