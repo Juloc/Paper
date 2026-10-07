@@ -34,7 +34,7 @@
             }
             else
             {
-                <span>@report.MissingFiles fehlende Datei(en), @report.SizeMismatches Datei(en) mit abweichender Größe.</span>
+                <span>@report.MissingFiles fehlende Datei(en), @report.SizeMismatches Datei(en) mit abweichender Größe, @report.HashMismatches Datei(en) mit abweichendem Hash.</span>
             }
         </div>
         @if (report.Issues.Count > 0)
@@ -44,11 +44,16 @@
                 {
                     <li>
                         <strong>@issue.Title</strong>
-                        <span class="small muted">@issue.FilePath · @(issue.Kind == Paper.Web.Features.Storage.StorageIntegrityIssueKind.Missing ? "Datei fehlt" : $"Größe {issue.ActualSize} statt {issue.ExpectedSize} Bytes")</span>
+                        <span class="small muted">@issue.FilePath · @(issue.Kind switch
+                        {
+                            Paper.Web.Features.Storage.StorageIntegrityIssueKind.Missing => "Datei fehlt",
+                            Paper.Web.Features.Storage.StorageIntegrityIssueKind.SizeMismatch => $"Größe {issue.ActualSize} statt {issue.ExpectedSize} Bytes",
+                            _ => "SHA-256-Hash stimmt nicht überein"
+                        })</span>
                     </li>
                 }
             </ul>
-            @if (report.MissingFiles + report.SizeMismatches > report.Issues.Count)
+            @if (report.MissingFiles + report.SizeMismatches + report.HashMismatches > report.Issues.Count)
             {
                 <p class="small muted">Es werden höchstens @Paper.Web.Features.Storage.StorageIntegrityService.MaximumReportedIssues Auffälligkeiten angezeigt.</p>
             }

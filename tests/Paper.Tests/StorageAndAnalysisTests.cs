@@ -517,6 +517,27 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageIntegrityCheckReportsHashMismatches()
+    {
+        var documents = new[]
+        {
+            new StorageIntegrityDocument(1, "Verändert", "shelf/one.pdf", 12, "expected")
+        };
+
+        var report = await StorageIntegrityService.CheckDocumentsAsync(
+            documents,
+            _ => Task.FromResult<StorageFileVerification?>(new StorageFileVerification(12, "actual")),
+            DateTimeOffset.UtcNow,
+            CancellationToken.None);
+
+        Assert.AreEqual(0, report.MissingFiles);
+        Assert.AreEqual(0, report.SizeMismatches);
+        Assert.AreEqual(1, report.HashMismatches);
+        Assert.AreEqual(StorageIntegrityIssueKind.HashMismatch, report.Issues.Single().Kind);
+        Assert.IsFalse(report.IsHealthy);
+    }
+
+    [TestMethod]
     public void StorageIntegrityCheckStopsSafelyWhenProviderCannotBeQueried()
     {
         var documents = new[]
