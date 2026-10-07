@@ -46,6 +46,7 @@ services:
       Mail__FromContains: ${PAPER_MAIL_FROM_CONTAINS:-}
       Mail__SubjectContains: ${PAPER_MAIL_SUBJECT_CONTAINS:-}
       Mail__AttachmentExtensions: ${PAPER_MAIL_ATTACHMENT_EXTENSIONS:-.pdf,.jpg,.jpeg,.png,.tif,.tiff}
+      Mail__AccountsJson: ${PAPER_MAIL_ACCOUNTS_JSON:-}
       Ocr__Language: deu+eng
       Ocr__PdfRenderDpi: ${PAPER_OCR_PDF_RENDER_DPI:-200}
       Ocr__ProcessTimeoutSeconds: ${PAPER_OCR_PROCESS_TIMEOUT_SECONDS:-300}

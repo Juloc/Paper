@@ -604,6 +604,14 @@ public sealed class StorageAndAnalysisTests
         Assert.AreEqual(2, accounts.Count);
         CollectionAssert.AreEquivalent(new[] { "private", "business" }, accounts.Select(account => account.AccountName).ToArray());
 
+        var jsonConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Mail:AccountsJson"] = "[{\"Enabled\":true,\"AccountName\":\"json\",\"Host\":\"imap.json.test\",\"Username\":\"json-user\",\"Password\":\"json-secret\"}]"
+        }).Build();
+        var jsonAccounts = MailConfiguration.Load(jsonConfiguration);
+        Assert.AreEqual(1, jsonAccounts.Count);
+        Assert.AreEqual("json", jsonAccounts[0].AccountName);
+
         var legacyConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Mail:Enabled"] = "true",
