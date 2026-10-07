@@ -615,6 +615,49 @@ public sealed class SqliteIntegrationTests
         Assert.AreEqual("vertragsnummer", firstField.NameKey);
     }
 
+    [TestMethod]
+    public async Task CatalogStoresDeleteUnusedEntriesButProtectReferencedEntries()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var correspondents = new CorrespondentStore(db);
+        var documentTypes = new DocumentTypeStore(db);
+        var customFields = new CustomFieldStore(db);
+        var correspondent = await correspondents.CreateAsync("Stadtwerke", CancellationToken.None);
+        var documentType = await documentTypes.CreateAsync("Rechnung", CancellationToken.None);
+        var customField = await customFields.CreateAsync("Vertragsnummer", CustomFieldType.Text, CancellationToken.None);
+        var unusedCorrespondent = await correspondents.CreateAsync("Unbenutzt", CancellationToken.None);
+
+        Assert.IsNotNull(correspondent);
+        Assert.IsNotNull(documentType);
+        Assert.IsNotNull(customField);
+        Assert.IsNotNull(unusedCorrespondent);
+
+        var document = NewDocument("catalog.pdf", DateTime.UtcNow);
+        document.CorrespondentId = correspondent!.Id;
+        document.DocumentTypeId = documentType!.Id;
+        document.CustomFields.Add(new DocumentCustomFieldValue
+        {
+            Document = document,
+            CustomFieldId = customField!.Id,
+            CustomField = customField,
+            Value = "RE-1"
+        });
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+
+        Assert.IsTrue((await correspondents.DeleteAsync(unusedCorrespondent!.Id, CancellationToken.None)).Deleted);
+        Assert.IsTrue((await correspondents.DeleteAsync(correspondent.Id, CancellationToken.None)).InUse);
+        Assert.IsTrue((await documentTypes.DeleteAsync(documentType.Id, CancellationToken.None)).InUse);
+        Assert.IsTrue((await customFields.DeleteAsync(customField.Id, CancellationToken.None)).InUse);
+        Assert.AreEqual(1, await db.Correspondents.CountAsync());
+        Assert.AreEqual(1, await db.DocumentTypes.CountAsync());
+        Assert.AreEqual(1, await db.CustomFields.CountAsync());
+    }
+
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
+using Paper.Web.Features;
 
 namespace Paper.Web.Features.DocumentTypes;
 
@@ -30,6 +31,25 @@ public sealed class DocumentTypeStore(AppDbContext db)
         db.DocumentTypes.Add(documentType);
         await db.SaveChangesAsync(cancellationToken);
         return documentType;
+    }
+
+    public async Task<CatalogDeleteResult> DeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var documentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (documentType is null)
+        {
+            return CatalogDeleteResult.Missing;
+        }
+
+        if (await db.Documents.AnyAsync(item => item.DocumentTypeId == id, cancellationToken) ||
+            await db.AnalysisRules.AnyAsync(item => item.DocumentTypeId == id, cancellationToken))
+        {
+            return CatalogDeleteResult.Used;
+        }
+
+        db.DocumentTypes.Remove(documentType);
+        await db.SaveChangesAsync(cancellationToken);
+        return CatalogDeleteResult.Success;
     }
 }
 

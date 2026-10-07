@@ -95,6 +95,18 @@ public sealed class IndexModel(
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostDeleteCorrespondentAsync(long id, CancellationToken cancellationToken)
+    {
+        var result = await correspondents.DeleteAsync(id, cancellationToken);
+        TempData["Status"] = result switch
+        {
+            { Deleted: true } => "Korrespondent entfernt.",
+            { InUse: true } => "Der Korrespondent wird noch von Dokumenten oder Lernregeln verwendet.",
+            _ => "Der Korrespondent wurde nicht gefunden."
+        };
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostCreateDocumentTypeAsync(CancellationToken cancellationToken)
     {
         if (await documentTypes.CreateAsync(DocumentTypeName, cancellationToken) is null)
@@ -108,6 +120,18 @@ public sealed class IndexModel(
         return RedirectToPage();
     }
 
+    public async Task<IActionResult> OnPostDeleteDocumentTypeAsync(long id, CancellationToken cancellationToken)
+    {
+        var result = await documentTypes.DeleteAsync(id, cancellationToken);
+        TempData["Status"] = result switch
+        {
+            { Deleted: true } => "Dokumenttyp entfernt.",
+            { InUse: true } => "Der Dokumenttyp wird noch von Dokumenten oder Lernregeln verwendet.",
+            _ => "Der Dokumenttyp wurde nicht gefunden."
+        };
+        return RedirectToPage();
+    }
+
     public async Task<IActionResult> OnPostCreateCustomFieldAsync(CancellationToken cancellationToken)
     {
         if (await customFields.CreateAsync(CustomFieldName, CustomFieldType, cancellationToken) is null)
@@ -118,6 +142,18 @@ public sealed class IndexModel(
         }
 
         TempData["Status"] = "Zusatzfeld gespeichert.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteCustomFieldAsync(long id, CancellationToken cancellationToken)
+    {
+        var result = await customFields.DeleteAsync(id, cancellationToken);
+        TempData["Status"] = result switch
+        {
+            { Deleted: true } => "Zusatzfeld entfernt.",
+            { InUse: true } => "Das Zusatzfeld wird noch von Dokumenten verwendet.",
+            _ => "Das Zusatzfeld wurde nicht gefunden."
+        };
         return RedirectToPage();
     }
 

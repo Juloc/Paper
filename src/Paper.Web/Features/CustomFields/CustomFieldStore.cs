@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
+using Paper.Web.Features;
 
 namespace Paper.Web.Features.CustomFields;
 
@@ -30,6 +31,24 @@ public sealed class CustomFieldStore(AppDbContext db)
         db.CustomFields.Add(field);
         await db.SaveChangesAsync(cancellationToken);
         return field;
+    }
+
+    public async Task<CatalogDeleteResult> DeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var field = await db.CustomFields.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (field is null)
+        {
+            return CatalogDeleteResult.Missing;
+        }
+
+        if (await db.DocumentCustomFieldValues.AnyAsync(item => item.CustomFieldId == id, cancellationToken))
+        {
+            return CatalogDeleteResult.Used;
+        }
+
+        db.CustomFields.Remove(field);
+        await db.SaveChangesAsync(cancellationToken);
+        return CatalogDeleteResult.Success;
     }
 }
 
