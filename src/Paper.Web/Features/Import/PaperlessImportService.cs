@@ -59,7 +59,10 @@ public sealed class PaperlessImportService(
             return PaperlessImportResult.Failed("Das Paperless-Manifest enthält zu viele Einträge.");
         }
 
-        await ReadSplitCustomValuesAsync(archive, catalogs, cancellationToken);
+        if (!await ReadSplitCustomValuesAsync(archive, catalogs, cancellationToken))
+        {
+            return PaperlessImportResult.Failed("Die Split-Manifeste im Paperless-Export sind zu groß oder enthalten zu viele Einträge.");
+        }
         var result = new PaperlessImportResult();
         var sizeBudget = new ImportSizeBudget(DocumentRestoreLimit.MaximumImportedBytes);
         await foreach (var fixture in ReadManifestAsync(manifestEntry, cancellationToken))
@@ -404,7 +407,7 @@ public sealed class PaperlessImportService(
         }
     }
 
-    private static async Task ReadSplitCustomValuesAsync(
+    private static async Task<bool> ReadSplitCustomValuesAsync(
         ZipArchive archive,
         PaperlessCatalogs catalogs,
         CancellationToken cancellationToken)
@@ -412,15 +415,20 @@ public sealed class PaperlessImportService(
         foreach (var entry in archive.Entries.Where(entry =>
                      entry.FullName.EndsWith("-manifest.json", StringComparison.OrdinalIgnoreCase)))
         {
-            await using var stream = entry.Open();
-            using var json = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-            if (json.RootElement.ValueKind != JsonValueKind.Array)
+            if (entry.Length > DocumentRestoreLimit.MaximumManifestSize)
             {
-                continue;
+                return false;
             }
 
-            foreach (var fixture in json.RootElement.EnumerateArray())
+            await using var stream = entry.Open();
+            var count = 0;
+            await foreach (var fixture in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(stream, cancellationToken: cancellationToken))
             {
+                if (++count > DocumentRestoreLimit.MaximumManifestEntries)
+                {
+                    return false;
+                }
+
                 if (!string.Equals(GetString(fixture, "model"), "documents.customfieldinstance", StringComparison.OrdinalIgnoreCase) ||
                     !fixture.TryGetProperty("fields", out var fields))
                 {
@@ -436,6 +444,8 @@ public sealed class PaperlessImportService(
                 }
             }
         }
+
+        return true;
     }
 
     private async Task<Correspondent?> GetOrCreateCorrespondentAsync(IReadOnlyDictionary<long, string> definitions, long? id, CancellationToken cancellationToken)
