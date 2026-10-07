@@ -3,8 +3,8 @@
 .view-switch { border: 1px solid var(--line); border-radius: 7px; display: inline-flex; overflow: hidden; }
 .view-switch a { color: var(--muted); font-size: .78rem; padding: 6px 10px; }
 .view-switch a.active { background: var(--soft); color: var(--accent-dark); font-weight: 700; }
-.document-grid { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.document-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; transition: border-color .15s ease, transform .15s ease; }
+.document-grid { align-items: start; display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 250px)); justify-content: space-between; }
+.document-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; transition: border-color .15s ease, transform .15s ease; width: 100%; }
 .document-card:hover { border-color: #aabce8; transform: translateY(-1px); }
 .document-card-preview { align-items: center; aspect-ratio: 1.414 / 1; background: #edf1f8; display: flex; justify-content: center; max-height: 182px; overflow: hidden; }
 .document-card-preview img { height: 100%; object-fit: cover; object-position: top center; width: 100%; }
@@ -28,6 +28,6 @@
 .pagination { align-items: center; display: flex; gap: 8px; justify-content: center; margin-top: 22px; }
 .pagination-top { margin: 0 auto; }
 .pagination-top .button { min-width: 30px; padding: .35rem .55rem; }
-@media (max-width: 1280px) { .document-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1280px) { .document-grid { grid-template-columns: repeat(3, minmax(0, 250px)); } }
 @media (max-width: 760px) { .document-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .document-card-preview { max-height: 150px; } }
 @media (max-width: 480px) { .document-grid { gap: 8px; grid-template-columns: 1fr; } .document-card-preview { max-height: 190px; } .document-card-body { min-height: 72px; padding: 8px 9px; } .document-card-title { font-size: .8rem; } .document-row { align-items: start; flex-wrap: wrap; } .document-row-actions { flex-basis: 100%; margin-left: 67px; } }
