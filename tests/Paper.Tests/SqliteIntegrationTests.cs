@@ -536,16 +536,16 @@ public sealed class SqliteIntegrationTests
         var other = new ShelfFolder { Name = "Auto", RelativePath = "Auto", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
         db.ShelfFolders.AddRange(parent, child, other);
         db.Documents.AddRange(
-            NewFiledDocument("direct.pdf", parent, "direct"),
-            NewFiledDocument("nested.pdf", child, "nested"),
-            NewFiledDocument("other.pdf", other, "other"));
+            NewFiledDocument("direct.pdf", parent, "direct", new DateOnly(2026, 10, 1)),
+            NewFiledDocument("nested.pdf", child, "nested", new DateOnly(2026, 10, 5)),
+            NewFiledDocument("other.pdf", other, "other", null));
         await db.SaveChangesAsync();
 
         var search = new DocumentSearchService(db);
         var page = await search.SearchAsync(new SearchCriteria("", null, null, parent.Id, null, null, null, null, null), 1, CancellationToken.None);
 
         Assert.AreEqual(2, page.TotalCount);
-        CollectionAssert.AreEquivalent(new[] { "direct", "nested" }, page.Results.Select(result => result.Title).ToArray());
+        CollectionAssert.AreEqual(new[] { "nested", "direct" }, page.Results.Select(result => result.Title).ToArray());
     }
 
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
@@ -569,9 +569,10 @@ public sealed class SqliteIntegrationTests
         SearchText = fileName
     };
 
-    private static Document NewFiledDocument(string fileName, ShelfFolder folder, string title) => new()
+    private static Document NewFiledDocument(string fileName, ShelfFolder folder, string title, DateOnly? documentDate) => new()
     {
         Title = title,
+        DocumentDate = documentDate,
         OriginalFileName = fileName,
         FilePath = $"{folder.RelativePath}/{fileName}",
         FileSize = 9,

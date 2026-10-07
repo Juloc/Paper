@@ -26,7 +26,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         {
             ShelfDocumentSort.TitleAscending => documentQuery.OrderBy(document => document.Title).ThenByDescending(document => document.UpdatedAt).ThenByDescending(document => document.Id),
             ShelfDocumentSort.UpdatedDescending => documentQuery.OrderByDescending(document => document.UpdatedAt).ThenBy(document => document.Title).ThenByDescending(document => document.Id),
-            _ => documentQuery.OrderByDescending(document => document.DocumentDate).ThenByDescending(document => document.UpdatedAt).ThenByDescending(document => document.Id)
+            _ => documentQuery.OrderBy(document => document.DocumentDate == null).ThenByDescending(document => document.DocumentDate).ThenByDescending(document => document.UpdatedAt).ThenByDescending(document => document.Id)
         };
         var documents = await documentQuery
             .Select(document => new ShelfDocument(

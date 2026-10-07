@@ -37,7 +37,8 @@ public sealed class DocumentSearchService(AppDbContext db)
         var pageCount = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
         pageNumber = Math.Min(pageNumber, pageCount);
         var results = await documents
-            .OrderByDescending(document => document.DocumentDate)
+            .OrderBy(document => document.DocumentDate == null)
+            .ThenByDescending(document => document.DocumentDate)
             .ThenByDescending(document => document.UpdatedAt)
             .ThenByDescending(document => document.Id)
             .Skip((pageNumber - 1) * PageSize)
