@@ -16,7 +16,8 @@ public sealed class DetailModel(
     DocumentTypeStore documentTypes,
     ShelfFolderStore shelfFolders,
     CustomFieldStore customFields,
-    DocumentLearningStore learning) : PageModel
+    DocumentLearningStore learning,
+    ILogger<DetailModel> logger) : PageModel
 {
     [BindProperty]
     public EditDocumentInput Input { get; set; } = new();
@@ -108,7 +109,14 @@ public sealed class DetailModel(
             return Document is null ? NotFound() : Page();
         }
 
-        await learning.RecordCorrectionAsync(id, Input.ToEdit(), cancellationToken);
+        try
+        {
+            await learning.RecordCorrectionAsync(id, Input.ToEdit(), cancellationToken);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Could not record the learning correction for document {DocumentId}.", id);
+        }
 
         TempData["Status"] = successMessage;
         return RedirectToPage(new { id });
