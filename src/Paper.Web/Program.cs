@@ -122,45 +122,66 @@ app.MapGet("/health", async Task<IResult> (AppDbContext db, ILogger<Program> log
         return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     }
 }).AllowAnonymous();
-app.MapGet("/documents/{id:long}/file", async (long id, bool? download, DocumentFileService files, CancellationToken cancellationToken) =>
+app.MapGet("/documents/{id:long}/file", async (HttpResponse response, long id, bool? download, DocumentFileService files, CancellationToken cancellationToken) =>
 {
     var file = await files.OpenAsync(id, cancellationToken);
     return file is null
         ? Results.NotFound()
-        : Results.File(
-            file.Stream,
-            file.ContentType,
-            download == true ? file.DownloadName : null,
-            file.LastModified,
-            new EntityTagHeaderValue($"\"{file.EntityTag}\""),
-            enableRangeProcessing: true);
+        : CreatePrivateFileResponse(response, file.Stream, file.ContentType, download == true ? file.DownloadName : null, file.LastModified, file.EntityTag);
 }).RequireAuthorization();
-app.MapGet("/documents/{id:long}/thumbnail", async (long id, ThumbnailService thumbnails, CancellationToken cancellationToken) =>
+app.MapGet("/documents/{id:long}/thumbnail", async (HttpResponse response, long id, ThumbnailService thumbnails, CancellationToken cancellationToken) =>
 {
     var file = await thumbnails.OpenAsync(id, cancellationToken);
     return file is null
         ? Results.NotFound()
-        : Results.File(file.Stream, file.ContentType, entityTag: new EntityTagHeaderValue($"\"{file.EntityTag}\""), enableRangeProcessing: true);
+        : CreatePrivateFileResponse(response, file.Stream, file.ContentType, null, null, file.EntityTag);
 }).RequireAuthorization();
 app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {
+    SetNoStore(response);
     response.ContentType = "application/json; charset=utf-8";
     response.Headers.ContentDisposition = "attachment; filename=\"paper-documents.json\"";
     await exporter.WriteJsonAsync(response.Body, cancellationToken);
 }).RequireAuthorization();
 app.MapGet("/export/documents.csv", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {
+    SetNoStore(response);
     response.ContentType = "text/csv; charset=utf-8";
     response.Headers.ContentDisposition = "attachment; filename=\"paper-documents.csv\"";
     await exporter.WriteCsvAsync(response.Body, cancellationToken);
 }).RequireAuthorization();
 app.MapGet("/export/backup.zip", async (HttpResponse response, DocumentBackupService backup, CancellationToken cancellationToken) =>
 {
+    SetNoStore(response);
     response.ContentType = "application/zip";
     response.Headers.ContentDisposition = "attachment; filename=\"paper-backup.zip\"";
     await backup.WriteZipAsync(response.Body, cancellationToken);
 }).RequireAuthorization();
 app.MapRazorPages();
+
+static IResult CreatePrivateFileResponse(
+    HttpResponse response,
+    Stream stream,
+    string contentType,
+    string? downloadName,
+    DateTimeOffset? lastModified,
+    string entityTag)
+{
+    SetNoStore(response);
+    return Results.File(
+        stream,
+        contentType,
+        downloadName,
+        lastModified,
+        new EntityTagHeaderValue($"\"{entityTag}\""),
+        enableRangeProcessing: true);
+}
+
+static void SetNoStore(HttpResponse response)
+{
+    response.Headers.CacheControl = "private, no-store";
+    response.Headers.Pragma = "no-cache";
+}
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
