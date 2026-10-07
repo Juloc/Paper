@@ -112,6 +112,38 @@ public sealed class SmbStorageProvider : IStorageProvider
 
     public bool FileExists(string relativePath) => Execute(connection => Exists(connection, relativePath, directory: false));
 
+    public StorageFileMetadata? GetFileMetadata(string relativePath) => Execute(connection =>
+    {
+        var status = connection.Store.CreateFile(
+            out var handle,
+            out _,
+            connection.RemotePath(relativePath),
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
+            SmbAttributes.Normal,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
+            CreateOptions.FILE_NON_DIRECTORY_FILE,
+            null);
+        if (status == NTStatus.STATUS_OBJECT_NAME_NOT_FOUND)
+        {
+            return null;
+        }
+
+        ThrowIfFailed(status, relativePath, "gelesen");
+        try
+        {
+            status = connection.Store.GetFileInformation(out var information, handle, FileInformationClass.FileStandardInformation);
+            ThrowIfFailed(status, relativePath, "gelesen");
+            return information is FileStandardInformation standardInformation
+                ? new StorageFileMetadata(standardInformation.EndOfFile)
+                : throw new IOException($"SMB-Dateiinformationen für {relativePath} waren unvollständig.");
+        }
+        finally
+        {
+            connection.Store.CloseFile(handle);
+        }
+    });
+
     public void EnsureDirectory(string relativePath) => Execute(connection =>
     {
         EnsureDirectory(connection, relativePath);

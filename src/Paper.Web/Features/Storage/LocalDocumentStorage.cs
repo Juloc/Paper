@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 namespace Paper.Web.Features.Storage;
 
 public sealed record StoredDocument(string RelativePath, string Hash, long Size, bool AlreadyExisted = false);
+public sealed record StorageFileMetadata(long Length);
 
 public interface IStorageProvider
 {
@@ -13,6 +14,7 @@ public interface IStorageProvider
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     bool DirectoryExists(string relativePath);
     bool FileExists(string relativePath);
+    StorageFileMetadata? GetFileMetadata(string relativePath);
     void EnsureDirectory(string relativePath);
     bool TryGetLocalPath(string relativePath, out string path);
     Stream OpenRead(string relativePath);
@@ -152,6 +154,12 @@ public sealed class LocalDocumentStorage : IStorageProvider
     public bool DirectoryExists(string relativePath) => Directory.Exists(GetSafePath(relativePath));
 
     public bool FileExists(string relativePath) => File.Exists(GetSafePath(relativePath));
+
+    public StorageFileMetadata? GetFileMetadata(string relativePath)
+    {
+        var info = new FileInfo(GetSafePath(relativePath));
+        return info.Exists ? new StorageFileMetadata(info.Length) : null;
+    }
 
     public void EnsureDirectory(string relativePath) => Directory.CreateDirectory(GetSafePath(relativePath));
 

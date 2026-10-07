@@ -39,6 +39,7 @@ public sealed class StorageAndAnalysisTests
             Assert.AreEqual("3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63", result.Hash);
             Assert.IsTrue(result.RelativePath.StartsWith("inbox/", StringComparison.Ordinal));
             Assert.IsTrue(storage.FileExists(result.RelativePath));
+            Assert.AreEqual(9, storage.GetFileMetadata(result.RelativePath)!.Length);
             Assert.IsFalse(storage.FileExists("inbox/missing.pdf"));
             Assert.ThrowsExactly<ArgumentException>(() => storage.GetSafePath("../secrets.pdf"));
         }
@@ -363,21 +364,45 @@ public sealed class StorageAndAnalysisTests
     {
         var documents = new[]
         {
-            new StorageIntegrityDocument(1, "Vorhanden", "inbox/one.pdf"),
-            new StorageIntegrityDocument(2, "Fehlt", "inbox/two.pdf"),
-            new StorageIntegrityDocument(3, "Auch vorhanden", "shelf/three.pdf")
+            new StorageIntegrityDocument(1, "Vorhanden", "inbox/one.pdf", 10),
+            new StorageIntegrityDocument(2, "Fehlt", "inbox/two.pdf", 20),
+            new StorageIntegrityDocument(3, "Auch vorhanden", "shelf/three.pdf", 30)
         };
 
         var report = StorageIntegrityService.CheckDocuments(
             documents,
-            path => path != "inbox/two.pdf",
+            path => path switch
+            {
+                "inbox/two.pdf" => null,
+                "inbox/one.pdf" => new StorageFileMetadata(10),
+                _ => new StorageFileMetadata(30)
+            },
             new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero));
 
         Assert.AreEqual(3, report.DocumentsChecked);
         Assert.AreEqual(1, report.MissingFiles);
-        Assert.AreEqual("inbox/two.pdf", report.MissingDocuments.Single().FilePath);
+        Assert.AreEqual("inbox/two.pdf", report.Issues.Single().FilePath);
         Assert.IsFalse(report.IsHealthy);
         Assert.IsNull(report.Error);
+    }
+
+    [TestMethod]
+    public void StorageIntegrityCheckReportsSizeMismatches()
+    {
+        var documents = new[]
+        {
+            new StorageIntegrityDocument(1, "Verändert", "shelf/one.pdf", 12)
+        };
+
+        var report = StorageIntegrityService.CheckDocuments(
+            documents,
+            _ => new StorageFileMetadata(9),
+            DateTimeOffset.UtcNow);
+
+        Assert.AreEqual(0, report.MissingFiles);
+        Assert.AreEqual(1, report.SizeMismatches);
+        Assert.AreEqual(StorageIntegrityIssueKind.SizeMismatch, report.Issues.Single().Kind);
+        Assert.AreEqual(9, report.Issues.Single().ActualSize);
     }
 
     [TestMethod]
@@ -385,7 +410,7 @@ public sealed class StorageAndAnalysisTests
     {
         var documents = new[]
         {
-            new StorageIntegrityDocument(1, "Dokument", "inbox/one.pdf")
+            new StorageIntegrityDocument(1, "Dokument", "inbox/one.pdf", 1)
         };
 
         var report = StorageIntegrityService.CheckDocuments(
@@ -404,12 +429,16 @@ public sealed class StorageAndAnalysisTests
     {
         var documents = new[]
         {
-            new StorageIntegrityDocument(1, "Ungültig", "../outside.pdf")
+            new StorageIntegrityDocument(1, "Ungültig", "../outside.pdf", 1)
         };
 
         var report = StorageIntegrityService.CheckDocuments(
             documents,
-            path => StoragePathPolicy.NormalizeRelativePath(path).Length > 0,
+            path =>
+            {
+                StoragePathPolicy.NormalizeRelativePath(path);
+                return new StorageFileMetadata(1);
+            },
             DateTimeOffset.UtcNow);
 
         Assert.IsNotNull(report.Error);

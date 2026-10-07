@@ -9,7 +9,7 @@ public sealed class StorageIntegrityService(
     TimeProvider timeProvider,
     ILogger<StorageIntegrityService> logger)
 {
-    public const int MaximumReportedMissingFiles = 50;
+    public const int MaximumReportedIssues = 50;
 
     public async Task<StorageIntegrityReport> CheckAsync(CancellationToken cancellationToken)
     {
@@ -18,10 +18,11 @@ public sealed class StorageIntegrityService(
             .Select(document => new StorageIntegrityDocument(
                 document.Id,
                 document.Title,
-                document.FilePath))
+                document.FilePath,
+                document.FileSize))
             .ToListAsync(cancellationToken);
 
-        var report = CheckDocuments(documents, storage.FileExists, timeProvider.GetUtcNow());
+        var report = CheckDocuments(documents, storage.GetFileMetadata, timeProvider.GetUtcNow());
         if (report.Error is not null)
         {
             logger.LogWarning("Storage integrity check stopped after a storage error: {Error}", report.Error);
@@ -32,26 +33,48 @@ public sealed class StorageIntegrityService(
 
     public static StorageIntegrityReport CheckDocuments(
         IReadOnlyList<StorageIntegrityDocument> documents,
-        Func<string, bool> fileExists,
+        Func<string, StorageFileMetadata?> getFileMetadata,
         DateTimeOffset checkedAt)
     {
         ArgumentNullException.ThrowIfNull(documents);
-        ArgumentNullException.ThrowIfNull(fileExists);
+        ArgumentNullException.ThrowIfNull(getFileMetadata);
 
-        var missing = new List<StorageIntegrityIssue>();
+        var issues = new List<StorageIntegrityIssue>();
         var checkedCount = 0;
         var missingCount = 0;
+        var sizeMismatchCount = 0;
         try
         {
             foreach (var document in documents)
             {
                 checkedCount++;
-                if (!fileExists(document.FilePath))
+                var metadata = getFileMetadata(document.FilePath);
+                if (metadata is null)
                 {
                     missingCount++;
-                    if (missing.Count < MaximumReportedMissingFiles)
+                    if (issues.Count < MaximumReportedIssues)
                     {
-                        missing.Add(new StorageIntegrityIssue(document.Id, document.Title, document.FilePath));
+                        issues.Add(new StorageIntegrityIssue(
+                            document.Id,
+                            document.Title,
+                            document.FilePath,
+                            StorageIntegrityIssueKind.Missing,
+                            document.ExpectedSize,
+                            null));
+                    }
+                }
+                else if (metadata.Length != document.ExpectedSize)
+                {
+                    sizeMismatchCount++;
+                    if (issues.Count < MaximumReportedIssues)
+                    {
+                        issues.Add(new StorageIntegrityIssue(
+                            document.Id,
+                            document.Title,
+                            document.FilePath,
+                            StorageIntegrityIssueKind.SizeMismatch,
+                            document.ExpectedSize,
+                            metadata.Length));
                     }
                 }
             }
@@ -60,26 +83,40 @@ public sealed class StorageIntegrityService(
                 checkedAt,
                 checkedCount,
                 missingCount,
-                missing,
+                sizeMismatchCount,
+                issues,
                 null);
         }
         catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
-            return new StorageIntegrityReport(checkedAt, checkedCount, missingCount, missing, exception.Message);
+            return new StorageIntegrityReport(checkedAt, checkedCount, missingCount, sizeMismatchCount, issues, exception.Message);
         }
     }
 }
 
-public sealed record StorageIntegrityDocument(long Id, string Title, string FilePath);
+public sealed record StorageIntegrityDocument(long Id, string Title, string FilePath, long ExpectedSize);
 
-public sealed record StorageIntegrityIssue(long DocumentId, string Title, string FilePath);
+public enum StorageIntegrityIssueKind
+{
+    Missing,
+    SizeMismatch
+}
+
+public sealed record StorageIntegrityIssue(
+    long DocumentId,
+    string Title,
+    string FilePath,
+    StorageIntegrityIssueKind Kind,
+    long ExpectedSize,
+    long? ActualSize);
 
 public sealed record StorageIntegrityReport(
     DateTimeOffset CheckedAt,
     int DocumentsChecked,
     int MissingFiles,
-    IReadOnlyList<StorageIntegrityIssue> MissingDocuments,
+    int SizeMismatches,
+    IReadOnlyList<StorageIntegrityIssue> Issues,
     string? Error)
 {
-    public bool IsHealthy => Error is null && MissingFiles == 0;
+    public bool IsHealthy => Error is null && MissingFiles == 0 && SizeMismatches == 0;
 }

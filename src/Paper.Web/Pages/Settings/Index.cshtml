@@ -34,20 +34,23 @@
             }
             else
             {
-                <span>@report.MissingFiles fehlende Datei(en).</span>
+                <span>@report.MissingFiles fehlende Datei(en), @report.SizeMismatches Datei(en) mit abweichender Größe.</span>
             }
         </div>
-        @if (report.MissingDocuments.Count > 0)
+        @if (report.Issues.Count > 0)
         {
             <ul class="integrity-issues">
-                @foreach (var missing in report.MissingDocuments)
+                @foreach (var issue in report.Issues)
                 {
-                    <li><strong>@missing.Title</strong><span class="small muted">@missing.FilePath</span></li>
+                    <li>
+                        <strong>@issue.Title</strong>
+                        <span class="small muted">@issue.FilePath · @(issue.Kind == Paper.Web.Features.Storage.StorageIntegrityIssueKind.Missing ? "Datei fehlt" : $"Größe {issue.ActualSize} statt {issue.ExpectedSize} Bytes")</span>
+                    </li>
                 }
             </ul>
-            @if (report.MissingFiles > report.MissingDocuments.Count)
+            @if (report.MissingFiles + report.SizeMismatches > report.Issues.Count)
             {
-                <p class="small muted">Es werden höchstens @Paper.Web.Features.Storage.StorageIntegrityService.MaximumReportedMissingFiles fehlende Pfade angezeigt.</p>
+                <p class="small muted">Es werden höchstens @Paper.Web.Features.Storage.StorageIntegrityService.MaximumReportedIssues Auffälligkeiten angezeigt.</p>
             }
         }
     }
