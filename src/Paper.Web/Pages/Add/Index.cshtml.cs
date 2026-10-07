@@ -4,6 +4,7 @@ using Paper.Web.Features.Documents;
 
 namespace Paper.Web.Pages.Add;
 
+[RequestSizeLimit(BatchUploadPolicy.MaximumTotalSize + 20L * 1024 * 1024)]
 public sealed class IndexModel(DocumentImportService importer) : PageModel
 {
     [BindProperty]
@@ -11,9 +12,11 @@ public sealed class IndexModel(DocumentImportService importer) : PageModel
 
     public async Task<IActionResult> OnPostAsync(CancellationToken cancellationToken)
     {
-        if (Uploads.Count == 0)
+        var totalSize = Uploads.Sum(upload => Math.Max(0, upload.Length));
+        var batchError = BatchUploadPolicy.Validate(Uploads.Count, totalSize);
+        if (batchError is not null)
         {
-            ModelState.AddModelError(nameof(Uploads), "Bitte wähle mindestens eine Datei aus.");
+            ModelState.AddModelError(nameof(Uploads), batchError);
             return Page();
         }
 
@@ -34,13 +37,13 @@ public sealed class IndexModel(DocumentImportService importer) : PageModel
 
         if (imported == 0)
         {
-            ModelState.AddModelError(nameof(Uploads), string.Join(" | ", errors));
+            ModelState.AddModelError(nameof(Uploads), BatchUploadPolicy.SummarizeErrors(errors));
             return Page();
         }
 
         TempData["Status"] = errors.Count == 0
             ? $"{imported} Dokument(e) hinzugefügt. Die Verarbeitung läuft im Hintergrund."
-            : $"{imported} Dokument(e) hinzugefügt; {errors.Count} Datei(en) konnten nicht importiert werden: {string.Join(" | ", errors)}";
+            : $"{imported} Dokument(e) hinzugefügt; {errors.Count} Datei(en) konnten nicht importiert werden: {BatchUploadPolicy.SummarizeErrors(errors)}";
         return RedirectToPage("/Inbox/Index");
     }
 }

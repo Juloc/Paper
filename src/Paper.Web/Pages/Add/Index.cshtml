@@ -4,7 +4,7 @@
     ViewData["Title"] = "Hinzufügen";
 }
 <header class="page-header">
-    <div><div class="eyebrow">Neues Dokument</div><h1>Hinzufügen</h1><p class="muted">PDF, JPG, JPEG, PNG oder TIFF · maximal 50 MB</p></div>
+    <div><div class="eyebrow">Neues Dokument</div><h1>Hinzufügen</h1><p class="muted">PDF, JPG, JPEG, PNG oder TIFF · maximal 50 MB pro Datei, 500 MB pro Batch</p></div>
 </header>
 <section class="panel upload-panel">
     <form method="post" enctype="multipart/form-data" class="stack">
@@ -13,7 +13,7 @@
             <span>Dateien auswählen</span>
             <input asp-for="Uploads" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" multiple />
         </label>
-        <p class="muted small">Jede Datei wird sicher geprüft, gehasht und anschließend asynchron per Tesseract verarbeitet. Duplikate werden einzeln übersprungen.</p>
+        <p class="muted small">Bis zu 50 Dateien werden sicher geprüft, gehasht und anschließend asynchron per Tesseract verarbeitet. Duplikate werden einzeln übersprungen.</p>
         <button class="button button-primary" type="submit">Hochladen</button>
     </form>
 </section>
