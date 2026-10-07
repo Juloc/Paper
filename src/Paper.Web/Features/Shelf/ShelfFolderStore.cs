@@ -163,9 +163,14 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             return ShelfFolderUpdateResult.Invalid("Der Regalpfad ist zu lang.");
         }
         var newPathKey = StoragePathPolicy.CreatePathKey(newPath);
-        if (newPathKey.Equals(folder.RelativePathKey, StringComparison.Ordinal))
+        if (string.Equals(newPath, oldPath, StringComparison.Ordinal))
         {
             return ShelfFolderUpdateResult.Success;
+        }
+
+        if (newPathKey.Equals(folder.RelativePathKey, StringComparison.Ordinal))
+        {
+            return ShelfFolderUpdateResult.Invalid("Eine reine Änderung der Groß-/Kleinschreibung ist für Regalordner nicht möglich.");
         }
 
         if (await db.ShelfFolders.AnyAsync(item => item.Id != id && item.RelativePathKey == newPathKey, cancellationToken))

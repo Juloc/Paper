@@ -509,6 +509,12 @@ public sealed class SqliteIntegrationTests
             Assert.IsNull(duplicate);
             Assert.AreEqual("STROM", first.RelativePathKey);
             Assert.AreEqual(1, await db.ShelfFolders.CountAsync());
+
+            var caseOnlyRename = await folders.UpdateLocationAsync(first.Id, null, "strom", CancellationToken.None);
+
+            Assert.IsFalse(caseOnlyRename.Succeeded);
+            Assert.IsTrue(caseOnlyRename.Error?.Contains("Groß-/Kleinschreibung", StringComparison.Ordinal) == true);
+            Assert.AreEqual("Strom", (await db.ShelfFolders.SingleAsync()).Name);
         }
         finally
         {
