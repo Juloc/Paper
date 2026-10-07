@@ -33,6 +33,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var isPostgres = string.Equals(Database.ProviderName, "Npgsql.EntityFrameworkCore.PostgreSQL", StringComparison.Ordinal);
         modelBuilder.Entity<Document>(entity =>
         {
             entity.ToTable("Documents", table =>
@@ -42,7 +43,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("CK_Documents_Status", "\"Status\" IN ('Inbox', 'Filed', 'Deferred', 'Ignored')");
                 table.HasCheckConstraint("CK_Documents_OcrStatus", "\"OcrStatus\" IN ('Pending', 'Processing', 'Completed', 'Failed')");
             });
-            entity.Property(document => document.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(document => document.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(document => document.Title).HasMaxLength(300).IsRequired();
             entity.Property(document => document.OriginalFileName).HasMaxLength(255).IsRequired();
             entity.Property(document => document.FilePath).HasMaxLength(500).IsRequired();
@@ -52,8 +56,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(document => document.Status).HasConversion<string>().HasMaxLength(24);
             entity.Property(document => document.OcrError).HasMaxLength(2000);
             entity.Property(document => document.SearchText).HasColumnType("text").IsRequired();
-            entity.HasGeneratedTsVectorColumn(document => document.SearchVector, "german", document => document.SearchText);
-            entity.HasIndex(document => document.SearchVector).HasMethod("GIN");
+            if (isPostgres)
+            {
+                entity.HasGeneratedTsVectorColumn(document => document.SearchVector, "german", document => document.SearchText);
+                entity.HasIndex(document => document.SearchVector).HasMethod("GIN");
+            }
+            else
+            {
+                entity.Ignore(document => document.SearchVector);
+            }
             entity.HasIndex(document => document.Hash).IsUnique();
             entity.HasIndex(document => new { document.Status, document.UpdatedAt });
             entity.HasIndex(document => document.CorrespondentId);
@@ -76,7 +87,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Correspondent>(entity =>
         {
             entity.ToTable("Correspondents", table => table.HasCheckConstraint("CK_Correspondents_Name", "length(trim(\"Name\")) > 0"));
-            entity.Property(correspondent => correspondent.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(correspondent => correspondent.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(correspondent => correspondent.Name).HasMaxLength(200).IsRequired();
             entity.HasIndex(correspondent => correspondent.Name).IsUnique();
         });
@@ -84,7 +98,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<DocumentType>(entity =>
         {
             entity.ToTable("DocumentTypes", table => table.HasCheckConstraint("CK_DocumentTypes_Name", "length(trim(\"Name\")) > 0"));
-            entity.Property(documentType => documentType.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(documentType => documentType.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(documentType => documentType.Name).HasMaxLength(120).IsRequired();
             entity.HasIndex(documentType => documentType.Name).IsUnique();
         });
@@ -96,7 +113,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("CK_ShelfFolders_Name", "length(trim(\"Name\")) > 0");
                 table.HasCheckConstraint("CK_ShelfFolders_RelativePath", "length(trim(\"RelativePath\")) > 0");
             });
-            entity.Property(folder => folder.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(folder => folder.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(folder => folder.Name).HasMaxLength(120).IsRequired();
             entity.Property(folder => folder.RelativePath).HasMaxLength(500).IsRequired();
             entity.HasIndex(folder => folder.RelativePath).IsUnique();
@@ -114,7 +134,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("CK_CustomFields_Name", "length(trim(\"Name\")) > 0");
                 table.HasCheckConstraint("CK_CustomFields_Type", "\"Type\" IN ('Text', 'Number', 'Date', 'Boolean')");
             });
-            entity.Property(field => field.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(field => field.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(field => field.Name).HasMaxLength(120).IsRequired();
             entity.Property(field => field.Type).HasConversion<string>().HasMaxLength(24);
             entity.HasIndex(field => field.Name).IsUnique();
@@ -138,7 +161,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<Tag>(entity =>
         {
             entity.ToTable("Tags", table => table.HasCheckConstraint("CK_Tags_Name", "length(trim(\"Name\")) > 0"));
-            entity.Property(tag => tag.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(tag => tag.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(tag => tag.Name).HasMaxLength(80).IsRequired();
             entity.HasIndex(tag => tag.Name).IsUnique();
         });
@@ -166,7 +192,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 table.HasCheckConstraint("CK_ProcessingJobs_Type", "\"Type\" IN ('OcrAndAnalyze')");
                 table.HasCheckConstraint("CK_ProcessingJobs_State", "\"State\" IN ('Pending', 'Running', 'Succeeded', 'Failed')");
             });
-            entity.Property(job => job.Id).UseIdentityByDefaultColumn();
+            if (isPostgres)
+            {
+                entity.Property(job => job.Id).UseIdentityByDefaultColumn();
+            }
             entity.Property(job => job.Type).HasConversion<string>().HasMaxLength(32);
             entity.Property(job => job.State).HasConversion<string>().HasMaxLength(24);
             entity.Property(job => job.Error).HasMaxLength(2000);
