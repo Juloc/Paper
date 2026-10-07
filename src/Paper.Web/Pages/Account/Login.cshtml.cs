@@ -9,7 +9,7 @@ using Paper.Web.Features.Auth;
 namespace Paper.Web.Pages.Account;
 
 [AllowAnonymous]
-public sealed class LoginModel(OwnerAuthService auth) : PageModel
+public sealed class LoginModel(OwnerAuthService auth, LoginAttemptLimiter limiter, TimeProvider timeProvider) : PageModel
 {
     [BindProperty]
     public LoginInput Input { get; set; } = new();
@@ -20,12 +20,21 @@ public sealed class LoginModel(OwnerAuthService auth) : PageModel
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl, CancellationToken cancellationToken)
     {
+        var clientKey = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        if (!limiter.TryBegin(clientKey, timeProvider.GetUtcNow(), out _))
+        {
+            ModelState.AddModelError(string.Empty, "Zu viele fehlgeschlagene Anmeldeversuche. Bitte später erneut versuchen.");
+            return Page();
+        }
+
         if (!ModelState.IsValid || !auth.Validate(Input.Username, Input.Password))
         {
+            limiter.RecordFailure(clientKey, timeProvider.GetUtcNow());
             ModelState.AddModelError(string.Empty, "Benutzername oder Passwort ist nicht korrekt.");
             return Page();
         }
 
+        limiter.RecordSuccess(clientKey);
         var principal = OwnerAuthService.CreatePrincipal(Input.Username);
         await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties { IsPersistent = true });
         return LocalRedirect(returnUrl is not null && Url.IsLocalUrl(returnUrl) ? returnUrl : "/Inbox");

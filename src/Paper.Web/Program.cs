@@ -60,6 +60,7 @@ builder.Services.AddSingleton<DocumentAnalyzer>();
 builder.Services.AddScoped<DocumentLearningStore>();
 builder.Services.AddScoped<TesseractOcrService>();
 builder.Services.AddScoped<OwnerAuthService>();
+builder.Services.AddSingleton<LoginAttemptLimiter>();
 builder.Services.AddHostedService<DocumentProcessingWorker>();
 builder.Services.AddHostedService<ConsumeDirectoryWorker>();
 builder.Services.AddSingleton<ImapMailImportWorker>();

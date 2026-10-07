@@ -14,6 +14,7 @@ using Paper.Web.Features.Tags;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Search;
 using Paper.Web.Features.Import;
+using Paper.Web.Features.Auth;
 
 namespace Paper.Tests;
 
@@ -385,6 +386,24 @@ public sealed class StorageAndAnalysisTests
         Assert.IsNotNull(report.Error);
         StringAssert.Contains(report.Error, "NAS nicht erreichbar");
         Assert.IsFalse(report.IsHealthy);
+    }
+
+    [TestMethod]
+    public void LoginAttemptLimiterLocksOutAfterRepeatedFailuresAndResetsAfterWindow()
+    {
+        var limiter = new LoginAttemptLimiter();
+        var start = new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero);
+
+        for (var attempt = 0; attempt < LoginAttemptLimiter.MaximumFailures; attempt++)
+        {
+            Assert.IsTrue(limiter.TryBegin("192.0.2.10", start, out _));
+            limiter.RecordFailure("192.0.2.10", start);
+        }
+
+        Assert.IsFalse(limiter.TryBegin("192.0.2.10", start.AddMinutes(1), out var retryAfter));
+        Assert.IsTrue(retryAfter > TimeSpan.Zero);
+        Assert.IsTrue(limiter.TryBegin("192.0.2.11", start.AddMinutes(1), out _));
+        Assert.IsTrue(limiter.TryBegin("192.0.2.10", start.AddMinutes(31), out _));
     }
 
     [TestMethod]

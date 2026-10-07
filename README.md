@@ -25,7 +25,7 @@ Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_
 - kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
 - PostgreSQL Full Text Search über Titel, OCR-Text, Dateiname, Regalpfad und Metadaten
 - paginierte Inbox- und Bestandsansichten für große Archive
-- responsive Razor-UI und sichere Cookie-Authentifizierung
+- responsive Razor-UI, sichere Cookie-Authentifizierung und zeitbegrenzter Login-Brute-Force-Schutz ohne externe Infrastruktur
 - optionaler Consume-Eingang unter /data/consume mit stabiler Dateiprüfung und Fehlerablage
 - JSON-/CSV-Metadatenexport aus den Einstellungen
 - vollständiges ZIP-Backup mit Manifest, Dateien, Metadaten und Lernregeln sowie Restore
