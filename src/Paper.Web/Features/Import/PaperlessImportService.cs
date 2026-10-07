@@ -61,6 +61,7 @@ public sealed class PaperlessImportService(
 
         await ReadSplitCustomValuesAsync(archive, catalogs, cancellationToken);
         var result = new PaperlessImportResult();
+        var sizeBudget = new ImportSizeBudget(DocumentRestoreLimit.MaximumImportedBytes);
         await foreach (var fixture in ReadManifestAsync(manifestEntry, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -69,7 +70,7 @@ public sealed class PaperlessImportService(
                 continue;
             }
 
-            await ImportDocumentAsync(archive, fixture, catalogs, result, cancellationToken);
+            await ImportDocumentAsync(archive, fixture, catalogs, result, sizeBudget, cancellationToken);
         }
 
         return result;
@@ -80,6 +81,7 @@ public sealed class PaperlessImportService(
         JsonElement fixture,
         PaperlessCatalogs catalogs,
         PaperlessImportResult result,
+        ImportSizeBudget sizeBudget,
         CancellationToken cancellationToken)
     {
         var fields = fixture.TryGetProperty("fields", out var fieldElement) ? fieldElement : default;
@@ -101,6 +103,12 @@ public sealed class PaperlessImportService(
             int read;
             while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                if (!sizeBudget.TryConsume(read))
+                {
+                    result.Errors.Add($"{originalName}: Der entpackte Import überschreitet das Limit von 2 GB.");
+                    return;
+                }
+
                 if (content.Length + read > DocumentInputValidator.MaximumFileSize)
                 {
                     result.Errors.Add($"{originalName}: Datei ist größer als 50 MB.");
@@ -562,6 +570,7 @@ public sealed class PaperlessImportResult
 internal static class DocumentRestoreLimit
 {
     public const long MaximumBackupSize = 2L * 1024 * 1024 * 1024;
+    public const long MaximumImportedBytes = 2L * 1024 * 1024 * 1024;
     public const long MaximumManifestSize = 256L * 1024 * 1024;
     public const int MaximumManifestEntries = 100_000;
 }

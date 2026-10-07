@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Documents;
+using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
 
@@ -17,6 +18,7 @@ public sealed class DocumentRestoreService(
     ILogger<DocumentRestoreService> logger)
 {
     public const long MaximumBackupSize = 2L * 1024 * 1024 * 1024;
+    public const long MaximumImportedBytes = 2L * 1024 * 1024 * 1024;
     private const long MaximumManifestSize = 256L * 1024 * 1024;
 
     public async Task<RestoreResult> RestoreAsync(Stream source, long length, CancellationToken cancellationToken)
@@ -60,6 +62,7 @@ public sealed class DocumentRestoreService(
         }
 
         var result = new RestoreResult();
+        var sizeBudget = new ImportSizeBudget(MaximumImportedBytes);
         await using (var manifestStream = manifestEntry.Open())
         {
             var count = 0;
@@ -71,7 +74,7 @@ public sealed class DocumentRestoreService(
                     return RestoreResult.Failed("Das Backup enthält zu viele oder ungültige Dokumente.");
                 }
 
-                await RestoreDocumentAsync(archive, entry, result, cancellationToken);
+                await RestoreDocumentAsync(archive, entry, result, sizeBudget, cancellationToken);
             }
         }
 
@@ -163,6 +166,7 @@ public sealed class DocumentRestoreService(
         ZipArchive archive,
         DocumentBackupManifestEntry entry,
         RestoreResult result,
+        ImportSizeBudget sizeBudget,
         CancellationToken cancellationToken)
     {
         var fileName = StoragePathPolicy.SanitizeFileName(Path.GetFileName(entry.OriginalFileName.Replace('\\', '/')));
@@ -183,6 +187,12 @@ public sealed class DocumentRestoreService(
             int read;
             while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
             {
+                if (!sizeBudget.TryConsume(read))
+                {
+                    result.Errors.Add($"{fileName}: Der entpackte Import überschreitet das Limit von 2 GB.");
+                    return;
+                }
+
                 if (content.Length + read > DocumentInputValidator.MaximumFileSize)
                 {
                     result.Errors.Add($"{fileName}: Datei ist größer als 50 MB.");
