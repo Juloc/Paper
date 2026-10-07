@@ -12,31 +12,39 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
 
     public async Task<ThumbnailFile?> OpenAsync(long id, CancellationToken cancellationToken)
     {
-        var document = await db.Documents.AsNoTracking()
-            .Select(item => new { item.Id, item.Hash, item.FilePath, item.OriginalFileName })
-            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
-        if (document is null || !ImageExtensions.Contains(Path.GetExtension(document.OriginalFileName).ToLowerInvariant()))
+        try
         {
+            var document = await db.Documents.AsNoTracking()
+                .Select(item => new { item.Id, item.Hash, item.FilePath, item.OriginalFileName })
+                .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+            if (document is null || !ImageExtensions.Contains(Path.GetExtension(document.OriginalFileName).ToLowerInvariant()))
+            {
+                return null;
+            }
+
+            var relativePath = $".thumbnails/{document.Hash}.jpg";
+            if (!storage.TryGetLocalPath(relativePath, out var thumbnailPath))
+            {
+                var bytes = await RenderAsync(document.FilePath, cancellationToken);
+                return bytes is null
+                    ? null
+                    : new ThumbnailFile(new MemoryStream(bytes, writable: false), "image/jpeg");
+            }
+
+            if (!File.Exists(thumbnailPath))
+            {
+                await CreateAsync(document.FilePath, thumbnailPath, cancellationToken);
+            }
+
+            return File.Exists(thumbnailPath)
+                ? new ThumbnailFile(new FileStream(thumbnailPath, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, useAsync: true), "image/jpeg")
+                : null;
+        }
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not open thumbnail for document {DocumentId}.", id);
             return null;
         }
-
-        var relativePath = $".thumbnails/{document.Hash}.jpg";
-        if (!storage.TryGetLocalPath(relativePath, out var thumbnailPath))
-        {
-            var bytes = await RenderAsync(document.FilePath, cancellationToken);
-            return bytes is null
-                ? null
-                : new ThumbnailFile(new MemoryStream(bytes, writable: false), "image/jpeg");
-        }
-
-        if (!File.Exists(thumbnailPath))
-        {
-            await CreateAsync(document.FilePath, thumbnailPath, cancellationToken);
-        }
-
-        return File.Exists(thumbnailPath)
-            ? new ThumbnailFile(new FileStream(thumbnailPath, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, useAsync: true), "image/jpeg")
-            : null;
     }
 
     private async Task CreateAsync(string sourceRelativePath, string destinationPath, CancellationToken cancellationToken)

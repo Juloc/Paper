@@ -4,7 +4,7 @@ using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Documents;
 
-public sealed class DocumentFileService(AppDbContext db, IStorageProvider storage)
+public sealed class DocumentFileService(AppDbContext db, IStorageProvider storage, ILogger<DocumentFileService> logger)
 {
     public async Task<DocumentFile?> OpenAsync(long id, CancellationToken cancellationToken)
     {
@@ -26,8 +26,9 @@ public sealed class DocumentFileService(AppDbContext db, IStorageProvider storag
         {
             return new DocumentFile(storage.OpenRead(document.FilePath), contentType, document.OriginalFileName);
         }
-        catch (FileNotFoundException)
+        catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
         {
+            logger.LogWarning(exception, "Could not open document file for document {DocumentId}.", id);
             return null;
         }
     }

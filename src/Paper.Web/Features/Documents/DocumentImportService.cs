@@ -43,13 +43,23 @@ public sealed class DocumentImportService(
         }
 
         input.Position = 0;
-        var stored = await storage.SaveAsync(input, fileName, cancellationToken);
+        StoredDocument stored;
+        try
+        {
+            stored = await storage.SaveAsync(input, fileName, cancellationToken);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not store imported document {FileName}.", fileName);
+            return ImportResult.Failed("Das Dokument konnte nicht im Dokumentenspeicher abgelegt werden. Bitte prüfe die Speicherverbindung.");
+        }
+
         var duplicate = await db.Documents.AsNoTracking().AnyAsync(document => document.Hash == stored.Hash, cancellationToken);
         if (duplicate)
         {
             if (!stored.AlreadyExisted)
             {
-                storage.Delete(stored.RelativePath);
+                TryDeleteStored(stored.RelativePath, fileName);
             }
             return ImportResult.Failed("Dieses Dokument ist bereits vorhanden.");
         }
@@ -93,7 +103,7 @@ public sealed class DocumentImportService(
         {
             if (!stored.AlreadyExisted)
             {
-                storage.Delete(stored.RelativePath);
+                TryDeleteStored(stored.RelativePath, fileName);
             }
 
             logger.LogInformation("Skipped concurrently imported duplicate document {FileName}.", fileName);
@@ -103,10 +113,22 @@ public sealed class DocumentImportService(
         {
             if (!stored.AlreadyExisted)
             {
-                storage.Delete(stored.RelativePath);
+                TryDeleteStored(stored.RelativePath, fileName);
             }
             logger.LogError(exception, "Could not persist imported document {FileName}; stored file was removed.", fileName);
             return ImportResult.Failed("Das Dokument konnte nicht in der Datenbank angelegt werden.");
+        }
+    }
+
+    private void TryDeleteStored(string relativePath, string fileName)
+    {
+        try
+        {
+            storage.Delete(relativePath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not clean up stored document {FileName} at {RelativePath}.", fileName, relativePath);
         }
     }
 

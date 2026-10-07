@@ -122,7 +122,7 @@ public sealed class DocumentFilingService(
             await transaction.CommitAsync(cancellationToken);
             return DocumentSaveResult.Success;
         }
-        catch (IOException exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             await transaction.RollbackAsync(CancellationToken.None);
             if (movedFile && newPath is not null)
