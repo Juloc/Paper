@@ -3,10 +3,10 @@
 .view-switch { border: 1px solid var(--line); border-radius: 7px; display: inline-flex; overflow: hidden; }
 .view-switch a { color: var(--muted); font-size: .78rem; padding: 6px 10px; }
 .view-switch a.active { background: var(--soft); color: var(--accent-dark); font-weight: 700; }
-.document-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.document-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
 .document-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; height: 100%; min-width: 0; overflow: hidden; transition: border-color .15s ease, transform .15s ease; }
 .document-card:hover { border-color: #aabce8; transform: translateY(-1px); }
-.document-card-preview { align-items: center; aspect-ratio: 1.414 / 1; background: #edf1f8; display: flex; justify-content: center; max-height: 182px; overflow: hidden; }
+.document-card-preview { align-items: center; aspect-ratio: 1.414 / 1; background: #edf1f8; display: flex; justify-content: center; overflow: hidden; }
 .document-card-preview img { height: 100%; object-fit: cover; object-position: top center; width: 100%; }
 .document-card-preview .preview-placeholder { align-items: center; color: var(--accent-dark); display: none; flex-direction: column; font-size: .75rem; gap: 6px; justify-content: center; }
 .document-card-preview.thumbnail-missing .preview-placeholder { display: flex; }
