@@ -8,6 +8,8 @@ namespace Paper.Web.Features.Documents;
 public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, ILogger<ThumbnailService> logger)
 {
     private const int MaximumDimension = 480;
+    private const int MaximumSourceDimension = 12_000;
+    private const long MaximumSourcePixels = 25_000_000;
     private static readonly HashSet<string> ImageExtensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff"];
 
     public async Task<ThumbnailFile?> OpenAsync(long id, CancellationToken cancellationToken)
@@ -89,7 +91,19 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
     private async Task<byte[]?> RenderAsync(string sourceRelativePath, CancellationToken cancellationToken)
     {
         await using var source = storage.OpenRead(sourceRelativePath);
-        using var bitmap = await Task.Run(() => SKBitmap.Decode(source), cancellationToken);
+        using var codec = SKCodec.Create(source);
+        if (codec is null ||
+            codec.Info.Width <= 0 ||
+            codec.Info.Height <= 0 ||
+            codec.Info.Width > MaximumSourceDimension ||
+            codec.Info.Height > MaximumSourceDimension ||
+            (long)codec.Info.Width * codec.Info.Height > MaximumSourcePixels)
+        {
+            logger.LogWarning("Skipped thumbnail for {SourcePath} because its decoded dimensions exceed the safety limit.", sourceRelativePath);
+            return null;
+        }
+
+        using var bitmap = await Task.Run(() => SKBitmap.Decode(codec), cancellationToken);
         if (bitmap is null)
         {
             return null;

@@ -61,13 +61,14 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
 
         var renderExecutable = configuration["Ocr:PdfRenderExecutablePath"] ?? "pdftoppm";
         var dpi = Math.Clamp(configuration.GetValue<int?>("Ocr:PdfRenderDpi") ?? 200, 120, 300);
+        var maximumPages = Math.Clamp(configuration.GetValue<int?>("Ocr:MaxPdfPages") ?? 100, 1, 1000);
         var temporaryDirectory = Directory.CreateTempSubdirectory("paper-pdf-ocr-");
         try
         {
             var prefix = Path.Combine(temporaryDirectory.FullName, "page");
             var renderResult = await RunProcessAsync(
                 renderExecutable,
-                ["-r", dpi.ToString(CultureInfo.InvariantCulture), "-png", path, prefix],
+                ["-f", "1", "-l", maximumPages.ToString(CultureInfo.InvariantCulture), "-r", dpi.ToString(CultureInfo.InvariantCulture), "-png", path, prefix],
                 cancellationToken);
             if (renderResult.ExitCode != 0)
             {
