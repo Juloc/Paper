@@ -236,6 +236,24 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void AnalyzerExtractsUserDefinedLabeledCustomFields()
+    {
+        var result = new DocumentAnalyzer().Analyze(
+            "scan",
+            "Kostenstelle: 4711\nZahlungsart: Überweisung\nInterne Notiz: nicht als Datum verwenden",
+            knownCustomFields:
+            [
+                new CustomFieldDefinition("Kostenstelle", CustomFieldType.Number),
+                new CustomFieldDefinition("Zahlungsart", CustomFieldType.Text),
+                new CustomFieldDefinition("Interne Notiz", CustomFieldType.Date)
+            ]);
+
+        Assert.AreEqual("4711", result.SuggestedCustomFields["Kostenstelle"]);
+        Assert.AreEqual("Überweisung", result.SuggestedCustomFields["Zahlungsart"]);
+        Assert.IsFalse(result.SuggestedCustomFields.ContainsKey("Interne Notiz"));
+    }
+
+    [TestMethod]
     public void SearchTextCombinesTitleOcrAndTags()
     {
         var document = new Document { Title = "Strom", OcrText = "Januar", Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }] };

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using Paper.Web.Features.CustomFields;
 
 namespace Paper.Web.Features.Processing;
 
@@ -17,7 +18,8 @@ public sealed class DocumentAnalyzer
         string text,
         IReadOnlyCollection<string>? knownCorrespondents = null,
         IReadOnlyCollection<string>? knownDocumentTypes = null,
-        IReadOnlyCollection<string>? knownTags = null)
+        IReadOnlyCollection<string>? knownTags = null,
+        IReadOnlyCollection<CustomFieldDefinition>? knownCustomFields = null)
     {
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var title = lines.FirstOrDefault(line => line.Length is > 2 and <= 120) ?? fallbackTitle;
@@ -71,6 +73,20 @@ public sealed class DocumentAnalyzer
         AddFieldIfFound(customFields, "Vertragsnummer", ContractNumberPattern, text);
         AddFieldIfFound(customFields, "IBAN", IbanPattern, text);
         AddFieldIfFound(customFields, "Betrag", AmountPattern, text);
+        foreach (var field in knownCustomFields ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(field.Name) || customFields.ContainsKey(field.Name))
+            {
+                continue;
+            }
+
+            var value = FindLabeledValue(text, field.Name);
+            if (value is not null && CustomFieldValuePolicy.IsValid(field.Type, value))
+            {
+                customFields[field.Name] = value;
+            }
+        }
+
         return new AnalysisResult(title, date, tags, correspondent, string.IsNullOrWhiteSpace(documentType) ? null : documentType, customFields);
     }
 
@@ -92,6 +108,13 @@ public sealed class DocumentAnalyzer
         {
             fields[name] = match.Groups["value"].Value.Trim();
         }
+    }
+
+    private static string? FindLabeledValue(string text, string label)
+    {
+        var pattern = $"(?im)^\\s*{Regex.Escape(label.Trim())}\\s*[:#]\\s*(?<value>[^\\r\\n]{{1,2000}})\\s*$";
+        var match = Regex.Match(text, pattern, RegexOptions.CultureInvariant);
+        return match.Success ? match.Groups["value"].Value.Trim() : null;
     }
 }
 

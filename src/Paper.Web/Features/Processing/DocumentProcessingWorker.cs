@@ -75,12 +75,16 @@ public sealed class DocumentProcessingWorker(
             var knownCorrespondents = await db.Correspondents.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
             var knownDocumentTypes = await db.DocumentTypes.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
             var knownTags = await db.Tags.AsNoTracking().Select(item => item.Name).ToListAsync(cancellationToken);
+            var knownCustomFields = await db.CustomFields.AsNoTracking()
+                .Select(item => new CustomFieldDefinition(item.Name, item.Type))
+                .ToListAsync(cancellationToken);
             var analysis = services.GetRequiredService<DocumentAnalyzer>().Analyze(
                 document.Title,
                 text,
                 knownCorrespondents,
                 knownDocumentTypes,
-                knownTags);
+                knownTags,
+                knownCustomFields);
             var learned = await services.GetRequiredService<DocumentLearningStore>().SuggestAsync($"{document.Title} {document.OriginalFileName} {text}", cancellationToken);
             document.OcrText = text;
             document.OcrStatus = OcrStatus.Completed;

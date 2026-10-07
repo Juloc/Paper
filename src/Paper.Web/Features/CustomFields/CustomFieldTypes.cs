@@ -10,6 +10,8 @@ public enum CustomFieldType
     Boolean
 }
 
+public sealed record CustomFieldDefinition(string Name, CustomFieldType Type);
+
 public sealed class CustomField
 {
     public long Id { get; set; }
