@@ -191,7 +191,7 @@ public sealed class PaperlessImportService(
                 }
 
                 var comparisonFieldName = value.Name.ToLowerInvariant();
-                var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonFieldName, cancellationToken);
+                var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.NameKey == comparisonFieldName, cancellationToken);
                 if (customField is null)
                 {
                     customField = new CustomField { Name = value.Name[..Math.Min(120, value.Name.Length)], Type = value.Type };
@@ -470,7 +470,7 @@ public sealed class PaperlessImportService(
         }
 
         var comparisonName = name.ToLowerInvariant();
-        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;
@@ -489,7 +489,7 @@ public sealed class PaperlessImportService(
         }
 
         var comparisonName = name.ToLowerInvariant();
-        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;

@@ -20,7 +20,7 @@ public sealed class CorrespondentStore(AppDbContext db)
         }
 
         var comparisonName = normalizedName.ToLowerInvariant();
-        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;

@@ -84,6 +84,8 @@ public sealed class Correspondent
 
     public string Name { get; set; } = "";
 
+    public string NameKey { get; set; } = "";
+
     public List<Document> Documents { get; set; } = [];
 }
 
@@ -92,6 +94,8 @@ public sealed class DocumentType
     public long Id { get; set; }
 
     public string Name { get; set; } = "";
+
+    public string NameKey { get; set; } = "";
 
     public List<Document> Documents { get; set; } = [];
 }

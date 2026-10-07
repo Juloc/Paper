@@ -112,7 +112,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 entity.Property(correspondent => correspondent.Id).UseIdentityByDefaultColumn();
             }
             entity.Property(correspondent => correspondent.Name).HasMaxLength(200).IsRequired();
-            entity.HasIndex(correspondent => correspondent.Name).IsUnique();
+            entity.Property(correspondent => correspondent.NameKey).HasMaxLength(200).IsRequired();
+            entity.HasIndex(correspondent => correspondent.NameKey).IsUnique();
         });
 
         modelBuilder.Entity<DocumentType>(entity =>
@@ -123,7 +124,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 entity.Property(documentType => documentType.Id).UseIdentityByDefaultColumn();
             }
             entity.Property(documentType => documentType.Name).HasMaxLength(120).IsRequired();
-            entity.HasIndex(documentType => documentType.Name).IsUnique();
+            entity.Property(documentType => documentType.NameKey).HasMaxLength(120).IsRequired();
+            entity.HasIndex(documentType => documentType.NameKey).IsUnique();
         });
 
         modelBuilder.Entity<ShelfFolder>(entity =>
@@ -161,8 +163,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 entity.Property(field => field.Id).UseIdentityByDefaultColumn();
             }
             entity.Property(field => field.Name).HasMaxLength(120).IsRequired();
+            entity.Property(field => field.NameKey).HasMaxLength(120).IsRequired();
             entity.Property(field => field.Type).HasConversion<string>().HasMaxLength(24);
-            entity.HasIndex(field => field.Name).IsUnique();
+            entity.HasIndex(field => field.NameKey).IsUnique();
         });
 
         modelBuilder.Entity<DocumentCustomFieldValue>(entity =>
@@ -278,6 +281,24 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                      .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
         {
             entry.Entity.RelativePathKey = StoragePathPolicy.CreatePathKey(entry.Entity.RelativePath);
+        }
+
+        foreach (var entry in ChangeTracker.Entries<Correspondent>()
+                     .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.NameKey = entry.Entity.Name.Trim().ToLowerInvariant();
+        }
+
+        foreach (var entry in ChangeTracker.Entries<DocumentType>()
+                     .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.NameKey = entry.Entity.Name.Trim().ToLowerInvariant();
+        }
+
+        foreach (var entry in ChangeTracker.Entries<CustomField>()
+                     .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.NameKey = entry.Entity.Name.Trim().ToLowerInvariant();
         }
     }
 }

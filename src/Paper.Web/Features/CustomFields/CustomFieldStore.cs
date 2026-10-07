@@ -20,7 +20,7 @@ public sealed class CustomFieldStore(AppDbContext db)
         }
 
         var comparisonName = normalizedName.ToLowerInvariant();
-        var existing = await db.CustomFields.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.CustomFields.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;

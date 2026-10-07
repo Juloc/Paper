@@ -20,7 +20,7 @@ public sealed class DocumentTypeStore(AppDbContext db)
         }
 
         var comparisonName = normalizedName.ToLowerInvariant();
-        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;

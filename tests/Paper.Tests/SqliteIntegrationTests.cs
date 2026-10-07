@@ -14,6 +14,9 @@ using Paper.Web.Features.Search;
 using Paper.Web.Features.Shelf;
 using Paper.Web.Features.Storage;
 using Paper.Web.Features.Tags;
+using Paper.Web.Features.Correspondents;
+using Paper.Web.Features.CustomFields;
+using Paper.Web.Features.DocumentTypes;
 
 namespace Paper.Tests;
 
@@ -582,6 +585,34 @@ public sealed class SqliteIntegrationTests
         Assert.AreEqual(0, await db.Tags.CountAsync());
         Assert.AreEqual(0, await db.DocumentTags.CountAsync());
         Assert.AreEqual("Stromrechnung energie.pdf", await db.Documents.Select(item => item.SearchText).SingleAsync());
+    }
+
+    [TestMethod]
+    public async Task CatalogStoresUseNormalizedKeysForCaseInsensitiveNames()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var correspondent = new CorrespondentStore(db);
+        var documentTypes = new DocumentTypeStore(db);
+        var customFields = new CustomFieldStore(db);
+
+        var firstCorrespondent = await correspondent.CreateAsync(" Stadtwerke Mannheim ", CancellationToken.None);
+        var duplicateCorrespondent = await correspondent.CreateAsync("STADTWERKE MANNHEIM", CancellationToken.None);
+        var firstType = await documentTypes.CreateAsync("Rechnung", CancellationToken.None);
+        var duplicateType = await documentTypes.CreateAsync("RECHNUNG", CancellationToken.None);
+        var firstField = await customFields.CreateAsync("Vertragsnummer", CustomFieldType.Text, CancellationToken.None);
+        var duplicateField = await customFields.CreateAsync("VERTRAGSNUMMER", CustomFieldType.Number, CancellationToken.None);
+
+        Assert.AreEqual(firstCorrespondent!.Id, duplicateCorrespondent!.Id);
+        Assert.AreEqual("stadtwerke mannheim", firstCorrespondent.NameKey);
+        Assert.AreEqual(firstType!.Id, duplicateType!.Id);
+        Assert.AreEqual("rechnung", firstType.NameKey);
+        Assert.AreEqual(firstField!.Id, duplicateField!.Id);
+        Assert.AreEqual(CustomFieldType.Text, duplicateField.Type);
+        Assert.AreEqual("vertragsnummer", firstField.NameKey);
     }
 
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>

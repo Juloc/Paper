@@ -98,14 +98,14 @@ public sealed class DocumentProcessingWorker(
             if (document.CorrespondentId is null && analysis.SuggestedCorrespondent is not null)
             {
                 var correspondentName = analysis.SuggestedCorrespondent.ToLowerInvariant();
-                document.Correspondent = await db.Correspondents.SingleOrDefaultAsync(item => item.Name.ToLower() == correspondentName, cancellationToken)
+                document.Correspondent = await db.Correspondents.SingleOrDefaultAsync(item => item.NameKey == correspondentName, cancellationToken)
                     ?? new Correspondent { Name = analysis.SuggestedCorrespondent };
             }
 
             if (document.DocumentTypeId is null && analysis.SuggestedDocumentType is not null)
             {
                 var documentTypeName = analysis.SuggestedDocumentType.ToLowerInvariant();
-                document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name.ToLower() == documentTypeName, cancellationToken)
+                document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.NameKey == documentTypeName, cancellationToken)
                     ?? new DocumentType { Name = analysis.SuggestedDocumentType };
             }
 

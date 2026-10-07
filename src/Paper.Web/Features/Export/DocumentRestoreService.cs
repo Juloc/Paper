@@ -367,7 +367,7 @@ public sealed class DocumentRestoreService(
 
         var normalized = name.Trim();
         var comparisonName = normalized.ToLowerInvariant();
-        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;
@@ -387,7 +387,7 @@ public sealed class DocumentRestoreService(
 
         var normalized = name.Trim();
         var comparisonName = normalized.ToLowerInvariant();
-        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;
@@ -442,7 +442,7 @@ public sealed class DocumentRestoreService(
         {
             var name = value.Name.Trim();
             var comparisonName = name.ToLowerInvariant();
-            var field = await db.CustomFields.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
+            var field = await db.CustomFields.SingleOrDefaultAsync(item => item.NameKey == comparisonName, cancellationToken);
             if (field is null)
             {
                 var type = Enum.TryParse<CustomFieldType>(value.Type, ignoreCase: true, out var parsed) ? parsed : CustomFieldType.Text;

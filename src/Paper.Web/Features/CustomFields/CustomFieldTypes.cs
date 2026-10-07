@@ -18,6 +18,8 @@ public sealed class CustomField
 
     public string Name { get; set; } = "";
 
+    public string NameKey { get; set; } = "";
+
     public CustomFieldType Type { get; set; }
 
     public List<DocumentCustomFieldValue> Values { get; set; } = [];
