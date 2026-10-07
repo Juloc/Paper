@@ -185,6 +185,38 @@ public sealed class SqliteIntegrationTests
             Assert.IsTrue(storage.FileExists(filedDocument.FilePath));
             Assert.IsFalse(storage.FileExists("inbox/" + filedDocument.Hash[..12] + " invoice.pdf"));
 
+            var shelfFolders = new ShelfFolderStore(db, TimeProvider.System, storage);
+            var renamed = await shelfFolders.UpdateLocationAsync(folder.Id, null, "Energie", CancellationToken.None);
+
+            Assert.IsTrue(renamed.Succeeded);
+            filedDocument = await db.Documents.SingleAsync();
+            Assert.AreEqual("Energie/2026-10-07 Stadtwerke Rechnung.pdf", filedDocument.FilePath);
+            Assert.IsFalse(storage.FileExists("Wohnung/Strom/2026-10-07 Stadtwerke Rechnung.pdf"));
+            Assert.IsTrue(storage.FileExists(filedDocument.FilePath));
+            StringAssert.Contains(filedDocument.SearchText, "Energie");
+            Assert.IsFalse(filedDocument.SearchText.Contains("Wohnung/Strom", StringComparison.Ordinal));
+
+            var secondFolder = new ShelfFolder
+            {
+                Name = "Archiv",
+                RelativePath = "Archiv",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            db.ShelfFolders.Add(secondFolder);
+            await db.SaveChangesAsync();
+            storage.EnsureDirectory(secondFolder.RelativePath);
+            var moved = await filing.MoveToShelfAsync(filedDocument.Id, secondFolder.Id, CancellationToken.None);
+
+            Assert.IsTrue(moved.Succeeded);
+            var movedDocument = await db.Documents.SingleAsync();
+            Assert.AreEqual(DocumentStatus.Filed, movedDocument.Status);
+            Assert.AreEqual(secondFolder.Id, movedDocument.ShelfFolderId);
+            Assert.AreEqual("Archiv/2026-10-07 Stadtwerke Rechnung.pdf", movedDocument.FilePath);
+            Assert.IsFalse(storage.FileExists("Wohnung/Strom/2026-10-07 Stadtwerke Rechnung.pdf"));
+            Assert.IsTrue(storage.FileExists(movedDocument.FilePath));
+            StringAssert.Contains(movedDocument.SearchText, "Archiv");
+
             var documents = new DocumentStore(
                 db,
                 TimeProvider.System,

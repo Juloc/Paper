@@ -11,6 +11,41 @@ public sealed class DocumentFilingService(
     TimeProvider timeProvider,
     ILogger<DocumentFilingService> logger)
 {
+    public async Task<DocumentSaveResult> MoveToShelfAsync(long id, long shelfFolderId, CancellationToken cancellationToken)
+    {
+        var document = await db.Documents.AsNoTracking().AsSplitQuery()
+            .Include(item => item.Tags).ThenInclude(item => item.Tag)
+            .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
+            .Include(item => item.Correspondent)
+            .Include(item => item.DocumentType)
+            .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (document is null)
+        {
+            return DocumentSaveResult.Missing;
+        }
+
+        if (document.Status != DocumentStatus.Filed)
+        {
+            return DocumentSaveResult.Invalid("Nur abgelegte Dokumente können im Regal verschoben werden.");
+        }
+
+        var shelf = await db.ShelfFolders.AsNoTracking().SingleOrDefaultAsync(item => item.Id == shelfFolderId, cancellationToken);
+        if (shelf is null)
+        {
+            return DocumentSaveResult.Invalid("Der ausgewählte Regalordner existiert nicht.");
+        }
+
+        var edit = new DocumentEdit(
+            document.Title,
+            document.DocumentDate,
+            document.CorrespondentId,
+            document.DocumentTypeId,
+            shelfFolderId,
+            string.Join(", ", document.Tags.Select(item => item.Tag.Name)),
+            document.CustomFields.ToDictionary(item => item.CustomFieldId, item => item.Value));
+        return await SaveAsync(id, edit, fileFromInbox: false, cancellationToken);
+    }
+
     public async Task<DocumentSaveResult> SaveAsync(
         long id,
         DocumentEdit edit,

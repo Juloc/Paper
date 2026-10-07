@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
+using Paper.Web.Features.Tags;
 using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Shelf;
@@ -12,7 +13,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             .Select(folder => new ShelfFolderOption(folder.Id, folder.Name, folder.RelativePath, folder.ParentId))
             .ToListAsync(cancellationToken);
 
-    public async Task<ShelfFolderView?> GetAsync(long id, CancellationToken cancellationToken)
+    public async Task<ShelfFolderView?> GetAsync(long id, ShelfDocumentSort sort, CancellationToken cancellationToken)
     {
         var folder = await db.ShelfFolders.AsNoTracking().SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         if (folder is null)
@@ -20,10 +21,14 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             return null;
         }
 
-        var documents = await db.Documents.AsNoTracking()
-            .Where(document => document.ShelfFolderId == id)
-            .OrderByDescending(document => document.DocumentDate)
-            .ThenByDescending(document => document.UpdatedAt)
+        var documentQuery = db.Documents.AsNoTracking().Where(document => document.ShelfFolderId == id);
+        documentQuery = sort switch
+        {
+            ShelfDocumentSort.TitleAscending => documentQuery.OrderBy(document => document.Title).ThenByDescending(document => document.UpdatedAt).ThenByDescending(document => document.Id),
+            ShelfDocumentSort.UpdatedDescending => documentQuery.OrderByDescending(document => document.UpdatedAt).ThenBy(document => document.Title).ThenByDescending(document => document.Id),
+            _ => documentQuery.OrderByDescending(document => document.DocumentDate).ThenByDescending(document => document.UpdatedAt).ThenByDescending(document => document.Id)
+        };
+        var documents = await documentQuery
             .Select(document => new ShelfDocument(
                 document.Id,
                 document.Title,
@@ -35,6 +40,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             .Select(item => new ShelfFolderOption(item.Id, item.Name, item.RelativePath, item.ParentId))
             .ToListAsync(cancellationToken);
         var byId = folders.ToDictionary(item => item.Id);
+        var children = folders.Where(item => item.ParentId == folder.Id).OrderBy(item => item.Name).ToArray();
         var breadcrumbs = new List<ShelfFolderOption>();
         for (var currentId = folder.Id; byId.TryGetValue(currentId, out var current); currentId = current.ParentId ?? 0)
         {
@@ -46,7 +52,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         }
 
         breadcrumbs.Reverse();
-        return new ShelfFolderView(folder.Id, folder.Name, folder.RelativePath, folder.ParentId, documents, breadcrumbs);
+        return new ShelfFolderView(folder.Id, folder.Name, folder.RelativePath, folder.ParentId, children, documents, breadcrumbs);
     }
 
     public async Task<ShelfFolder?> CreateAsync(long? parentId, string name, CancellationToken cancellationToken)
@@ -170,7 +176,12 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         var descendants = await db.ShelfFolders
             .Where(item => item.RelativePath.StartsWith(oldPath + "/"))
             .ToListAsync(cancellationToken);
-        var documents = await db.Documents
+        var descendantsById = descendants.ToDictionary(item => item.Id);
+        var documents = await db.Documents.AsSplitQuery()
+            .Include(item => item.Tags).ThenInclude(item => item.Tag)
+            .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
+            .Include(item => item.Correspondent)
+            .Include(item => item.DocumentType)
             .Where(item => item.FilePath.StartsWith(oldPath + "/"))
             .ToListAsync(cancellationToken);
         var sourceDirectoryExists = storage.DirectoryExists(oldPath);
@@ -207,7 +218,10 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             foreach (var document in documents)
             {
                 document.FilePath = newPath + document.FilePath[oldPath.Length..];
-                document.SearchText = document.SearchText.Replace(oldPath, newPath, StringComparison.Ordinal);
+                document.ShelfFolder = document.ShelfFolderId is not null && descendantsById.TryGetValue(document.ShelfFolderId.Value, out var documentFolder)
+                    ? documentFolder
+                    : folder;
+                document.SearchText = TagStore.BuildSearchText(document);
                 document.UpdatedAt = folder.UpdatedAt;
             }
 
@@ -239,7 +253,21 @@ public sealed record ShelfFolderOption(long Id, string Name, string RelativePath
 
 public sealed record ShelfDocument(long Id, string Title, DateOnly? DocumentDate, string OriginalFileName, long FileSize);
 
-public sealed record ShelfFolderView(long Id, string Name, string RelativePath, long? ParentId, IReadOnlyList<ShelfDocument> Documents, IReadOnlyList<ShelfFolderOption> Breadcrumbs);
+public enum ShelfDocumentSort
+{
+    DateDescending,
+    TitleAscending,
+    UpdatedDescending
+}
+
+public sealed record ShelfFolderView(
+    long Id,
+    string Name,
+    string RelativePath,
+    long? ParentId,
+    IReadOnlyList<ShelfFolderOption> Children,
+    IReadOnlyList<ShelfDocument> Documents,
+    IReadOnlyList<ShelfFolderOption> Breadcrumbs);
 
 public sealed record ShelfFolderUpdateResult(bool Succeeded, bool NotFound, string? Error)
 {

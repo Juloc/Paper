@@ -42,6 +42,26 @@
                 }
             </nav>
             <h2>@Model.CurrentFolder.RelativePath</h2>
+            @if (Model.CurrentFolder.Children.Count > 0)
+            {
+                <div class="shelf-children">
+                    <h3>Unterordner</h3>
+                    @foreach (var child in Model.CurrentFolder.Children)
+                    {
+                        <a class="shelf-child" asp-page="/Shelf/Index" asp-route-folderId="@child.Id" asp-route-sort="@Model.Sort">@child.Name</a>
+                    }
+                </div>
+            }
+            <form method="get" class="sort-form">
+                <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
+                <label>Sortierung
+                    <select name="sort" onchange="this.form.submit()">
+                        <option value="DateDescending" selected="@(Model.Sort == ShelfDocumentSort.DateDescending ? "selected" : null)">Datum, neueste zuerst</option>
+                        <option value="TitleAscending" selected="@(Model.Sort == ShelfDocumentSort.TitleAscending ? "selected" : null)">Titel, A–Z</option>
+                        <option value="UpdatedDescending" selected="@(Model.Sort == ShelfDocumentSort.UpdatedDescending ? "selected" : null)">Zuletzt geändert</option>
+                    </select>
+                </label>
+            </form>
             <form method="post" asp-page-handler="Update" class="stack shelf-editor">
                 <input type="hidden" name="id" value="@Model.CurrentFolder.Id" />
                 <label>Ordnername <input name="name" value="@Model.CurrentFolder.Name" /></label>
@@ -65,9 +85,22 @@
                 <div class="shelf-documents">
                     @foreach (var document in Model.CurrentFolder.Documents)
                     {
-                        <a class="document-row" asp-page="/Documents/Detail" asp-route-id="@document.Id">
-                            <div class="document-copy"><strong>@document.Title</strong><span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span></div>
-                        </a>
+                        <article class="document-row">
+                            <a class="document-copy" asp-page="/Documents/Detail" asp-route-id="@document.Id"><strong>@document.Title</strong><span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span></a>
+                            <form method="post" asp-page-handler="MoveDocument" class="inline-form">
+                                <input type="hidden" name="documentId" value="@document.Id" />
+                                <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
+                                <input type="hidden" name="sort" value="@Model.Sort" />
+                                <label class="sr-only" for="shelf-@document.Id">Zielordner für @document.Title</label>
+                                <select id="shelf-@document.Id" name="shelfFolderId">
+                                    @foreach (var option in Model.Folders)
+                                    {
+                                        <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.Id ? "selected" : null)">@option.RelativePath</option>
+                                    }
+                                </select>
+                                <button class="button" type="submit">Verschieben</button>
+                            </form>
+                        </article>
                     }
                 </div>
             }

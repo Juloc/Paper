@@ -114,6 +114,16 @@ input:focus, select:focus { border-color: var(--accent); outline: 2px solid rgba
 .shelf-folder { border-radius: .55rem; display: block; padding: .55rem .7rem; }
 .shelf-folder:hover, .shelf-folder.active { background: var(--soft); color: var(--accent-dark); }
 .shelf-documents { display: grid; gap: .7rem; }
+.shelf-children { border-bottom: 1px solid var(--line); display: grid; gap: .45rem; margin-bottom: 1.25rem; padding-bottom: 1.25rem; }
+.shelf-children h3 { font-size: .95rem; margin: 0 0 .15rem; }
+.shelf-child { background: var(--soft); border-radius: .55rem; color: var(--accent-dark); padding: .55rem .7rem; }
+.sort-form { display: flex; justify-content: end; margin-bottom: 1rem; }
+.sort-form label { align-items: center; display: flex; flex-direction: row; gap: .6rem; }
+.sort-form select { min-width: 13rem; width: auto; }
+.shelf-documents .document-copy { flex: 1; }
+.shelf-documents .inline-form { align-items: center; margin-left: auto; }
+.shelf-documents .inline-form select { min-width: 12rem; width: auto; }
+.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
 .shelf-editor { border-bottom: 1px solid var(--line); margin-bottom: 1.5rem; padding-bottom: 1.5rem; }
 .breadcrumbs { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: .85rem; gap: .45rem; margin-bottom: .8rem; }
 .breadcrumbs a:hover, .breadcrumbs a:focus-visible { color: var(--accent-dark); }
