@@ -19,7 +19,8 @@ public sealed class DocumentAnalyzer
         IReadOnlyCollection<string>? knownCorrespondents = null,
         IReadOnlyCollection<string>? knownDocumentTypes = null,
         IReadOnlyCollection<string>? knownTags = null,
-        IReadOnlyCollection<CustomFieldDefinition>? knownCustomFields = null)
+        IReadOnlyCollection<CustomFieldDefinition>? knownCustomFields = null,
+        IReadOnlyCollection<ShelfFolderDefinition>? knownShelfFolders = null)
     {
         var lines = text.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         var title = lines.FirstOrDefault(line => line.Length is > 2 and <= 120) ?? fallbackTitle;
@@ -87,7 +88,22 @@ public sealed class DocumentAnalyzer
             }
         }
 
-        return new AnalysisResult(title, date, tags, correspondent, string.IsNullOrWhiteSpace(documentType) ? null : documentType, customFields);
+        var suggestedShelfPath = knownShelfFolders?
+            .Where(folder => !string.IsNullOrWhiteSpace(folder.Name) && folder.Name.Length >= 3)
+            .Where(folder => text.Contains(folder.Name, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(folder => folder.Name.Length)
+            .ThenByDescending(folder => folder.RelativePath.Length)
+            .Select(folder => folder.RelativePath)
+            .FirstOrDefault();
+
+        return new AnalysisResult(
+            title,
+            date,
+            tags,
+            correspondent,
+            string.IsNullOrWhiteSpace(documentType) ? null : documentType,
+            customFields,
+            suggestedShelfPath);
     }
 
     private static void AddTagIfFound(List<string> tags, string text, string tag, params string[] terms)
@@ -124,4 +140,7 @@ public sealed record AnalysisResult(
     IReadOnlyList<string> SuggestedTags,
     string? SuggestedCorrespondent,
     string? SuggestedDocumentType,
-    IReadOnlyDictionary<string, string> SuggestedCustomFields);
+    IReadOnlyDictionary<string, string> SuggestedCustomFields,
+    string? SuggestedShelfPath);
+
+public sealed record ShelfFolderDefinition(string Name, string RelativePath);

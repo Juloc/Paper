@@ -332,6 +332,21 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void AnalyzerSuggestsAnExistingShelfFromDocumentText()
+    {
+        var result = new DocumentAnalyzer().Analyze(
+            "scan",
+            "Stadtwerke Mannheim Stromrechnung Wohnung",
+            knownShelfFolders:
+            [
+                new ShelfFolderDefinition("Finanzen", "Finanzen/Bank"),
+                new ShelfFolderDefinition("Strom", "Wohnung/Strom")
+            ]);
+
+        Assert.AreEqual("Wohnung/Strom", result.SuggestedShelfPath);
+    }
+
+    [TestMethod]
     public void AnalyzerExtractsConservativeCustomFieldValues()
     {
         var result = new DocumentAnalyzer().Analyze("scan", "Rechnungsnummer: RE-2026/42\nKundennummer: K-1234\nIBAN: DE89 3704 0044 0532 0130 00\nBetrag: 1.234,50 EUR");

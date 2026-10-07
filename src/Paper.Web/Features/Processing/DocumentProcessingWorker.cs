@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.CustomFields;
 using Paper.Web.Features.Tags;
+using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Features.Processing;
 
@@ -78,13 +79,17 @@ public sealed class DocumentProcessingWorker(
             var knownCustomFields = await db.CustomFields.AsNoTracking()
                 .Select(item => new CustomFieldDefinition(item.Name, item.Type))
                 .ToListAsync(cancellationToken);
+            var knownShelfFolders = await db.ShelfFolders.AsNoTracking()
+                .Select(item => new ShelfFolderDefinition(item.Name, item.RelativePath))
+                .ToListAsync(cancellationToken);
             var analysis = services.GetRequiredService<DocumentAnalyzer>().Analyze(
                 document.Title,
                 text,
                 knownCorrespondents,
                 knownDocumentTypes,
                 knownTags,
-                knownCustomFields);
+                knownCustomFields,
+                knownShelfFolders);
             var learned = await services.GetRequiredService<DocumentLearningStore>().SuggestAsync($"{document.Title} {document.OriginalFileName} {text}", cancellationToken);
             document.OcrText = text;
             document.OcrStatus = OcrStatus.Completed;
@@ -119,9 +124,17 @@ public sealed class DocumentProcessingWorker(
                 document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Id == learned.DocumentTypeId, cancellationToken);
             }
 
-            if (document.ShelfFolderId is null && document.SuggestedShelfFolderId is null && learned?.ShelfFolderId is not null)
+            if (document.ShelfFolderId is null && learned?.ShelfFolderId is not null)
             {
                 document.SuggestedShelfFolderId = learned.ShelfFolderId;
+            }
+            else if (document.ShelfFolderId is null && document.SuggestedShelfFolderId is null && analysis.SuggestedShelfPath is not null)
+            {
+                var suggestedShelfKey = StoragePathPolicy.CreatePathKey(analysis.SuggestedShelfPath);
+                var suggestedShelf = await db.ShelfFolders.SingleOrDefaultAsync(
+                    item => item.RelativePathKey == suggestedShelfKey,
+                    cancellationToken);
+                document.SuggestedShelfFolderId = suggestedShelf?.Id;
             }
 
             var customFields = (await db.CustomFields.ToListAsync(cancellationToken))
