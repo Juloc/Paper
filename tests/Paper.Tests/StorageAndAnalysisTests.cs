@@ -433,9 +433,9 @@ public sealed class StorageAndAnalysisTests
         CollectionAssert.Contains(documentConstraints, "CK_Documents_Status");
         CollectionAssert.Contains(documentConstraints, "CK_Documents_OcrStatus");
         var documentTagIndexes = designModel.FindEntityType(typeof(DocumentTag))!.GetIndexes().Select(index => index.Properties.Select(property => property.Name).ToArray()).ToArray();
-        Assert.IsTrue(documentTagIndexes.Any(index => index.SequenceEqual(new[] { nameof(DocumentTag.TagId) })));
+        Assert.IsTrue(documentTagIndexes.Any(index => index.SequenceEqual(new[] { nameof(DocumentTag.TagId), nameof(DocumentTag.DocumentId) })));
         var customFieldValueIndexes = designModel.FindEntityType(typeof(DocumentCustomFieldValue))!.GetIndexes().Select(index => index.Properties.Select(property => property.Name).ToArray()).ToArray();
-        Assert.IsTrue(customFieldValueIndexes.Any(index => index.SequenceEqual(new[] { nameof(DocumentCustomFieldValue.CustomFieldId) })));
+        Assert.IsTrue(customFieldValueIndexes.Any(index => index.SequenceEqual(new[] { nameof(DocumentCustomFieldValue.CustomFieldId), nameof(DocumentCustomFieldValue.DocumentId) })));
         var jobConstraints = designModel.FindEntityType(typeof(ProcessingJob))!.GetCheckConstraints().Select(constraint => constraint.Name).ToArray();
         CollectionAssert.Contains(jobConstraints, "CK_ProcessingJobs_State");
         CollectionAssert.Contains(jobConstraints, "CK_ProcessingJobs_Type");

@@ -167,6 +167,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.ToTable("DocumentCustomFieldValues");
             entity.HasKey(value => new { value.DocumentId, value.CustomFieldId });
+            entity.HasIndex(value => new { value.CustomFieldId, value.DocumentId });
             entity.Property(value => value.Value).HasMaxLength(2000).IsRequired();
             entity.HasOne(value => value.Document)
                 .WithMany(document => document.CustomFields)
@@ -193,6 +194,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         {
             entity.ToTable("DocumentTags");
             entity.HasKey(documentTag => new { documentTag.DocumentId, documentTag.TagId });
+            entity.HasIndex(documentTag => new { documentTag.TagId, documentTag.DocumentId });
             entity.HasOne(documentTag => documentTag.Document)
                 .WithMany(document => document.Tags)
                 .HasForeignKey(documentTag => documentTag.DocumentId)
