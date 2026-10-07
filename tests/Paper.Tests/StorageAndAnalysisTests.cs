@@ -121,6 +121,39 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageTreatsConcurrentSameHashUploadsAsDuplicates()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            var uploads = Enumerable.Range(0, 8).Select(async _ =>
+            {
+                await using var content = new MemoryStream("%PDF-concurrent"u8.ToArray());
+                return await storage.SaveAsync(content, "parallel.pdf", CancellationToken.None);
+            });
+
+            var results = await Task.WhenAll(uploads);
+
+            Assert.AreEqual(1, results.Count(result => !result.AlreadyExisted));
+            Assert.IsTrue(results.All(result => result.AlreadyExisted || storage.FileExists(result.RelativePath)));
+            Assert.IsTrue(storage.FileExists(results[0].RelativePath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task StorageCanMoveAndRestoreAFileThroughTheTrashPath()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));

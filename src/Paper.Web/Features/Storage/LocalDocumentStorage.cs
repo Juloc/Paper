@@ -66,9 +66,19 @@ public sealed class LocalDocumentStorage : IStorageProvider
             var alreadyExisted = File.Exists(finalPath);
             if (!alreadyExisted)
             {
-                File.Move(temporaryPath, finalPath);
+                try
+                {
+                    File.Move(temporaryPath, finalPath);
+                }
+                catch (IOException) when (File.Exists(finalPath))
+                {
+                    // Another concurrent upload won the atomic move. The hash
+                    // path is the canonical duplicate marker.
+                    alreadyExisted = true;
+                }
             }
-            else
+
+            if (alreadyExisted)
             {
                 File.Delete(temporaryPath);
             }
