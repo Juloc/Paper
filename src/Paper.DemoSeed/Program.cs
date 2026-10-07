@@ -32,6 +32,10 @@ await db.Database.MigrateAsync(cancellationToken);
 
 if (File.Exists(markerPath))
 {
+    var markerStorage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+    var markerImporter = new DocumentImportService(db, markerStorage, TimeProvider.System, NullLogger<DocumentImportService>.Instance);
+    var markerFiling = new DocumentFilingService(db, markerStorage, TimeProvider.System, NullLogger<DocumentFilingService>.Instance);
+    await EnsurePaginationDocumentsAsync(db, markerImporter, markerFiling, cancellationToken);
     await MarkSpecialJobStatesAsync(db, cancellationToken);
     Console.WriteLine("Paper demo data already exists; demo processing state refreshed.");
     return;
@@ -70,6 +74,7 @@ foreach (var item in DemoDocuments())
     db.ChangeTracker.Clear();
 }
 
+await EnsurePaginationDocumentsAsync(db, importer, filing, cancellationToken);
 await MarkSpecialJobStatesAsync(db, cancellationToken);
 Directory.CreateDirectory(storageRoot);
 await File.WriteAllTextAsync(markerPath, $"seeded {DateTimeOffset.UtcNow:O}{Environment.NewLine}", cancellationToken);
@@ -165,6 +170,52 @@ static IReadOnlyList<DemoDocument> DemoDocuments() =>
     Inbox("Telekom-Rechnung.pdf", "Deutsche Telekom", "Rechnung", "Wohnung/Internet", ["Wohnung", "Internet"], [("Betrag", "49.95"), ("Rechnungsnummer", "TEL-INBOX-01")], "Telekom Rechnung neue Leitung", "49.95 EUR", "Rechnungsnummer TEL-INBOX-01"),
     InboxProcessing("Werkstattrechnung.pdf", "ADAC", "Rechnung", "Auto/Werkstatt", ["Auto", "Wichtig"], [("Betrag", "275.00"), ("Rechnungsnummer", "ADAC-INBOX-27")], "Werkstattrechnung zur Pruefung", "275.00 EUR", "Rechnungsnummer ADAC-INBOX-27"),
 ];
+
+static async Task EnsurePaginationDocumentsAsync(
+    AppDbContext db,
+    DocumentImportService importer,
+    DocumentFilingService filing,
+    CancellationToken cancellationToken)
+{
+    var filedCount = await db.Documents.CountAsync(document => document.Status == DocumentStatus.Filed, cancellationToken);
+    if (filedCount >= 36)
+    {
+        return;
+    }
+
+    var folders = await db.ShelfFolders.ToDictionaryAsync(folder => folder.RelativePath, StringComparer.OrdinalIgnoreCase, cancellationToken);
+    var fields = await db.CustomFields.ToDictionaryAsync(field => field.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+    var correspondents = await db.Correspondents.ToDictionaryAsync(item => item.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+    var documentTypes = await db.DocumentTypes.ToDictionaryAsync(item => item.Name, StringComparer.OrdinalIgnoreCase, cancellationToken);
+    foreach (var item in PaginationDocuments().Take(36 - filedCount))
+    {
+        if (await db.Documents.AnyAsync(document => document.OriginalFileName == item.FileName, cancellationToken))
+        {
+            continue;
+        }
+
+        await SeedDocumentAsync(db, importer, filing, folders, fields, correspondents, documentTypes, item, cancellationToken);
+        db.ChangeTracker.Clear();
+    }
+}
+
+static IEnumerable<DemoDocument> PaginationDocuments()
+{
+    for (var index = 1; index <= 36; index++)
+    {
+        var date = new DateOnly(2026, 1, 1).AddDays(index - 1);
+        var title = $"Demo-Archiv Dokument {index:00}";
+        yield return Filed(
+            "Finanzen/Bank",
+            $"{date:yyyy-MM-dd} Demo-Archiv Dokument {index:00}.pdf",
+            "Sparkasse",
+            "Kontoauszug",
+            ["Demo", "Archiv"],
+            [],
+            title,
+            $"Beispieldokument für die Bibliotheks-Pagination · Datensatz {index:00}");
+    }
+}
 
 static DemoDocument Filed(
     string folder,

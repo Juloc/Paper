@@ -12,7 +12,7 @@ public sealed class DocumentStore(
     IStorageProvider storage,
     ILogger<DocumentStore> logger)
 {
-    public const int PageSize = 100;
+    public const int PageSize = 24;
 
     public async Task<DocumentPage> ListPageAsync(DocumentStatus status, int pageNumber, CancellationToken cancellationToken)
     {

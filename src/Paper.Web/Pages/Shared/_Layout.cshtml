@@ -51,6 +51,22 @@
             </aside>
             <div class="app-main">
                 <header class="main-header">
+                    @{
+                        var topbarSection = Context.Request.Path.StartsWithSegments("/Documents") ? "Dokumente"
+                            : Context.Request.Path.StartsWithSegments("/Search") ? "Suche"
+                            : Context.Request.Path.StartsWithSegments("/Shelf") ? "Regal"
+                            : Context.Request.Path.StartsWithSegments("/Settings") ? "Einstellungen"
+                            : Context.Request.Path.StartsWithSegments("/Processing") ? "Verarbeitung"
+                            : Context.Request.Path.StartsWithSegments("/Inbox") ? "Inbox"
+                            : "Paper";
+                    }
+                    <nav class="topbar-breadcrumb" aria-label="Brotkrümelnavigation">
+                        <a asp-page="/Inbox/Index">Paper</a>
+                        @if (topbarSection != "Paper")
+                        {
+                            <span aria-hidden="true">/</span><span>@topbarSection</span>
+                        }
+                    </nav>
                     <form class="global-search" method="get" action="/Search" role="search">
                         <span class="search-icon">⌕</span>
                         <input name="query" placeholder="Dokumente durchsuchen …" aria-label="Dokumente durchsuchen" />

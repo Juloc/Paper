@@ -24,8 +24,11 @@
 .sidebar-user form { margin-left: auto; }
 .logout-button { font-size: .72rem; padding: .25rem 0; }
 .app-main { min-width: 0; width: 100%; }
-.main-header { align-items: center; background: rgba(247, 249, 253, .94); border-bottom: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; min-height: 70px; padding: 12px 32px; position: sticky; top: 0; z-index: 5; }
-.global-search { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; display: flex; gap: 8px; height: 44px; max-width: 720px; padding: 0 9px; width: min(100%, 720px); }
+.main-header { align-items: center; background: rgba(247, 249, 253, .94); border-bottom: 1px solid var(--line); display: flex; gap: 14px; min-height: 70px; padding: 12px 16px; position: sticky; top: 0; z-index: 5; }
+.topbar-breadcrumb { align-items: center; color: var(--muted); display: flex; flex: 0 0 auto; font-size: .8rem; gap: 7px; white-space: nowrap; }
+.topbar-breadcrumb a { color: var(--accent-dark); font-weight: 750; }
+.topbar-breadcrumb span:last-child { color: var(--ink); font-weight: 650; }
+.global-search { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; display: flex; flex: 1 1 auto; gap: 8px; height: 44px; max-width: none; padding: 0 9px; }
 .global-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(49, 89, 184, .22); }
 .global-search input { background: transparent; border: 0; min-width: 0; outline: 0; padding: 10px 2px; }
 .search-icon { color: var(--muted); font-size: 1.2rem; line-height: 1; }
@@ -45,6 +48,7 @@
     .sidebar { box-shadow: 12px 0 30px rgba(32, 41, 56, .1); left: 0; position: fixed; top: 0; transform: translateX(-105%); transition: transform .18s ease; width: 236px; z-index: 10; }
     .sidebar.is-open { transform: translateX(0); }
     .main-header { min-height: 62px; padding: 10px 14px; }
+    .topbar-breadcrumb { display: none; }
     .add-document-button { font-size: 0; padding: .56rem; }
     .add-document-button span { font-size: 1rem; }
     .page { padding: 20px 14px 34px; }
