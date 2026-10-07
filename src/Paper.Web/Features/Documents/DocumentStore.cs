@@ -141,7 +141,6 @@ public sealed class DocumentStore(
         try
         {
             storage.Delete(trashPath);
-            storage.Delete($".thumbnails/{document.Hash}.jpg");
         }
         catch (Exception exception)
         {
@@ -176,6 +175,9 @@ public sealed class DocumentStore(
                 document.OcrStatus,
                 document.Status,
                 document.UpdatedAt,
+                document.Correspondent != null ? document.Correspondent.Name : null,
+                document.DocumentType != null ? document.DocumentType.Name : null,
+                document.ShelfFolder != null ? document.ShelfFolder.RelativePath : null,
                 document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray()));
 
     private static DocumentDetails ToDetails(Document document) => new(
@@ -207,7 +209,19 @@ public sealed class DocumentStore(
             .ToArray());
 }
 
-public sealed record DocumentListItem(long Id, string Title, DateOnly? DocumentDate, string OriginalFileName, long FileSize, OcrStatus OcrStatus, DocumentStatus Status, DateTime UpdatedAt, string[] Tags);
+public sealed record DocumentListItem(
+    long Id,
+    string Title,
+    DateOnly? DocumentDate,
+    string OriginalFileName,
+    long FileSize,
+    OcrStatus OcrStatus,
+    DocumentStatus Status,
+    DateTime UpdatedAt,
+    string? Correspondent,
+    string? DocumentType,
+    string? ShelfPath,
+    string[] Tags);
 
 public sealed record DocumentPage(IReadOnlyList<DocumentListItem> Documents, int PageNumber, int PageCount, int TotalCount);
 

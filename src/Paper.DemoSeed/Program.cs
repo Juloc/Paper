@@ -14,12 +14,6 @@ const string storageRoot = "/data/documents";
 const string markerPath = $"{storageRoot}/.paper-demo-seeded";
 var cancellationToken = CancellationToken.None;
 
-if (File.Exists(markerPath))
-{
-    Console.WriteLine("Paper demo data already exists; seeding is skipped.");
-    return;
-}
-
 var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__Default")
     ?? throw new InvalidOperationException("ConnectionStrings__Default is required.");
 var configuration = new ConfigurationBuilder()
@@ -35,6 +29,14 @@ var options = new DbContextOptionsBuilder<AppDbContext>()
 
 await using var db = new AppDbContext(options);
 await db.Database.MigrateAsync(cancellationToken);
+
+if (File.Exists(markerPath))
+{
+    await MarkSpecialJobStatesAsync(db, cancellationToken);
+    Console.WriteLine("Paper demo data already exists; demo processing state refreshed.");
+    return;
+}
+
 var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
 var importer = new DocumentImportService(db, storage, TimeProvider.System, NullLogger<DocumentImportService>.Instance);
 var filing = new DocumentFilingService(db, storage, TimeProvider.System, NullLogger<DocumentFilingService>.Instance);
@@ -261,7 +263,7 @@ static async Task MarkSpecialJobStatesAsync(AppDbContext db, CancellationToken c
         document => document.OriginalFileName == "Werkstattrechnung.pdf",
         cancellationToken);
     var processingJob = await db.ProcessingJobs.SingleAsync(
-        job => job.DocumentId == processingDocument.Id,
+        job => job.DocumentId == processingDocument.Id && job.Type == ProcessingJobType.OcrAndAnalyze,
         cancellationToken);
     processingDocument.OcrStatus = OcrStatus.Processing;
     processingJob.State = ProcessingJobState.Running;

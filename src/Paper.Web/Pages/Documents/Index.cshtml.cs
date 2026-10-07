@@ -9,6 +9,8 @@ public sealed class IndexModel(DocumentStore documents) : PageModel
     public IReadOnlyList<DocumentListItem> Documents { get; private set; } = [];
     [BindProperty(SupportsGet = true)]
     public int PageNumber { get; set; } = 1;
+    [BindProperty(SupportsGet = true)]
+    public string View { get; set; } = "grid";
     public int PageCount { get; private set; }
     public int TotalCount { get; private set; }
 

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.CustomFields;
+using Paper.Web.Features.Documents;
 using Paper.Web.Features.Tags;
 using Paper.Web.Features.Storage;
 
@@ -66,6 +67,23 @@ public sealed class DocumentProcessingWorker(
             .Include(item => item.ShelfFolder)
             .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
             .SingleAsync(item => item.Id == job.DocumentId, cancellationToken);
+
+        if (job.Type == ProcessingJobType.Thumbnail)
+        {
+            try
+            {
+                await services.GetRequiredService<ThumbnailService>().GenerateAsync(document.Id, cancellationToken);
+                await jobStore.CompleteAsync(job.Id, cancellationToken);
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                await jobStore.FailAsync(job.Id, exception, cancellationToken);
+                logger.LogWarning(exception, "Document thumbnail generation failed for document {DocumentId}.", document.Id);
+            }
+
+            return;
+        }
+
         document.OcrStatus = OcrStatus.Processing;
         await db.SaveChangesAsync(cancellationToken);
 
@@ -162,6 +180,7 @@ public sealed class DocumentProcessingWorker(
             document.SearchText = TagStore.BuildSearchText(document);
             await db.SaveChangesAsync(cancellationToken);
             await jobStore.CompleteAsync(job.Id, cancellationToken);
+            await services.GetRequiredService<ThumbnailService>().QueueAsync(document.Id, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

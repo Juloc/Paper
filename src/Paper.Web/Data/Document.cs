@@ -56,6 +56,25 @@ public sealed class Document
     public List<DocumentTag> Tags { get; set; } = [];
 
     public List<DocumentCustomFieldValue> CustomFields { get; set; } = [];
+
+    public DocumentThumbnail? Thumbnail { get; set; }
+}
+
+public sealed class DocumentThumbnail
+{
+    public long DocumentId { get; set; }
+
+    public Document Document { get; set; } = null!;
+
+    public string ContentType { get; set; } = "image/jpeg";
+
+    public int Width { get; set; }
+
+    public int Height { get; set; }
+
+    public byte[] Data { get; set; } = [];
+
+    public DateTime CreatedAt { get; set; }
 }
 
 public sealed class Tag

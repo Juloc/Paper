@@ -27,6 +27,8 @@ public sealed class IndexModel(
     StorageIntegrityService storageIntegrity,
     AppDbContext db) : PageModel
 {
+    [BindProperty(SupportsGet = true)]
+    public string Section { get; set; } = "general";
     [BindProperty]
     public string CorrespondentName { get; set; } = "";
 

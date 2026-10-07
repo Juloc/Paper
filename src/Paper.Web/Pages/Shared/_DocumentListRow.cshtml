@@ -1,0 +1,13 @@
+@model Paper.Web.Features.Documents.DocumentListItem
+<article class="document-row">
+    <a class="document-card-preview" asp-page="/Documents/Detail" asp-route-id="@Model.Id">
+        <img src="/documents/@Model.Id/thumbnail" alt="" loading="lazy" data-thumbnail />
+        <span class="preview-placeholder"><strong>PDF</strong></span>
+    </a>
+    <div class="document-copy">
+        <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@Model.Id">@Model.Title</a>
+        <span class="muted small">@(Model.Correspondent ?? "Ohne Korrespondent") · @(Model.DocumentDate?.ToString("dd.MM.yyyy") ?? "Ohne Datum") · @(Model.DocumentType ?? "Dokument")</span>
+        <div class="tag-list">@foreach (var tag in Model.Tags.Take(4)) { <span class="tag">@tag</span> }</div>
+    </div>
+    <div class="document-row-actions"><span class="muted small">@Model.ShelfPath</span><a class="button" asp-page="/Documents/Detail" asp-route-id="@Model.Id">Öffnen</a></div>
+</article>

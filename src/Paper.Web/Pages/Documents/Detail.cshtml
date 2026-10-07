@@ -11,20 +11,21 @@
     var isTiff = document.OriginalFileName.EndsWith(".tif", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase);
 }
 <header class="page-header">
-    <div><div class="eyebrow">@(inboxLike ? document.Status switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" } : "Dokument")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
+    <div><div class="eyebrow">@(inboxLike ? document.Status switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" } : "Dokumentdetail")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName · @(document.DocumentType ?? "Dokument")</p></div>
     <a class="button" asp-page="@(inboxLike ? "/Inbox/Index" : "/Documents/Index")" asp-route-view="@(inboxLike && !inInbox ? document.Status.ToString() : null)">Zurück</a>
 </header>
 <div class="document-detail">
     <section class="preview panel">
+        <div class="preview-toolbar"><span class="muted small">Dokumentvorschau</span><span class="status status-@document.OcrStatus.ToString().ToLowerInvariant()">OCR: @(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</span></div>
         @if (document.OriginalFileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
         {
-            <iframe src="/documents/@document.Id/file" title="Dokumentvorschau"></iframe>
+            <img src="/documents/@document.Id/thumbnail" alt="Vorschau von @document.Title" data-thumbnail />
         }
         else
         {
             <img src="@(isTiff ? $"/documents/{document.Id}/thumbnail" : $"/documents/{document.Id}/file")" alt="Vorschau von @document.Title" />
         }
-        <a class="button" href="/documents/@document.Id/file?download=true">Datei herunterladen</a>
+        <div class="preview-footer"><span class="muted small">@(document.ShelfPath ?? "Noch nicht abgelegt")</span><a class="button" href="/documents/@document.Id/file?download=true">Herunterladen</a></div>
     </section>
     <aside class="panel metadata">
         <form method="post" asp-page-handler="@(inInbox ? "File" : "Save")" class="stack">
@@ -32,40 +33,19 @@
             <label>Titel <input asp-for="Input.Title" /></label>
             <label>Dokumentdatum <input asp-for="Input.DocumentDate" type="date" /></label>
             <label>Korrespondent
-                <select asp-for="Input.CorrespondentId">
-                    <option value="">Nicht festgelegt</option>
-                    @foreach (var option in Model.Correspondents)
-                    {
-                        <option value="@option.Id">@option.Name</option>
-                    }
-                </select>
+                <select asp-for="Input.CorrespondentId"><option value="">Nicht festgelegt</option>@foreach (var option in Model.Correspondents) { <option value="@option.Id">@option.Name</option> }</select>
             </label>
             <label>Dokumenttyp
-                <select asp-for="Input.DocumentTypeId">
-                    <option value="">Nicht festgelegt</option>
-                    @foreach (var option in Model.DocumentTypes)
-                    {
-                        <option value="@option.Id">@option.Name</option>
-                    }
-                </select>
+                <select asp-for="Input.DocumentTypeId"><option value="">Nicht festgelegt</option>@foreach (var option in Model.DocumentTypes) { <option value="@option.Id">@option.Name</option> }</select>
             </label>
             <label>Regalordner@(document.ShelfFolderId is null && document.SuggestedShelfFolderId is not null ? " (Vorschlag)" : "")
-                <select asp-for="Input.ShelfFolderId">
-                    <option value="">@(inInbox ? "Bitte auswählen" : "Nicht festgelegt")</option>
-                    @foreach (var option in Model.ShelfFolders)
-                    {
-                        <option value="@option.Id">@option.RelativePath</option>
-                    }
-                </select>
+                <select asp-for="Input.ShelfFolderId"><option value="">@(inInbox ? "Bitte auswählen" : "Nicht festgelegt")</option>@foreach (var option in Model.ShelfFolders) { <option value="@option.Id">@option.RelativePath</option> }</select>
             </label>
-            @if (document.ShelfFolderId is null && document.SuggestedShelfPath is not null)
-            {
-                <p class="small muted">Die Datei bleibt bis zum Ablegen in der Inbox. Vorschlag: @document.SuggestedShelfPath</p>
-            }
+            @if (document.ShelfFolderId is null && document.SuggestedShelfPath is not null) { <p class="small muted">Vorschlag: @document.SuggestedShelfPath</p> }
             <label>Tags <input asp-for="Input.Tags" placeholder="z. B. rechnung, privat" /></label>
             @if (Model.CustomFields.Count > 0)
             {
-                <h2 class="form-heading">Zusatzfelder</h2>
+                <h2 class="form-heading">Custom Fields</h2>
                 @foreach (var field in Model.CustomFields)
                 {
                     var value = Model.Input.CustomFields.GetValueOrDefault(field.Id, "");
@@ -82,37 +62,13 @@
             }
             <button class="button button-primary" type="submit">@(inInbox ? "Ablegen" : "Änderungen speichern")</button>
         </form>
-        <form method="post" asp-page-handler="Reanalyze">
-            <button class="button" type="submit">Neu analysieren</button>
-        </form>
-        @if (document.Status is DocumentStatus.Deferred or DocumentStatus.Ignored)
-        {
-            <form method="post" asp-page-handler="RestoreToInbox">
-                <button class="button" type="submit">In Inbox zurücklegen</button>
-            </form>
-        }
-        <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Dokument wirklich löschen?');">
-            <button class="button button-danger" type="submit">Dokument löschen</button>
-        </form>
-        <dl class="facts">
-            <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
-            <div><dt>Regal</dt><dd>@(document.ShelfPath ?? (document.SuggestedShelfPath is null ? "Noch nicht abgelegt" : $"Vorschlag: {document.SuggestedShelfPath}"))</dd></div>
-            <div><dt>Größe</dt><dd>@($"{document.FileSize / 1024d / 1024d:0.0} MB")</dd></div>
-            <div><dt>Originaldatei</dt><dd>@document.OriginalFileName</dd></div>
-            <div><dt>Geändert</dt><dd>@document.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd></div>
-        </dl>
-        @if (document.OcrStatus == OcrStatus.Failed)
-        {
-            <p class="error-text">@document.OcrError</p>
-        }
-        <details>
-            <summary>Weitere Informationen</summary>
-            <p class="hash">@document.Hash</p>
-            <p class="muted">@document.FilePath</p>
-        </details>
+        <div class="inbox-actions"><form method="post" asp-page-handler="Reanalyze"><button class="button" type="submit">Neu analysieren</button></form>@if (document.Status is DocumentStatus.Deferred or DocumentStatus.Ignored) { <form method="post" asp-page-handler="RestoreToInbox"><button class="button" type="submit">In Inbox zurücklegen</button></form> }<form method="post" asp-page-handler="Delete" onsubmit="return confirm('Dokument wirklich löschen?');"><button class="button button-danger" type="submit">Löschen</button></form></div>
+        <dl class="facts"><div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div><div><dt>Größe</dt><dd>@String.Format("{0:0.0} MB", document.FileSize / 1024d / 1024d)</dd></div><div><dt>Geändert</dt><dd>@document.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd></div></dl>
+        @if (document.OcrStatus == OcrStatus.Failed) { <p class="error-text">@document.OcrError</p> }
+        <details><summary>Technische Informationen</summary><p class="hash small">@document.Hash</p><p class="muted small">@document.FilePath</p></details>
     </aside>
 </div>
 @if (!string.IsNullOrWhiteSpace(document.OcrText))
 {
-    <section class="panel ocr-text"><h2>Erkannter Text</h2><pre>@document.OcrText</pre></section>
+    <details class="panel ocr-text"><summary>OCR-Text anzeigen</summary><pre>@document.OcrText</pre></details>
 }

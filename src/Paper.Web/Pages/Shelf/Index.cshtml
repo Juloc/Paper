@@ -4,11 +4,12 @@
     ViewData["Title"] = "Regal";
 }
 <header class="page-header">
-    <div><div class="eyebrow">Dateiablage</div><h1>Regal</h1><p class="muted">Deine Dokumente bleiben auch außerhalb von Paper verständlich sortiert.</p></div>
+    <div><div class="eyebrow">Dateiablage</div><h1>Regal</h1><p class="muted">Ordnerbaum und Dokumente bleiben synchron mit dem physischen Speicher.</p></div>
 </header>
 <div class="shelf-layout">
     <section class="panel shelf-tree">
-        <a class="shelf-folder @(Model.FolderId is null ? "active" : "")" asp-page="/Shelf/Index">Alle Regalordner</a>
+        <strong class="small">Ordner</strong>
+        <a class="shelf-folder @(Model.FolderId is null ? "active" : "")" asp-page="/Shelf/Index">Alle Dokumente</a>
         @foreach (var folder in Model.Folders)
         {
             var depth = folder.RelativePath.Count(character => character == '/');
@@ -28,8 +29,7 @@
         }
         else if (Model.CurrentFolder is null)
         {
-            <h2>Regalübersicht</h2>
-            <p class="muted">Wähle links einen Ordner aus.</p>
+            <div class="eyebrow">Übersicht</div><h2>Wähle einen Regalordner</h2><p class="muted">Dokumente im Archiv werden hier mit derselben Vorschau wie in der Bibliothek angezeigt.</p>
         }
         else
         {
@@ -37,20 +37,13 @@
                 <a asp-page="/Shelf/Index">Regal</a>
                 @foreach (var breadcrumb in Model.CurrentFolder.Breadcrumbs)
                 {
-                    <span aria-hidden="true">/</span>
-                    <a asp-page="/Shelf/Index" asp-route-folderId="@breadcrumb.Id">@breadcrumb.Name</a>
+                    <span aria-hidden="true">/</span><a asp-page="/Shelf/Index" asp-route-folderId="@breadcrumb.Id">@breadcrumb.Name</a>
                 }
             </nav>
-            <h2>@Model.CurrentFolder.RelativePath</h2>
+            <div class="page-header shelf-heading"><div><h2>@Model.CurrentFolder.RelativePath</h2><p class="muted">@Model.CurrentFolder.Documents.Count Dokumente</p></div></div>
             @if (Model.CurrentFolder.Children.Count > 0)
             {
-                <div class="shelf-children">
-                    <h3>Unterordner</h3>
-                    @foreach (var child in Model.CurrentFolder.Children)
-                    {
-                        <a class="shelf-child" asp-page="/Shelf/Index" asp-route-folderId="@child.Id" asp-route-sort="@Model.Sort">@child.Name</a>
-                    }
-                </div>
+                <div class="shelf-children"><h3>Unterordner</h3>@foreach (var child in Model.CurrentFolder.Children) { <a class="shelf-child" asp-page="/Shelf/Index" asp-route-folderId="@child.Id" asp-route-sort="@Model.Sort">@child.Name</a> }</div>
             }
             <form method="get" class="sort-form">
                 <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
@@ -82,24 +75,29 @@
             }
             else
             {
-                <div class="shelf-documents">
+                <div class="document-grid" aria-label="Dokumente im Regal">
                     @foreach (var document in Model.CurrentFolder.Documents)
                     {
-                        <article class="document-row">
-                            <a class="document-copy" asp-page="/Documents/Detail" asp-route-id="@document.Id"><strong>@document.Title</strong><span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span></a>
-                            <form method="post" asp-page-handler="MoveDocument" class="inline-form">
-                                <input type="hidden" name="documentId" value="@document.Id" />
-                                <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
-                                <input type="hidden" name="sort" value="@Model.Sort" />
-                                <label class="sr-only" for="shelf-@document.Id">Zielordner für @document.Title</label>
-                                <select id="shelf-@document.Id" name="shelfFolderId">
-                                    @foreach (var option in Model.Folders)
-                                    {
-                                        <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.Id ? "selected" : null)">@option.RelativePath</option>
-                                    }
-                                </select>
-                                <button class="button" type="submit">Verschieben</button>
-                            </form>
+                        <article class="document-card">
+                            <a class="document-card-preview" asp-page="/Documents/Detail" asp-route-id="@document.Id">
+                                <img src="/documents/@document.Id/thumbnail" alt="Vorschau von @document.Title" loading="lazy" data-thumbnail />
+                                <span class="preview-placeholder"><strong>PDF</strong></span>
+                            </a>
+                            <div class="document-card-body">
+                                <a class="document-card-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
+                                <div class="document-card-meta"><span>@(document.Correspondent ?? "Ohne Korrespondent")</span><span>@(document.DocumentDate?.ToString("dd.MM.yyyy") ?? "Ohne Datum") · @(document.DocumentType ?? "Dokument")</span></div>
+                                <div class="tag-list">@foreach (var tag in document.Tags.Take(3)) { <span class="tag">@tag</span> }</div>
+                                <form method="post" asp-page-handler="MoveDocument" class="inline-form">
+                                    <input type="hidden" name="documentId" value="@document.Id" />
+                                    <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
+                                    <input type="hidden" name="sort" value="@Model.Sort" />
+                                    <label class="sr-only" for="shelf-@document.Id">Zielordner</label>
+                                    <select id="shelf-@document.Id" name="shelfFolderId">
+                                        @foreach (var option in Model.Folders) { <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.Id ? "selected" : null)">@option.RelativePath</option> }
+                                    </select>
+                                    <button class="button" type="submit">Verschieben</button>
+                                </form>
+                            </div>
                         </article>
                     }
                 </div>

@@ -2,14 +2,11 @@
 @model Paper.Web.Pages.Inbox.IndexModel
 @{
     ViewData["Title"] = "Inbox";
+    var heading = Model.View switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" };
 }
 <header class="page-header">
-    <div>
-        <div class="eyebrow">Zu prüfen</div>
-        <h1>@(Model.View switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" })</h1>
-        <p class="muted">@(Model.View switch { DocumentStatus.Deferred => "Zurückgestellte Dokumente, die du später prüfen möchtest.", DocumentStatus.Ignored => "Ignorierte Dokumente bleiben erhalten und können wieder aufgenommen werden.", _ => "Neue Dokumente bleiben hier, bis du sie kurz prüfst und ablegst." })</p>
-    </div>
-    <a class="button button-primary" asp-page="/Add/Index">Dokument hinzufügen</a>
+    <div><div class="eyebrow">Review-Workspace</div><h1>@heading</h1><p class="muted">Prüfe Metadaten, Vorschau und Regal in einem schnellen Durchlauf.</p></div>
+    <span class="toolbar-meta">@Model.CurrentCount offen</span>
 </header>
 <nav class="inbox-tabs" aria-label="Inbox-Ansichten">
     <a class="@(Model.View == DocumentStatus.Inbox ? "active" : "")" asp-page="/Inbox/Index">Inbox</a>
@@ -18,65 +15,40 @@
 </nav>
 @if (Model.Documents.Count == 0)
 {
-    <section class="empty-state">
-        <h2>Deine Inbox ist leer</h2>
-        <p>Neue Uploads erscheinen hier nach der Verarbeitung.</p>
-    </section>
-    @if (Model.PageCount > 1)
-    {
-        <nav class="pagination" aria-label="Inboxseiten">
-            @if (Model.PageNumber > 1)
-            {
-                <a class="button" asp-route-view="@Model.View" asp-route-pageNumber="@(Model.PageNumber - 1)">Zurück</a>
-            }
-            <span class="muted">@Model.CurrentCount Dokument(e) · Seite @Model.PageNumber von @Model.PageCount</span>
-            @if (Model.PageNumber < Model.PageCount)
-            {
-                <a class="button" asp-route-view="@Model.View" asp-route-pageNumber="@(Model.PageNumber + 1)">Weiter</a>
-            }
-        </nav>
-    }
+    <section class="empty-state"><h2>Deine Inbox ist leer</h2><p>Neue Uploads erscheinen hier nach der Verarbeitung.</p></section>
 }
 else
 {
-    <section class="document-list" aria-label="Dokumente in der Inbox">
-        @foreach (var document in Model.Documents)
+    <div class="workspace">
+        <section class="panel inbox-queue" aria-label="Inbox-Queue">
+            <div class="queue-heading"><h2>Queue</h2><span class="muted small">@Model.CurrentCount</span></div>
+            @foreach (var document in Model.Documents)
+            {
+                <a class="queue-item @(Model.SelectedId == document.Id ? "active" : "")" asp-route-view="@Model.View" asp-route-pageNumber="@Model.PageNumber" asp-route-selectedId="@document.Id">
+                    <span class="queue-thumb"><img src="/documents/@document.Id/thumbnail" alt="" loading="lazy" data-thumbnail /><span>PDF</span></span>
+                    <span class="queue-copy"><strong>@document.Title</strong><span>@(document.Correspondent ?? "Ohne Korrespondent")</span><span>@(document.DocumentDate?.ToString("dd.MM.yyyy") ?? "Ohne Datum")</span></span>
+                </a>
+            }
+        </section>
+        <section class="panel inbox-preview-panel" aria-label="Dokumentvorschau">
+            @if (Model.SelectedDocument is not null)
+            {
+                <div class="preview-toolbar"><div><strong>@Model.SelectedDocument.Title</strong><div class="muted small">@Model.SelectedDocument.OriginalFileName</div></div><span class="status status-@Model.SelectedDocument.OcrStatus.ToString().ToLowerInvariant()">@Model.SelectedDocument.OcrStatus</span></div>
+                <div class="preview-canvas"><img src="/documents/@Model.SelectedDocument.Id/thumbnail" alt="Vorschau von @Model.SelectedDocument.Title" data-thumbnail /></div>
+                <div class="preview-footer"><span class="muted small">Erste Seite · PDF-Vorschau</span><a class="button" href="/documents/@Model.SelectedDocument.Id/file" target="_blank" rel="noreferrer">PDF öffnen</a><a class="button" asp-page="/Documents/Detail" asp-route-id="@Model.SelectedDocument.Id">Details öffnen</a></div>
+            }
+            else
+            {
+                <div class="preview-empty">Wähle ein Dokument aus der Queue.</div>
+            }
+        </section>
+        @if (Model.SelectedDocument is not null)
         {
-            <article class="document-row">
-                @if (document.OriginalFileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tif", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase))
-                {
-                    <img class="document-thumbnail" src="/documents/@document.Id/thumbnail" alt="" loading="lazy" />
-                }
-                else
-                {
-                    <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
-                }
-                <div class="document-copy">
-                    <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
-                    <span class="muted">@document.OriginalFileName · @($"{document.FileSize / 1024d / 1024d:0.0} MB")</span>
-                    <div class="tag-list">
-                        @foreach (var tag in document.Tags)
-                        {
-                            <span class="tag">@tag</span>
-                        }
-                    </div>
-                </div>
-                <div class="document-state">
-                    <span class="status status-@document.OcrStatus.ToString().ToLowerInvariant()">@document.OcrStatus switch { OcrStatus.Pending => "Wartet auf OCR", OcrStatus.Processing => "Wird verarbeitet", OcrStatus.Completed => "OCR fertig", _ => "OCR fehlgeschlagen" }</span>
-                    <div class="inbox-actions">
-                        <a class="button button-primary" asp-page="/Documents/Detail" asp-route-id="@document.Id">@(Model.View == DocumentStatus.Inbox ? "Prüfen und ablegen" : "Öffnen")</a>
-                        @if (Model.View == DocumentStatus.Inbox)
-                        {
-                            <form method="post" asp-page-handler="Defer"><input type="hidden" name="id" value="@document.Id" /><button class="button" type="submit">Später</button></form>
-                            <form method="post" asp-page-handler="Ignore"><input type="hidden" name="id" value="@document.Id" /><button class="button button-quiet" type="submit">Ignorieren</button></form>
-                        }
-                        else
-                        {
-                            <form method="post" asp-page-handler="Restore"><input type="hidden" name="id" value="@document.Id" /><button class="button" type="submit">In Inbox</button></form>
-                        }
-                    </div>
-                </div>
-            </article>
+            <aside class="panel inbox-meta" aria-label="Metadaten">
+                <div class="meta-section"><h3>Metadaten</h3><span class="meta-label">Titel</span><span class="meta-value">@Model.SelectedDocument.Title</span><span class="meta-label">Korrespondent</span><span class="meta-value">@(Model.SelectedDocument.Correspondent ?? "Noch nicht erkannt")</span><span class="meta-label">Dokumenttyp</span><span class="meta-value">@(Model.SelectedDocument.DocumentType ?? "Noch nicht erkannt")</span><span class="meta-label">Datum</span><span class="meta-value">@(Model.SelectedDocument.DocumentDate?.ToString("dd.MM.yyyy") ?? "Noch nicht erkannt")</span></div>
+                <div class="meta-section"><h3>Regal</h3><span class="meta-value">@(Model.SelectedDocument.ShelfPath ?? "Noch nicht abgelegt")</span><div class="tag-list">@foreach (var tag in Model.SelectedDocument.Tags) { <span class="tag">@tag</span> }</div></div>
+                <div class="meta-section"><h3>Aktionen</h3><div class="inbox-actions"><a class="button button-primary" asp-page="/Documents/Detail" asp-route-id="@Model.SelectedDocument.Id">Ablegen</a><form method="post" asp-page-handler="Defer"><input type="hidden" name="id" value="@Model.SelectedDocument.Id" /><button class="button" type="submit">Später</button></form><form method="post" asp-page-handler="Ignore"><input type="hidden" name="id" value="@Model.SelectedDocument.Id" /><button class="button" type="submit">Ignorieren</button></form><form method="post" asp-page-handler="Reanalyze"><input type="hidden" name="id" value="@Model.SelectedDocument.Id" /><button class="button" type="submit">Neu analysieren</button></form></div></div>
+            </aside>
         }
-    </section>
+    </div>
 }

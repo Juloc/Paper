@@ -134,7 +134,7 @@ app.MapGet("/documents/{id:long}/thumbnail", async (HttpResponse response, long 
     var file = await thumbnails.OpenAsync(id, cancellationToken);
     return file is null
         ? Results.NotFound()
-        : CreatePrivateFileResponse(response, file.Stream, file.ContentType, null, null, file.EntityTag);
+        : CreatePrivateFileResponse(response, file.Stream, file.ContentType, null, null, file.EntityTag, cacheForBrowser: true);
 }).RequireAuthorization();
 app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {
@@ -165,9 +165,17 @@ static IResult CreatePrivateFileResponse(
     string contentType,
     string? downloadName,
     DateTimeOffset? lastModified,
-    string entityTag)
+    string entityTag,
+    bool cacheForBrowser = false)
 {
-    SetNoStore(response);
+    if (cacheForBrowser)
+    {
+        response.Headers.CacheControl = "private, max-age=3600, must-revalidate";
+    }
+    else
+    {
+        SetNoStore(response);
+    }
     return Results.File(
         stream,
         contentType,
@@ -187,6 +195,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<ThumbnailService>().QueueMissingAsync(CancellationToken.None);
 }
 
 await app.RunAsync();

@@ -34,7 +34,10 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
                 document.Title,
                 document.DocumentDate,
                 document.OriginalFileName,
-                document.FileSize))
+                document.FileSize,
+                document.Correspondent != null ? document.Correspondent.Name : null,
+                document.DocumentType != null ? document.DocumentType.Name : null,
+                document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray()))
             .ToListAsync(cancellationToken);
         var folders = await db.ShelfFolders.AsNoTracking()
             .Select(item => new ShelfFolderOption(item.Id, item.Name, item.RelativePath, item.ParentId))
@@ -256,7 +259,15 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
 
 public sealed record ShelfFolderOption(long Id, string Name, string RelativePath, long? ParentId);
 
-public sealed record ShelfDocument(long Id, string Title, DateOnly? DocumentDate, string OriginalFileName, long FileSize);
+public sealed record ShelfDocument(
+    long Id,
+    string Title,
+    DateOnly? DocumentDate,
+    string OriginalFileName,
+    long FileSize,
+    string? Correspondent,
+    string? DocumentType,
+    string[] Tags);
 
 public enum ShelfDocumentSort
 {

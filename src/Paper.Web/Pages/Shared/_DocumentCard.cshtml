@@ -1,0 +1,19 @@
+@model Paper.Web.Features.Documents.DocumentListItem
+<article class="document-card">
+    <a class="document-card-preview" asp-page="/Documents/Detail" asp-route-id="@Model.Id">
+        <img src="/documents/@Model.Id/thumbnail" alt="Vorschau von @Model.Title" loading="lazy" data-thumbnail />
+        <span class="preview-placeholder"><strong>PDF</strong><span>Vorschau wird erstellt</span></span>
+    </a>
+    <div class="document-card-body">
+        <a class="document-card-title" asp-page="/Documents/Detail" asp-route-id="@Model.Id" title="@Model.Title">@Model.Title</a>
+        <div class="document-card-meta">
+            <span>@(Model.Correspondent ?? "Ohne Korrespondent")</span>
+            <span>@(Model.DocumentDate?.ToString("dd.MM.yyyy") ?? "Ohne Datum") · <span class="document-card-type">@(Model.DocumentType ?? "Dokument")</span></span>
+        </div>
+        <div class="tag-list">
+            @foreach (var tag in Model.Tags.Take(3)) { <span class="tag">@tag</span> }
+            @if (Model.Tags.Length > 3) { <span class="tag-more">+@(Model.Tags.Length - 3)</span> }
+        </div>
+        @if (!string.IsNullOrWhiteSpace(Model.ShelfPath)) { <span class="muted small">@Model.ShelfPath</span> }
+    </div>
+</article>

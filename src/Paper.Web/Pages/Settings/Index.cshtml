@@ -3,244 +3,62 @@
 @using Paper.Web.Features.CustomFields
 @{
     ViewData["Title"] = "Einstellungen";
-}
-<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Stammdaten und Laufzeitinformationen deines Archivs.</p></div></header>
-<section class="panel settings-list">
-    <div><span class="muted">Lokaler Speicher</span><strong>@Model.StoragePath</strong></div>
-    <div><span class="muted">Storage-Provider</span><strong>@Model.StorageProvider</strong></div>
-    <div><span class="muted">NAS-Wake-Policy</span><strong>@Model.WakePolicy</strong></div>
-    <div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div>
-    <div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div>
-    <div><span class="muted">Export und Backup</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a> <a class="button" href="/export/backup.zip">ZIP-Backup</a></span></div>
-</section>
-<section class="panel settings-card restore-card">
-    <h2>Speicherprüfung</h2>
-    <p class="muted">Prüft, ob jedes in der Datenbank bekannte Dokument noch am registrierten Speicherpfad vorhanden ist. Es werden keine Dateien verändert.</p>
-    <form method="post" asp-page-handler="CheckStorage">
-        <button class="button button-primary" type="submit">Speicher jetzt prüfen</button>
-    </form>
-    @if (Model.IntegrityReport is not null)
+    var section = Model.Section.ToLowerInvariant() switch
     {
-        var report = Model.IntegrityReport;
-        <div class="integrity-result @(report.IsHealthy ? "integrity-ok" : "integrity-warning")" role="status">
-            <strong>@report.DocumentsChecked Dokument(e) geprüft</strong>
-            @if (report.Error is not null)
-            {
-                <span>Prüfung wegen eines Speicherfehlers beendet: @report.Error</span>
-            }
-            else if (report.IsHealthy)
-            {
-                <span>Alle Dateien sind vorhanden.</span>
-            }
-            else
-            {
-                <span>@report.MissingFiles fehlende Datei(en), @report.SizeMismatches Datei(en) mit abweichender Größe, @report.HashMismatches Datei(en) mit abweichendem Hash.</span>
-            }
-        </div>
-        @if (report.Issues.Count > 0)
+        "metadata" or "import" or "storage" or "processing" or "user" or "advanced" => Model.Section.ToLowerInvariant(),
+        _ => "general"
+    };
+}
+<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Kompakte Bereiche für Archiv, Import und Metadaten.</p></div></header>
+<div class="settings-shell">
+    <nav class="panel settings-nav" aria-label="Einstellungsbereiche">
+        <a class="@(section == "general" ? "active" : "")" asp-route-section="general">Allgemein</a>
+        <a class="@(section == "metadata" ? "active" : "")" asp-route-section="metadata">Metadaten</a>
+        <a class="@(section == "import" ? "active" : "")" asp-route-section="import">Import</a>
+        <a class="@(section == "storage" ? "active" : "")" asp-route-section="storage">Speicher</a>
+        <a class="@(section == "processing" ? "active" : "")" asp-route-section="processing">Verarbeitung</a>
+        <a class="@(section == "user" ? "active" : "")" asp-route-section="user">Benutzer</a>
+        <a class="@(section == "advanced" ? "active" : "")" asp-route-section="advanced">Erweitert</a>
+    </nav>
+    <div class="settings-content">
+        @if (section == "general")
         {
-            <ul class="integrity-issues">
-                @foreach (var issue in report.Issues)
-                {
-                    <li>
-                        <strong>@issue.Title</strong>
-                        <span class="small muted">@issue.FilePath · @(issue.Kind switch
-                        {
-                            Paper.Web.Features.Storage.StorageIntegrityIssueKind.Missing => "Datei fehlt",
-                            Paper.Web.Features.Storage.StorageIntegrityIssueKind.SizeMismatch => $"Größe {issue.ActualSize} statt {issue.ExpectedSize} Bytes",
-                            _ => "SHA-256-Hash stimmt nicht überein"
-                        })</span>
-                    </li>
-                }
-            </ul>
-            @if (report.MissingFiles + report.SizeMismatches + report.HashMismatches > report.Issues.Count)
-            {
-                <p class="small muted">Es werden höchstens @Paper.Web.Features.Storage.StorageIntegrityService.MaximumReportedIssues Auffälligkeiten angezeigt.</p>
-            }
+            <section class="panel settings-card"><h2>Allgemein</h2><p class="muted">Paper bleibt lokal, kompakt und ohne externe Dienste.</p><div class="settings-list"><div><span class="muted">Storage-Provider</span><strong>@Model.StorageProvider</strong></div><div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div><div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div><div><span class="muted">Export</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a> <a class="button" href="/export/backup.zip">ZIP</a></span></div></div></section>
         }
-    }
-    <div asp-validation-summary="ModelOnly" class="validation"></div>
-</section>
-<div class="settings-grid">
-    <section class="panel settings-card">
-        <h2>Korrespondenten</h2>
-        <form method="post" asp-page-handler="CreateCorrespondent" class="inline-form">
-            <input asp-for="CorrespondentName" placeholder="z. B. Stadtwerke Mannheim" />
-            <button class="button button-primary" type="submit">Hinzufügen</button>
-        </form>
-        <div class="settings-tags">
-            @foreach (var item in Model.CorrespondentOptions)
-            {
-                <span class="tag">@item.Name</span>
-                <form method="post" asp-page-handler="DeleteCorrespondent" class="inline-form" onsubmit="return confirm('Korrespondent entfernen, falls er nicht mehr verwendet wird?');">
-                    <input type="hidden" name="id" value="@item.Id" />
-                    <button class="button button-quiet" type="submit" aria-label="Korrespondent @item.Name entfernen">×</button>
-                </form>
-            }
-        </div>
-    </section>
-    <section class="panel settings-card">
-        <h2>Dokumenttypen</h2>
-        <form method="post" asp-page-handler="CreateDocumentType" class="inline-form">
-            <input asp-for="DocumentTypeName" placeholder="z. B. Rechnung" />
-            <button class="button button-primary" type="submit">Hinzufügen</button>
-        </form>
-        <div class="settings-tags">
-            @foreach (var item in Model.DocumentTypeOptions)
-            {
-                <span class="tag">@item.Name</span>
-                <form method="post" asp-page-handler="DeleteDocumentType" class="inline-form" onsubmit="return confirm('Dokumenttyp entfernen, falls er nicht mehr verwendet wird?');">
-                    <input type="hidden" name="id" value="@item.Id" />
-                    <button class="button button-quiet" type="submit" aria-label="Dokumenttyp @item.Name entfernen">×</button>
-                </form>
-            }
-        </div>
-    </section>
-    <section class="panel settings-card">
-        <h2>Zusatzfelder</h2>
-        <form method="post" asp-page-handler="CreateCustomField" class="stack">
-            <input asp-for="CustomFieldName" placeholder="z. B. Vertragsnummer" />
-            <select asp-for="CustomFieldType">
-                @foreach (var type in Enum.GetValues<CustomFieldType>())
-                {
-                    <option value="@type">@type</option>
-                }
-            </select>
-            <button class="button button-primary" type="submit">Hinzufügen</button>
-        </form>
-        <div class="settings-tags">
-            @foreach (var item in Model.CustomFieldOptions)
-            {
-                <span class="tag">@item.Name · @item.Type</span>
-                <form method="post" asp-page-handler="DeleteCustomField" class="inline-form" onsubmit="return confirm('Zusatzfeld entfernen, falls es nicht mehr verwendet wird?');">
-                    <input type="hidden" name="id" value="@item.Id" />
-                    <button class="button button-quiet" type="submit" aria-label="Zusatzfeld @item.Name entfernen">×</button>
-                </form>
-            }
-        </div>
-    </section>
-    <section class="panel settings-card">
-        <h2>Tags</h2>
-        <form method="post" asp-page-handler="CreateTag" class="inline-form">
-            <input asp-for="TagName" placeholder="z. B. steuer" />
-            <button class="button button-primary" type="submit">Hinzufügen</button>
-        </form>
-        @if (Model.TagOptions.Count == 0)
+        @if (section == "metadata")
         {
-            <p class="small muted">Noch keine Tags vorhanden.</p>
-        }
-        else
-        {
-            <div class="settings-tags">
-                @foreach (var item in Model.TagOptions)
-                {
-                    <span class="tag">@item.Name · @item.DocumentCount Dok.</span>
-                    <form method="post" asp-page-handler="DeleteTag" class="inline-form" onsubmit="return confirm('Tag entfernen? Er wird von allen Dokumenten gelöst.');">
-                        <input type="hidden" name="id" value="@item.Id" />
-                        <button class="button button-quiet" type="submit" aria-label="Tag @item.Name entfernen">×</button>
-                    </form>
-                }
+            <div class="settings-grid">
+                <section class="panel settings-card"><h2>Korrespondenten</h2><form method="post" asp-page-handler="CreateCorrespondent" class="inline-form"><input asp-for="CorrespondentName" placeholder="z. B. Stadtwerke Mannheim" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.CorrespondentOptions) { <span class="tag">@item.Name</span><form method="post" asp-page-handler="DeleteCorrespondent" class="inline-form" onsubmit="return confirm('Korrespondent entfernen, falls er nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Korrespondent @item.Name entfernen">×</button></form> }</div></section>
+                <section class="panel settings-card"><h2>Dokumenttypen</h2><form method="post" asp-page-handler="CreateDocumentType" class="inline-form"><input asp-for="DocumentTypeName" placeholder="z. B. Rechnung" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.DocumentTypeOptions) { <span class="tag">@item.Name</span><form method="post" asp-page-handler="DeleteDocumentType" class="inline-form" onsubmit="return confirm('Dokumenttyp entfernen, falls er nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Dokumenttyp @item.Name entfernen">×</button></form> }</div></section>
+                <section class="panel settings-card"><h2>Custom Fields</h2><form method="post" asp-page-handler="CreateCustomField" class="stack"><input asp-for="CustomFieldName" placeholder="z. B. Vertragsnummer" /><select asp-for="CustomFieldType">@foreach (var type in Enum.GetValues<CustomFieldType>()) { <option value="@type">@type</option> }</select><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.CustomFieldOptions) { <span class="tag">@item.Name · @item.Type</span><form method="post" asp-page-handler="DeleteCustomField" class="inline-form" onsubmit="return confirm('Zusatzfeld entfernen, falls es nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Zusatzfeld @item.Name entfernen">×</button></form> }</div></section>
+                <section class="panel settings-card"><h2>Tags</h2><form method="post" asp-page-handler="CreateTag" class="inline-form"><input asp-for="TagName" placeholder="z. B. steuer" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.TagOptions) { <span class="tag">@item.Name · @item.DocumentCount Dok.</span><form method="post" asp-page-handler="DeleteTag" class="inline-form" onsubmit="return confirm('Tag entfernen?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Tag @item.Name entfernen">×</button></form> }</div></section>
             </div>
         }
-    </section>
-</div>
-<section class="panel settings-card restore-card">
-    <h2>Gelernte Analyse</h2>
-    <p class="muted">Paper merkt sich wiederkehrende Korrekturen. Die Regeln bleiben sichtbar und können einzeln entfernt werden.</p>
-    @if (Model.AnalysisRules.Count == 0)
-    {
-        <p class="small muted">Noch keine Lernregeln vorhanden.</p>
-    }
-    else
-    {
-        <div class="analysis-rules">
-            @foreach (var rule in Model.AnalysisRules)
-            {
-                <div class="analysis-rule">
-                    <div>
-                        <strong>@rule.Term</strong>
-                        <span class="small muted">@rule.UseCount Verwendung(en) · @rule.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span>
-                        <span class="small muted">@(rule.Correspondent ?? "")@(rule.DocumentType is null ? "" : $" · {rule.DocumentType}")@(rule.ShelfPath is null ? "" : $" · {rule.ShelfPath}")</span>
-                    </div>
-                    <form method="post" asp-page-handler="DeleteAnalysisRule">
-                        <input type="hidden" name="id" value="@rule.Id" />
-                        <button class="button button-quiet" type="submit">Entfernen</button>
-                    </form>
-                </div>
-            }
-        </div>
-    }
-</section>
-<section class="panel settings-card restore-card">
-    <h2>Backup wiederherstellen</h2>
-    <p class="muted">Importiert Dateien und Metadaten aus einem Paper-ZIP-Backup. Vorhandene Hashes werden übersprungen.</p>
-    <form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form">
-        <input asp-for="Backup" accept=".zip" />
-        <button class="button button-primary" type="submit">Backup importieren</button>
-    </form>
-    <div asp-validation-summary="ModelOnly" class="validation"></div>
-</section>
-<section class="panel settings-card restore-card">
-    <h2>Mailimport</h2>
-    <p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p>
-    @if (Model.MailConfigurationError is not null)
-    {
-        <p class="error-text">Mail-Konfiguration ungültig: @Model.MailConfigurationError</p>
-    }
-    @if (Model.MailStates.Count > 0)
-    {
-        @foreach (var state in Model.MailStates)
+        @if (section == "storage")
         {
-            <p class="small muted"><strong>@state.AccountName</strong> · Letzte UID: @state.LastUid · Letzte Ausführung: @(state.LastSyncAt?.ToLocalTime().ToString("g") ?? "noch nie")</p>
-            @if (!string.IsNullOrWhiteSpace(state.LastError))
-            {
-                <p class="error-text">Letzter Fehler (@state.AccountName): @state.LastError</p>
-            }
+            <section class="panel settings-card"><h2>Speicher</h2><div class="settings-list"><div><span class="muted">Pfad</span><strong>@Model.StoragePath</strong></div><div><span class="muted">NAS-Wake-Policy</span><strong>@Model.WakePolicy</strong></div></div><p class="muted">Die Prüfung verändert keine Dateien.</p><form method="post" asp-page-handler="CheckStorage"><button class="button button-primary" type="submit">Speicher jetzt prüfen</button></form>@if (Model.IntegrityReport is not null) { var report = Model.IntegrityReport; <div class="integrity-result @(report.IsHealthy ? "integrity-ok" : "integrity-warning")"><strong>@report.DocumentsChecked Dokument(e) geprüft</strong><span>@(report.Error ?? (report.IsHealthy ? "Alle Dateien sind vorhanden." : $"{report.MissingFiles} fehlend, {report.SizeMismatches} Größenabweichung(en), {report.HashMismatches} Hashabweichung(en)."))</span></div> }</section>
         }
-    }
-    <form method="post" asp-page-handler="RunMailImport">
-        <button class="button button-primary" type="submit">Jetzt abrufen</button>
-    </form>
-    @if (Model.MailFailures.Count > 0)
-    {
-        <details class="mail-failures">
-            <summary>Letzte Mailfehler (@Model.MailFailures.Count)</summary>
-            <ul>
-                @foreach (var failure in Model.MailFailures)
-                {
-                    <li><span class="muted">@failure.CreatedAt.ToLocalTime().ToString("g") · UID @failure.Uid</span> — @failure.Error</li>
-                }
-            </ul>
-        </details>
-    }
-    <div asp-validation-summary="ModelOnly" class="validation"></div>
-</section>
-<section class="panel settings-card restore-card">
-    <h2>Consume-Fehler</h2>
-    <p class="muted">Fehlgeschlagene Dateien werden nach <code>/data/consume/failed</code> verschoben und nicht automatisch erneut verarbeitet.</p>
-    @if (Model.ConsumeFailures.Count == 0)
-    {
-        <p class="small muted">Keine Consume-Fehler vorhanden.</p>
-    }
-    else
-    {
-        <details class="mail-failures" open>
-            <summary>Letzte Consume-Fehler (@Model.ConsumeFailures.Count)</summary>
-            <ul>
-                @foreach (var failure in Model.ConsumeFailures)
-                {
-                    <li><strong>@failure.OriginalFileName</strong> <span class="muted">· @failure.CreatedAt.ToLocalTime().ToString("g")</span> — @failure.Error</li>
-                }
-            </ul>
-        </details>
-    }
-</section>
-<section class="panel settings-card restore-card">
-    <h2>Paperless-ngx importieren</h2>
-    <p class="muted">Importiert unterstützte Paperless-Export-ZIPs in die Inbox. Die Dateien können danach geprüft und im Regal abgelegt werden.</p>
-    <form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form">
-        <input asp-for="PaperlessExport" accept=".zip" />
-        <button class="button button-primary" type="submit">Paperless-Export importieren</button>
-    </form>
-    <div asp-validation-summary="ModelOnly" class="validation"></div>
-</section>
+        @if (section == "processing")
+        {
+            <section class="panel settings-card"><h2>Verarbeitung</h2><p class="muted">OCR, Analyse und Thumbnail-Erzeugung laufen als persistente Jobs mit einem schlanken Worker.</p><div class="settings-list"><div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div><div><span class="muted">Thumbnail-Cache</span><strong>PostgreSQL · erste Seite</strong></div></div><a class="button button-primary" asp-page="/Processing/Index">Verarbeitung öffnen</a></section>
+        }
+        @if (section == "user")
+        {
+            <section class="panel settings-card"><h2>Benutzer</h2><p class="muted">Paper ist für einen lokalen Eigentümerzugang ausgelegt.</p><div class="settings-list"><div><span class="muted">Angemeldet als</span><strong>@User.Identity?.Name</strong></div><div><span class="muted">Rolle</span><strong>Owner</strong></div></div></section>
+        }
+        @if (section == "advanced")
+        {
+            <section class="panel settings-card"><h2>Gelernte Analyse</h2><p class="muted">Paper merkt sich wiederkehrende Korrekturen und verwendet sie für spätere Analysen.</p>@if (Model.AnalysisRules.Count == 0) { <p class="small muted">Noch keine Lernregeln vorhanden.</p> } else { <div class="analysis-rules">@foreach (var rule in Model.AnalysisRules) { <div class="analysis-rule"><div><strong>@rule.Term</strong><span class="small muted">@rule.UseCount Verwendung(en) · @rule.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span></div><form method="post" asp-page-handler="DeleteAnalysisRule"><input type="hidden" name="id" value="@rule.Id" /><button class="button button-quiet" type="submit">Entfernen</button></form></div> }</div> }</section>
+        }
+        @if (section == "import")
+        {
+            <div class="settings-grid">
+                <section class="panel settings-card"><h2>Backup wiederherstellen</h2><p class="muted">Importiert Dateien und Metadaten aus einem Paper-ZIP-Backup.</p><form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form"><input asp-for="Backup" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form></section>
+                <section class="panel settings-card"><h2>Mailimport</h2><p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p><form method="post" asp-page-handler="RunMailImport"><button class="button button-primary" type="submit">Jetzt abrufen</button></form>@if (Model.MailConfigurationError is not null) { <p class="error-text">@Model.MailConfigurationError</p> }</section>
+                <section class="panel settings-card"><h2>Consume-Fehler</h2><p class="muted">Fehlgeschlagene Dateien werden nicht automatisch erneut verarbeitet.</p>@if (Model.ConsumeFailures.Count == 0) { <p class="small muted">Keine Consume-Fehler vorhanden.</p> } else { <details open><summary>Letzte Fehler (@Model.ConsumeFailures.Count)</summary><ul>@foreach (var failure in Model.ConsumeFailures) { <li><strong>@failure.OriginalFileName</strong> — @failure.Error</li> }</ul></details> }</section>
+                <section class="panel settings-card"><h2>Paperless-ngx</h2><p class="muted">Importiert unterstützte Export-ZIPs in die Inbox.</p><form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form"><input asp-for="PaperlessExport" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form></section>
+            </div>
+        }
+        <div asp-validation-summary="ModelOnly" class="validation"></div>
+    </div>
+</div>

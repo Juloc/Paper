@@ -2,55 +2,45 @@
 @model Paper.Web.Pages.Documents.IndexModel
 @{
     ViewData["Title"] = "Dokumente";
+    var isList = string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
 }
 <header class="page-header">
-    <div>
-        <div class="eyebrow">Bestand</div>
-        <h1>Dokumente</h1>
-        <p class="muted">Dein ruhiger, durchsuchbarer Bestand.</p>
-    </div>
-    <a class="button button-primary" asp-page="/Search/Index">Suche öffnen</a>
+    <div><div class="eyebrow">Bibliothek</div><h1>Dokumente</h1><p class="muted">Dein kompletter, durchsuchbarer Bestand.</p></div>
 </header>
+<div class="document-toolbar">
+    <span class="toolbar-meta">@Model.TotalCount Dokumente</span>
+    <div class="view-switch" aria-label="Ansicht wechseln">
+        <a class="@(!isList ? "active" : "")" asp-route-view="grid">▦ Grid</a>
+        <a class="@(isList ? "active" : "")" asp-route-view="list">☷ Liste</a>
+    </div>
+</div>
 @if (Model.Documents.Count == 0)
 {
     <section class="empty-state"><h2>Noch keine abgelegten Dokumente</h2><p>Prüfe zuerst ein Dokument aus der Inbox.</p></section>
 }
-else
+else if (isList)
 {
-    <p class="muted">@Model.TotalCount Dokument(e)</p>
-    <section class="document-list">
+    <section class="document-list" aria-label="Dokumentliste">
         @foreach (var document in Model.Documents)
         {
-            <article class="document-row">
-                @if (document.OriginalFileName.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".png", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tif", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase))
-                {
-                    <img class="document-thumbnail" src="/documents/@document.Id/thumbnail" alt="" loading="lazy" />
-                }
-                else
-                {
-                    <div class="document-icon">@document.OriginalFileName.Split('.').Last().ToUpperInvariant()</div>
-                }
-                <div class="document-copy">
-                    <a class="document-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
-                    <span class="muted">@document.DocumentDate?.ToString("dd.MM.yyyy") · @document.OriginalFileName</span>
-                    <div class="tag-list">@foreach (var tag in document.Tags) { <span class="tag">@tag</span> }</div>
-                </div>
-                <a class="button" asp-page="/Documents/Detail" asp-route-id="@document.Id">Öffnen</a>
-            </article>
+            <partial name="_DocumentListRow" model="document" />
         }
     </section>
-    @if (Model.PageCount > 1)
-    {
-        <nav class="pagination" aria-label="Dokumentseiten">
-            @if (Model.PageNumber > 1)
-            {
-                <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)">Zurück</a>
-            }
-            <span class="muted">Seite @Model.PageNumber von @Model.PageCount</span>
-            @if (Model.PageNumber < Model.PageCount)
-            {
-                <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)">Weiter</a>
-            }
-        </nav>
-    }
+}
+else
+{
+    <section class="document-grid" aria-label="Dokumentkarten">
+        @foreach (var document in Model.Documents)
+        {
+            <partial name="_DocumentCard" model="document" />
+        }
+    </section>
+}
+@if (Model.PageCount > 1)
+{
+    <nav class="pagination" aria-label="Dokumentseiten">
+        @if (Model.PageNumber > 1) { <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-view="@Model.View">Zurück</a> }
+        <span class="muted">Seite @Model.PageNumber von @Model.PageCount</span>
+        @if (Model.PageNumber < Model.PageCount) { <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-view="@Model.View">Weiter</a> }
+    </nav>
 }

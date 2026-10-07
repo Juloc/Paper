@@ -34,6 +34,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<DocumentCustomFieldValue> DocumentCustomFieldValues => Set<DocumentCustomFieldValue>();
 
+    public DbSet<DocumentThumbnail> DocumentThumbnails => Set<DocumentThumbnail>();
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         NormalizeShelfPathKeys();
@@ -102,6 +104,21 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .WithMany()
                 .HasForeignKey(document => document.SuggestedShelfFolderId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<DocumentThumbnail>(entity =>
+        {
+            entity.ToTable("DocumentThumbnails");
+            entity.HasKey(thumbnail => thumbnail.DocumentId);
+            entity.Property(thumbnail => thumbnail.ContentType).HasMaxLength(64).IsRequired();
+            entity.Property(thumbnail => thumbnail.Width).IsRequired();
+            entity.Property(thumbnail => thumbnail.Height).IsRequired();
+            entity.Property(thumbnail => thumbnail.Data).HasColumnType("bytea").IsRequired();
+            entity.Property(thumbnail => thumbnail.CreatedAt).IsRequired();
+            entity.HasOne(thumbnail => thumbnail.Document)
+                .WithOne(document => document.Thumbnail)
+                .HasForeignKey<DocumentThumbnail>(thumbnail => thumbnail.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<Correspondent>(entity =>
@@ -217,7 +234,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             {
                 table.HasCheckConstraint("CK_ProcessingJobs_Attempts", "\"Attempts\" >= 0");
                 table.HasCheckConstraint("CK_ProcessingJobs_Priority", "\"Priority\" >= 0");
-                table.HasCheckConstraint("CK_ProcessingJobs_Type", "\"Type\" IN ('OcrAndAnalyze')");
+                table.HasCheckConstraint("CK_ProcessingJobs_Type", "\"Type\" IN ('OcrAndAnalyze', 'Thumbnail')");
                 table.HasCheckConstraint("CK_ProcessingJobs_State", "\"State\" IN ('Pending', 'Running', 'Succeeded', 'Failed')");
             });
             if (isPostgres)

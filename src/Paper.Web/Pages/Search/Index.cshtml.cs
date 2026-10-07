@@ -55,6 +55,7 @@ public sealed class IndexModel(
     public IReadOnlyList<ShelfFolderOption> ShelfFolders { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFields { get; private set; } = [];
     public IReadOnlyList<TagOption> Tags { get; private set; } = [];
+    public bool HasFilters => CorrespondentId is not null || DocumentTypeId is not null || ShelfFolderId is not null || !string.IsNullOrWhiteSpace(Tag) || FromDate is not null || ToDate is not null || CustomFieldId is not null;
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {

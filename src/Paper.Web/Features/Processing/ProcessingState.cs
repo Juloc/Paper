@@ -10,7 +10,8 @@ public enum OcrStatus
 
 public enum ProcessingJobType
 {
-    OcrAndAnalyze
+    OcrAndAnalyze,
+    Thumbnail
 }
 
 public enum ProcessingJobState

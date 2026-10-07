@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f7f3f1" />
+    <meta name="theme-color" content="#f7f9fd" />
     <title>@ViewData["Title"] · Paper</title>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
@@ -11,33 +11,78 @@
     @inject Paper.Web.Features.Processing.ProcessingStatusStore ProcessingStatus
     @if (User.Identity?.IsAuthenticated == true)
     {
-        <header class="topbar">
-            <a class="brand" asp-page="/Inbox/Index">Paper</a>
-            <nav aria-label="Hauptnavigation">
-                <a asp-page="/Inbox/Index">Inbox</a>
-                <a asp-page="/Documents/Index">Dokumente</a>
-                <a asp-page="/Shelf/Index">Regal</a>
-                <a asp-page="/Add/Index">Hinzufügen</a>
-                <a asp-page="/Search/Index">Suche</a>
-                <a asp-page="/Settings/Index">Einstellungen</a>
-            </nav>
-            <form method="post" asp-page="/Account/Logout">
-                <button class="button button-quiet" type="submit">Abmelden</button>
-            </form>
-        </header>
         var processingSummary = await ProcessingStatus.GetSummaryAsync(Context.RequestAborted);
-        <footer class="processing-footer">
-            <a asp-page="/Processing">Verarbeitung</a>
-            <span class="muted">@processingSummary.Active aktiv · @processingSummary.Failed fehlgeschlagen</span>
-        </footer>
+        <div class="mobile-header">
+            <button class="icon-button" type="button" data-sidebar-toggle aria-label="Navigation öffnen">☰</button>
+            <a class="brand" asp-page="/Inbox/Index">Paper</a>
+            <button class="icon-button" type="button" data-open-upload aria-label="Dokument hinzufügen">＋</button>
+        </div>
+        <div class="app-shell">
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-brand"><a class="brand" asp-page="/Inbox/Index">Paper</a></div>
+                <nav class="sidebar-nav" aria-label="Hauptnavigation">
+                    <a class="nav-item @(Context.Request.Path.StartsWithSegments("/Inbox") ? "active" : "")" asp-page="/Inbox/Index"><span class="nav-icon">▤</span>Inbox</a>
+                    <a class="nav-item @(Context.Request.Path.StartsWithSegments("/Documents") ? "active" : "")" asp-page="/Documents/Index"><span class="nav-icon">▦</span>Dokumente</a>
+                    <a class="nav-item @(Context.Request.Path.StartsWithSegments("/Shelf") ? "active" : "")" asp-page="/Shelf/Index"><span class="nav-icon">▥</span>Regal</a>
+                </nav>
+                <div class="sidebar-divider"></div>
+                <nav class="sidebar-nav" aria-label="Weitere Bereiche">
+                    <a class="nav-item @(Context.Request.Path.StartsWithSegments("/Settings") ? "active" : "")" asp-page="/Settings/Index"><span class="nav-icon">⚙</span>Einstellungen</a>
+                </nav>
+                <div class="sidebar-spacer"></div>
+                <div class="sidebar-status">
+                    <a class="status-link" asp-page="/Processing/Index"><span>Verarbeitung</span><span class="status-count">@processingSummary.Active aktiv</span></a>
+                    <a class="status-link" asp-page="/Processing/Index"><span class="status-dot @(processingSummary.Failed > 0 ? "has-failures" : "")"></span><span>@processingSummary.Failed fehlgeschlagen</span></a>
+                    <div class="storage-meter"><span>Speicherplatz</span><strong>Lokaler Speicher</strong></div>
+                </div>
+                <div class="sidebar-user">
+                    <span class="avatar">@(User.Identity?.Name?.FirstOrDefault().ToString().ToUpperInvariant() ?? "P")</span>
+                    <span class="user-name">@User.Identity?.Name</span>
+                    <form method="post" asp-page="/Account/Logout"><button class="button button-quiet logout-button" type="submit">Abmelden</button></form>
+                </div>
+            </aside>
+            <div class="app-main">
+                <header class="main-header">
+                    <form class="global-search" method="get" action="/Search" role="search">
+                        <span class="search-icon">⌕</span>
+                        <input name="query" placeholder="Dokumente durchsuchen …" aria-label="Dokumente durchsuchen" />
+                        <a class="filter-button" href="/Search">Filter</a>
+                    </form>
+                    <button class="button button-primary add-document-button" type="button" data-open-upload><span aria-hidden="true">＋</span> Dokument</button>
+                </header>
+                <main class="page">
+                    @if (TempData["Status"] is string status)
+                    {
+                        <div class="notice" role="status">@status</div>
+                    }
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+        <dialog class="upload-dialog" id="upload-dialog" aria-labelledby="upload-dialog-title">
+            <div class="dialog-header">
+                <div><div class="eyebrow">Neue Dokumente</div><h2 id="upload-dialog-title">Dokument hinzufügen</h2></div>
+                <button class="icon-button" type="button" data-close-upload aria-label="Dialog schließen">×</button>
+            </div>
+            <form method="post" asp-page="/Add/Index" enctype="multipart/form-data" class="stack upload-modal-form">
+                <label class="file-drop" for="modal-uploads">
+                    <span class="drop-icon">↥</span>
+                    <strong>Dateien hierher ziehen</strong>
+                    <span class="muted small">oder Dateien auswählen · mehrere Dateien möglich</span>
+                    <input id="modal-uploads" name="Uploads" type="file" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" multiple />
+                </label>
+                <p class="muted small">PDF, JPG, JPEG, PNG oder TIFF · maximal 50 MB pro Datei.</p>
+                <div class="dialog-actions"><button class="button" type="button" data-close-upload>Abbrechen</button><button class="button button-primary" type="submit">Hochladen</button></div>
+            </form>
+        </dialog>
     }
-    <main class="page">
-        @if (TempData["Status"] is string status)
-        {
-            <div class="notice" role="status">@status</div>
-        }
-        @RenderBody()
-    </main>
+    else
+    {
+        <main class="page auth-page">
+            @RenderBody()
+        </main>
+    }
+    <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

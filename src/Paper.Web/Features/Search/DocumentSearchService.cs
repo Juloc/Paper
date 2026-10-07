@@ -52,6 +52,9 @@ public sealed class DocumentSearchService(AppDbContext db)
                 document.OcrStatus,
                 document.Status,
                 document.UpdatedAt,
+                document.Correspondent != null ? document.Correspondent.Name : null,
+                document.DocumentType != null ? document.DocumentType.Name : null,
+                document.ShelfFolder != null ? document.ShelfFolder.RelativePath : null,
                 document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray()))
             .ToListAsync(cancellationToken);
 
@@ -63,18 +66,17 @@ public sealed class DocumentSearchService(AppDbContext db)
         var documents = db.Documents.AsNoTracking().AsQueryable();
         if (normalizedQuery.Length > 0)
         {
-            var fullTextQuery = EF.Functions.PlainToTsQuery("german", normalizedQuery);
             if (SearchQueryPolicy.NeedsLiteralFallback(normalizedQuery))
             {
                 var literalPattern = SearchQueryPolicy.ToLikePattern(normalizedQuery);
                 documents = documents.Where(document =>
-                    document.SearchVector.Matches(fullTextQuery) ||
+                    document.SearchVector.Matches(EF.Functions.PlainToTsQuery("german", normalizedQuery)) ||
                     EF.Functions.ILike(document.SearchText, literalPattern, "\\") ||
                     EF.Functions.ILike(document.FilePath, literalPattern, "\\"));
             }
             else
             {
-                documents = documents.Where(document => document.SearchVector.Matches(fullTextQuery));
+                documents = documents.Where(document => document.SearchVector.Matches(EF.Functions.PlainToTsQuery("german", normalizedQuery)));
             }
         }
 
