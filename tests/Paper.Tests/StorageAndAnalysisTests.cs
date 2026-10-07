@@ -256,9 +256,15 @@ public sealed class StorageAndAnalysisTests
     [TestMethod]
     public void SearchTextCombinesTitleOcrAndTags()
     {
-        var document = new Document { Title = "Strom", OcrText = "Januar", Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }] };
+        var document = new Document
+        {
+            Title = "Strom",
+            OriginalFileName = "stromrechnung.pdf",
+            OcrText = "Januar",
+            Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }]
+        };
 
-        Assert.AreEqual("Strom Januar vertrag", TagStore.BuildSearchText(document));
+        Assert.AreEqual("Strom stromrechnung.pdf Januar vertrag", TagStore.BuildSearchText(document));
     }
 
     [TestMethod]

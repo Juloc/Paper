@@ -82,7 +82,7 @@ public sealed class DocumentImportService(
             Status = DocumentStatus.Inbox,
             CreatedAt = now,
             UpdatedAt = now,
-            SearchText = title
+            SearchText = string.Join(' ', title, fileName)
         };
         db.Documents.Add(document);
         db.ProcessingJobs.Add(new ProcessingJob
