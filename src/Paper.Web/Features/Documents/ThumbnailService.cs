@@ -28,7 +28,7 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
                 var bytes = await RenderAsync(document.FilePath, cancellationToken);
                 return bytes is null
                     ? null
-                    : new ThumbnailFile(new MemoryStream(bytes, writable: false), "image/jpeg");
+                    : new ThumbnailFile(new MemoryStream(bytes, writable: false), "image/jpeg", document.Hash);
             }
 
             if (!File.Exists(thumbnailPath))
@@ -37,7 +37,7 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
             }
 
             return File.Exists(thumbnailPath)
-                ? new ThumbnailFile(new FileStream(thumbnailPath, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, useAsync: true), "image/jpeg")
+                ? new ThumbnailFile(new FileStream(thumbnailPath, FileMode.Open, FileAccess.Read, FileShare.Read, 16 * 1024, useAsync: true), "image/jpeg", document.Hash)
                 : null;
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
@@ -110,4 +110,4 @@ public sealed class ThumbnailService(AppDbContext db, IStorageProvider storage, 
     }
 }
 
-public sealed record ThumbnailFile(Stream Stream, string ContentType);
+public sealed record ThumbnailFile(Stream Stream, string ContentType, string EntityTag);

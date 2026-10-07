@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.EntityFrameworkCore;
+using EntityTagHeaderValue = Microsoft.Net.Http.Headers.EntityTagHeaderValue;
 using Paper.Web.Data;
 using Paper.Web.Features.Auth;
 using Paper.Web.Features.Correspondents;
@@ -115,12 +116,20 @@ app.MapGet("/documents/{id:long}/file", async (long id, bool? download, Document
     var file = await files.OpenAsync(id, cancellationToken);
     return file is null
         ? Results.NotFound()
-        : Results.File(file.Stream, file.ContentType, download == true ? file.DownloadName : null, enableRangeProcessing: true);
+        : Results.File(
+            file.Stream,
+            file.ContentType,
+            download == true ? file.DownloadName : null,
+            file.LastModified,
+            new EntityTagHeaderValue($"\"{file.EntityTag}\""),
+            enableRangeProcessing: true);
 }).RequireAuthorization();
 app.MapGet("/documents/{id:long}/thumbnail", async (long id, ThumbnailService thumbnails, CancellationToken cancellationToken) =>
 {
     var file = await thumbnails.OpenAsync(id, cancellationToken);
-    return file is null ? Results.NotFound() : Results.File(file.Stream, file.ContentType, enableRangeProcessing: true);
+    return file is null
+        ? Results.NotFound()
+        : Results.File(file.Stream, file.ContentType, entityTag: new EntityTagHeaderValue($"\"{file.EntityTag}\""), enableRangeProcessing: true);
 }).RequireAuthorization();
 app.MapGet("/export/documents.json", async (HttpResponse response, DocumentExportService exporter, CancellationToken cancellationToken) =>
 {

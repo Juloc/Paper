@@ -24,7 +24,12 @@ public sealed class DocumentFileService(AppDbContext db, IStorageProvider storag
         };
         try
         {
-            return new DocumentFile(storage.OpenRead(document.FilePath), contentType, document.OriginalFileName);
+            return new DocumentFile(
+                storage.OpenRead(document.FilePath),
+                contentType,
+                document.OriginalFileName,
+                document.Hash,
+                new DateTimeOffset(DateTime.SpecifyKind(document.UpdatedAt, DateTimeKind.Utc)));
         }
         catch (Exception exception) when (exception is FileNotFoundException or DirectoryNotFoundException or IOException or UnauthorizedAccessException)
         {
@@ -34,4 +39,9 @@ public sealed class DocumentFileService(AppDbContext db, IStorageProvider storag
     }
 }
 
-public sealed record DocumentFile(Stream Stream, string ContentType, string DownloadName);
+public sealed record DocumentFile(
+    Stream Stream,
+    string ContentType,
+    string DownloadName,
+    string EntityTag,
+    DateTimeOffset LastModified);
