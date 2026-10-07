@@ -77,6 +77,11 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             relativePath = $"{parent.RelativePath}/{normalizedName}";
         }
 
+        if (relativePath.Length > StoragePathPolicy.MaximumRelativePathLength)
+        {
+            return null;
+        }
+
         if (await db.ShelfFolders.AnyAsync(folder => folder.RelativePath == relativePath, cancellationToken))
         {
             return null;
@@ -145,6 +150,10 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         }
 
         var newPath = parentPath is null ? normalizedName : $"{parentPath}/{normalizedName}";
+        if (newPath.Length > StoragePathPolicy.MaximumRelativePathLength)
+        {
+            return ShelfFolderUpdateResult.Invalid("Der Regalpfad ist zu lang.");
+        }
         if (newPath.Equals(oldPath, StringComparison.Ordinal))
         {
             return ShelfFolderUpdateResult.Success;

@@ -191,6 +191,17 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void StoragePolicyBoundsPathsWithoutDroppingTheExtension()
+    {
+        var longName = StoragePathPolicy.SanitizeFileName(new string('a', 260) + ".pdf");
+        var longPath = StoragePathPolicy.Combine(new string('b', 480), longName);
+
+        Assert.IsTrue(longPath.Length <= StoragePathPolicy.MaximumRelativePathLength);
+        Assert.IsTrue(longPath.EndsWith(".pdf", StringComparison.Ordinal));
+        Assert.ThrowsExactly<ArgumentException>(() => StoragePathPolicy.NormalizeRelativePath(new string('x', 501)));
+    }
+
+    [TestMethod]
     public void AnalyzerFindsDateTitleAndOneCanonicalTag()
     {
         var result = new DocumentAnalyzer().Analyze("scan", "Rechnung März\nRechnungsnummer 4\n12.03.2026\nBetrag 42 EUR");

@@ -2,6 +2,8 @@ namespace Paper.Web.Features.Storage;
 
 public static class StoragePathPolicy
 {
+    public const int MaximumRelativePathLength = 500;
+
     public static string CreateInboxPath(string hash, string originalFileName)
     {
         var safeName = SanitizeFileName(originalFileName);
@@ -43,13 +45,39 @@ public static class StoragePathPolicy
             throw new ArgumentException("Der Speicherpfad ist ungültig.", nameof(path));
         }
 
-        return string.Join('/', segments);
+        var result = string.Join('/', segments);
+        if (result.Length > MaximumRelativePathLength)
+        {
+            throw new ArgumentException($"Der Speicherpfad darf höchstens {MaximumRelativePathLength} Zeichen lang sein.", nameof(path));
+        }
+
+        return result;
     }
 
     public static string Combine(string folderPath, string fileName)
     {
         var normalizedFolder = NormalizeRelativePath(folderPath);
         var safeFileName = SanitizeFileName(fileName);
+        var availableFileNameLength = MaximumRelativePathLength - normalizedFolder.Length - 1;
+        if (availableFileNameLength <= 0)
+        {
+            throw new ArgumentException("Der Zielordner ist zu lang.", nameof(folderPath));
+        }
+
+        if (safeFileName.Length > availableFileNameLength)
+        {
+            var extension = Path.GetExtension(safeFileName);
+            if (extension.Length >= availableFileNameLength)
+            {
+                safeFileName = safeFileName[..availableFileNameLength];
+            }
+            else
+            {
+                var stemLength = availableFileNameLength - extension.Length;
+                safeFileName = safeFileName[..Math.Min(stemLength, safeFileName.Length - extension.Length)] + extension;
+            }
+        }
+
         return $"{normalizedFolder}/{safeFileName}";
     }
 
@@ -63,6 +91,19 @@ public static class StoragePathPolicy
                                  character is '/' or '\\' or ':' or '*' or '?' or '"' or '<' or '>' or '|' ? '_' : character)
             .ToArray());
         sanitized = string.Join(' ', sanitized.Split(' ', StringSplitOptions.RemoveEmptyEntries));
-        return string.IsNullOrWhiteSpace(sanitized) ? "Dokument" : sanitized[..Math.Min(220, sanitized.Length)];
+        if (string.IsNullOrWhiteSpace(sanitized))
+        {
+            return "Dokument";
+        }
+
+        const int maximumFileNameLength = 220;
+        if (sanitized.Length <= maximumFileNameLength)
+        {
+            return sanitized;
+        }
+
+        var extension = Path.GetExtension(sanitized);
+        var stemLength = Math.Max(1, maximumFileNameLength - extension.Length);
+        return sanitized[..Math.Min(stemLength, sanitized.Length - extension.Length)] + extension;
     }
 }
