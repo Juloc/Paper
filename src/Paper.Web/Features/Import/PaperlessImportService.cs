@@ -185,6 +185,11 @@ public sealed class PaperlessImportService(
                          .GroupBy(value => value.Name, StringComparer.OrdinalIgnoreCase)
                          .Select(group => group.First()))
             {
+                if (!CustomFieldValuePolicy.IsValid(value.Type, value.Value.Trim()))
+                {
+                    continue;
+                }
+
                 var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name == value.Name, cancellationToken);
                 if (customField is null)
                 {
@@ -196,7 +201,7 @@ public sealed class PaperlessImportService(
                 {
                     Document = document,
                     CustomField = customField,
-                    Value = value.Value[..Math.Min(2000, value.Value.Length)]
+                    Value = value.Value.Trim()[..Math.Min(2000, value.Value.Trim().Length)]
                 });
             }
 
