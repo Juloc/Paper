@@ -4,10 +4,13 @@ public static class StoragePathPolicy
 {
     public const int MaximumRelativePathLength = 500;
 
-    public static string CreateInboxPath(string hash, string originalFileName)
+    public static string CreateInboxPath(string hash, string originalFileName, int collisionIndex = 1)
     {
         var safeName = SanitizeFileName(originalFileName);
-        return Combine("inbox", $"{hash[..12]} {safeName}");
+        var extension = Path.GetExtension(safeName);
+        var stem = Path.GetFileNameWithoutExtension(safeName);
+        var suffix = collisionIndex <= 1 ? "" : $" ({collisionIndex})";
+        return Combine("inbox", $"{hash[..12]} {stem}{suffix}{extension}");
     }
 
     public static string CreateShelfFileName(DateOnly? documentDate, string title, string originalFileName)

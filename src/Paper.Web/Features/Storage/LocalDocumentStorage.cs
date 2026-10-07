@@ -60,30 +60,38 @@ public sealed class LocalDocumentStorage : IStorageProvider
                 hashValue = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
             }
 
-            var relativePath = StoragePathPolicy.CreateInboxPath(hashValue, originalFileName);
-            var finalPath = GetSafePath(relativePath);
-            Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
-            var alreadyExisted = File.Exists(finalPath);
-            if (!alreadyExisted)
+            for (var collisionIndex = 1; ; collisionIndex++)
             {
+                var relativePath = StoragePathPolicy.CreateInboxPath(hashValue, originalFileName, collisionIndex);
+                var finalPath = GetSafePath(relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(finalPath)!);
+                if (File.Exists(finalPath))
+                {
+                    if (await HasMatchingContentAsync(finalPath, size, hashValue, cancellationToken))
+                    {
+                        File.Delete(temporaryPath);
+                        return new StoredDocument(relativePath, hashValue, size, AlreadyExisted: true);
+                    }
+
+                    continue;
+                }
+
                 try
                 {
                     File.Move(temporaryPath, finalPath);
+                    return new StoredDocument(relativePath, hashValue, size);
                 }
                 catch (IOException) when (File.Exists(finalPath))
                 {
-                    // Another concurrent upload won the atomic move. The hash
-                    // path is the canonical duplicate marker.
-                    alreadyExisted = true;
+                    // Another concurrent upload won the atomic move. Compare
+                    // the complete content before treating it as a duplicate.
+                    if (await HasMatchingContentAsync(finalPath, size, hashValue, cancellationToken))
+                    {
+                        File.Delete(temporaryPath);
+                        return new StoredDocument(relativePath, hashValue, size, AlreadyExisted: true);
+                    }
                 }
             }
-
-            if (alreadyExisted)
-            {
-                File.Delete(temporaryPath);
-            }
-
-            return new StoredDocument(relativePath, hashValue, size, alreadyExisted);
         }
         catch
         {
@@ -230,5 +238,32 @@ public sealed class LocalDocumentStorage : IStorageProvider
         {
             File.Delete(path);
         }
+    }
+
+    private static async Task<bool> HasMatchingContentAsync(
+        string path,
+        long expectedSize,
+        string expectedHash,
+        CancellationToken cancellationToken)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length != expectedSize)
+        {
+            return false;
+        }
+
+        await using var existing = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[64 * 1024];
+        int read;
+        while ((read = await existing.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            hash.AppendData(buffer, 0, read);
+        }
+
+        return string.Equals(
+            Convert.ToHexString(hash.GetHashAndReset()),
+            expectedHash,
+            StringComparison.OrdinalIgnoreCase);
     }
 }

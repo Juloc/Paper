@@ -49,9 +49,10 @@ public sealed class SmbStorageProvider : IStorageProvider
                 hash = Convert.ToHexString(incrementalHash.GetHashAndReset()).ToLowerInvariant();
             }
 
-            var relativePath = StoragePathPolicy.CreateInboxPath(hash, originalFileName);
-            var alreadyExisted = await Task.Run(() => Upload(temporaryPath, relativePath), cancellationToken);
-            return new StoredDocument(relativePath, hash, size, alreadyExisted);
+            var result = await Task.Run(
+                () => Upload(temporaryPath, hash, originalFileName, size),
+                cancellationToken);
+            return new StoredDocument(result.RelativePath, hash, size, result.AlreadyExisted);
         }
         finally
         {
@@ -226,65 +227,132 @@ public sealed class SmbStorageProvider : IStorageProvider
         return true;
     });
 
-    private bool Upload(string localPath, string relativePath) => Execute(connection =>
+    private SmbUploadResult Upload(string localPath, string hash, string originalFileName, long size) => Execute(connection =>
     {
-        var directory = Path.GetDirectoryName(relativePath.Replace('/', Path.DirectorySeparatorChar))?.Replace(Path.DirectorySeparatorChar, '/') ?? "inbox";
-        EnsureDirectory(connection, directory);
+        EnsureDirectory(connection, "inbox");
+        for (var collisionIndex = 1; ; collisionIndex++)
+        {
+            var relativePath = StoragePathPolicy.CreateInboxPath(hash, originalFileName, collisionIndex);
+            var status = connection.Store.CreateFile(
+                out var handle,
+                out _,
+                connection.RemotePath(relativePath),
+                AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+                SmbAttributes.Normal,
+                ShareAccess.Read,
+                CreateDisposition.FILE_CREATE,
+                CreateOptions.FILE_NON_DIRECTORY_FILE,
+                null);
+            if (status == NTStatus.STATUS_OBJECT_NAME_COLLISION)
+            {
+                if (MatchesExisting(connection, relativePath, size, hash))
+                {
+                    return new SmbUploadResult(relativePath, AlreadyExisted: true);
+                }
+
+                continue;
+            }
+
+            ThrowIfFailed(status, relativePath, "angelegt");
+            try
+            {
+                using var source = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024);
+                var offset = 0L;
+                var buffer = new byte[(int)Math.Min(connection.Store.MaxWriteSize, 1024 * 1024)];
+                while (source.Position < source.Length)
+                {
+                    var read = source.Read(buffer, 0, buffer.Length);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+
+                    var chunk = read == buffer.Length ? buffer : buffer[..read];
+                    status = connection.Store.WriteFile(out var written, handle, offset, chunk);
+                    ThrowIfFailed(status, relativePath, "geschrieben");
+                    if (written != read)
+                    {
+                        throw new IOException("Der SMB-Server hat nur einen Teil des Dokumentblocks geschrieben.");
+                    }
+
+                    offset += written;
+                }
+
+                status = connection.Store.FlushFileBuffers(handle);
+                ThrowIfFailed(status, relativePath, "geschrieben");
+            }
+            catch
+            {
+                TryDelete(connection, relativePath, handle);
+                throw;
+            }
+            finally
+            {
+                connection.Store.CloseFile(handle);
+            }
+
+            return new SmbUploadResult(relativePath, AlreadyExisted: false);
+        }
+    });
+
+    private bool MatchesExisting(SmbConnection connection, string relativePath, long expectedSize, string expectedHash)
+    {
         var status = connection.Store.CreateFile(
             out var handle,
             out _,
             connection.RemotePath(relativePath),
-            AccessMask.GENERIC_WRITE | AccessMask.SYNCHRONIZE,
+            AccessMask.GENERIC_READ | AccessMask.SYNCHRONIZE,
             SmbAttributes.Normal,
-            ShareAccess.Read,
-            CreateDisposition.FILE_CREATE,
+            ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+            CreateDisposition.FILE_OPEN,
             CreateOptions.FILE_NON_DIRECTORY_FILE,
             null);
-        if (status == NTStatus.STATUS_OBJECT_NAME_COLLISION)
+        if (status == NTStatus.STATUS_OBJECT_NAME_NOT_FOUND)
         {
-            return true;
+            return false;
         }
 
-        ThrowIfFailed(status, relativePath, "angelegt");
+        ThrowIfFailed(status, relativePath, "gelesen");
         try
         {
-            using var source = new FileStream(localPath, FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024);
-            var offset = 0L;
-            var buffer = new byte[(int)Math.Min(connection.Store.MaxWriteSize, 1024 * 1024)];
-            while (source.Position < source.Length)
+            status = connection.Store.GetFileInformation(out var information, handle, FileInformationClass.FileStandardInformation);
+            ThrowIfFailed(status, relativePath, "gelesen");
+            if (information is not FileStandardInformation standardInformation || standardInformation.EndOfFile != expectedSize)
             {
-                var read = source.Read(buffer, 0, buffer.Length);
-                if (read == 0)
-                {
-                    break;
-                }
-
-                var chunk = read == buffer.Length ? buffer : buffer[..read];
-                status = connection.Store.WriteFile(out var written, handle, offset, chunk);
-                ThrowIfFailed(status, relativePath, "geschrieben");
-                if (written != read)
-                {
-                    throw new IOException("Der SMB-Server hat nur einen Teil des Dokumentblocks geschrieben.");
-                }
-
-                offset += written;
+                return false;
             }
 
-            status = connection.Store.FlushFileBuffers(handle);
-            ThrowIfFailed(status, relativePath, "geschrieben");
-        }
-        catch
-        {
-            TryDelete(connection, relativePath, handle);
-            throw;
+            using var hash = System.Security.Cryptography.IncrementalHash.CreateHash(System.Security.Cryptography.HashAlgorithmName.SHA256);
+            var offset = 0L;
+            while (offset < expectedSize)
+            {
+                var requested = (int)Math.Min((long)connection.Store.MaxReadSize, Math.Min(1024 * 1024L, expectedSize - offset));
+                status = connection.Store.ReadFile(out var data, handle, offset, requested);
+                if (status == NTStatus.STATUS_END_OF_FILE)
+                {
+                    return false;
+                }
+
+                ThrowIfFailed(status, relativePath, "gelesen");
+                if (data.Length == 0)
+                {
+                    return false;
+                }
+
+                hash.AppendData(data, 0, data.Length);
+                offset += data.Length;
+            }
+
+            return string.Equals(
+                Convert.ToHexString(hash.GetHashAndReset()),
+                expectedHash,
+                StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
             connection.Store.CloseFile(handle);
         }
-
-        return false;
-    });
+    }
 
     private void Move(SmbConnection connection, string sourceRelativePath, string destinationRelativePath, bool directory)
     {
@@ -499,6 +567,8 @@ public sealed class SmbStorageProvider : IStorageProvider
             }
         }
     }
+
+    private sealed record SmbUploadResult(string RelativePath, bool AlreadyExisted);
 
     private sealed class SmbReadStream(SmbConnection connection, object handle, long length) : Stream
     {

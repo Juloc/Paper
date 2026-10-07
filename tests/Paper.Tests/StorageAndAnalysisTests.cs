@@ -154,6 +154,43 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageMovesInboxFileWhenTheShortHashPathIsOccupiedByOtherContent()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            var content = "%PDF-collision"u8.ToArray();
+            var hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(content)).ToLowerInvariant();
+            var occupiedPath = StoragePathPolicy.CreateInboxPath(hash, "collision.pdf");
+            var occupiedFullPath = storage.GetSafePath(occupiedPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(occupiedFullPath)!);
+            await File.WriteAllBytesAsync(occupiedFullPath, "%PDF-other"u8.ToArray());
+
+            await using var source = new MemoryStream(content, writable: false);
+            var stored = await storage.SaveAsync(source, "collision.pdf", CancellationToken.None);
+
+            Assert.AreNotEqual(occupiedPath, stored.RelativePath);
+            Assert.IsTrue(stored.RelativePath.Contains("(2)", StringComparison.Ordinal));
+            Assert.IsTrue(storage.FileExists(occupiedPath));
+            Assert.IsTrue(storage.FileExists(stored.RelativePath));
+            CollectionAssert.AreEqual(content, await File.ReadAllBytesAsync(storage.GetSafePath(stored.RelativePath)));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task StorageCanMoveAndRestoreAFileThroughTheTrashPath()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
