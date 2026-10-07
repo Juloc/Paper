@@ -9,6 +9,7 @@ using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
+using Paper.Web.Features.Tags;
 
 namespace Paper.Web.Pages.Settings;
 
@@ -17,6 +18,7 @@ public sealed class IndexModel(
     CorrespondentStore correspondents,
     DocumentTypeStore documentTypes,
     CustomFieldStore customFields,
+    TagStore tags,
     DocumentRestoreService restore,
     PaperlessImportService paperlessImport,
     ImapMailImportWorker mailImport,
@@ -32,6 +34,9 @@ public sealed class IndexModel(
 
     [BindProperty]
     public string CustomFieldName { get; set; } = "";
+
+    [BindProperty]
+    public string TagName { get; set; } = "";
 
     [BindProperty]
     public CustomFieldType CustomFieldType { get; set; } = CustomFieldType.Text;
@@ -67,6 +72,7 @@ public sealed class IndexModel(
     public IReadOnlyList<CorrespondentOption> CorrespondentOptions { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypeOptions { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFieldOptions { get; private set; } = [];
+    public IReadOnlyList<TagOption> TagOptions { get; private set; } = [];
     public IReadOnlyList<AnalysisRuleView> AnalysisRules { get; private set; } = [];
     public IReadOnlyList<MailImportState> MailStates { get; private set; } = [];
     public IReadOnlyList<MailImportFailure> MailFailures { get; private set; } = [];
@@ -110,6 +116,29 @@ public sealed class IndexModel(
         }
 
         TempData["Status"] = "Zusatzfeld gespeichert.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostCreateTagAsync(CancellationToken cancellationToken)
+    {
+        if (await tags.CreateAsync(TagName, cancellationToken) is null)
+        {
+            ModelState.AddModelError(nameof(TagName), "Der Tag ist ungültig.");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+
+        TempData["Status"] = "Tag gespeichert.";
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostDeleteTagAsync(long id, CancellationToken cancellationToken)
+    {
+        if (await tags.DeleteAsync(id, cancellationToken))
+        {
+            TempData["Status"] = "Tag entfernt.";
+        }
+
         return RedirectToPage();
     }
 
@@ -207,6 +236,7 @@ public sealed class IndexModel(
         CorrespondentOptions = await correspondents.ListAsync(cancellationToken);
         DocumentTypeOptions = await documentTypes.ListAsync(cancellationToken);
         CustomFieldOptions = await customFields.ListAsync(cancellationToken);
+        TagOptions = await tags.ListAsync(cancellationToken);
         AnalysisRules = await analysisRules.ListAsync(cancellationToken);
         MailStates = await db.MailImportStates.AsNoTracking()
             .OrderBy(state => state.AccountName)

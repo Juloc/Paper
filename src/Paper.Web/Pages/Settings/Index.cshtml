@@ -87,6 +87,30 @@
         </form>
         <div class="settings-tags">@foreach (var item in Model.CustomFieldOptions) { <span class="tag">@item.Name · @item.Type</span> }</div>
     </section>
+    <section class="panel settings-card">
+        <h2>Tags</h2>
+        <form method="post" asp-page-handler="CreateTag" class="inline-form">
+            <input asp-for="TagName" placeholder="z. B. steuer" />
+            <button class="button button-primary" type="submit">Hinzufügen</button>
+        </form>
+        @if (Model.TagOptions.Count == 0)
+        {
+            <p class="small muted">Noch keine Tags vorhanden.</p>
+        }
+        else
+        {
+            <div class="settings-tags">
+                @foreach (var item in Model.TagOptions)
+                {
+                    <span class="tag">@item.Name · @item.DocumentCount Dok.</span>
+                    <form method="post" asp-page-handler="DeleteTag" class="inline-form" onsubmit="return confirm('Tag entfernen? Er wird von allen Dokumenten gelöst.');">
+                        <input type="hidden" name="id" value="@item.Id" />
+                        <button class="button button-quiet" type="submit" aria-label="Tag @item.Name entfernen">×</button>
+                    </form>
+                }
+            </div>
+        }
+    </section>
 </div>
 <section class="panel settings-card restore-card">
     <h2>Gelernte Analyse</h2>

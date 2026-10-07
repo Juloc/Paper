@@ -5,6 +5,45 @@ namespace Paper.Web.Features.Tags;
 
 public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
 {
+    public Task<List<TagOption>> ListAsync(CancellationToken cancellationToken) =>
+        db.Tags.AsNoTracking()
+            .OrderBy(tag => tag.Name)
+            .Select(tag => new TagOption(tag.Id, tag.Name, tag.Documents.Count))
+            .ToListAsync(cancellationToken);
+
+    public async Task<Tag?> CreateAsync(string name, CancellationToken cancellationToken)
+    {
+        var normalizedName = name.Trim().ToLowerInvariant();
+        if (normalizedName.Length is 0 or > 80)
+        {
+            return null;
+        }
+
+        var existing = await db.Tags.SingleOrDefaultAsync(tag => tag.Name.ToLower() == normalizedName, cancellationToken);
+        if (existing is not null)
+        {
+            return existing;
+        }
+
+        var tag = new Tag { Name = normalizedName };
+        db.Tags.Add(tag);
+        await db.SaveChangesAsync(cancellationToken);
+        return tag;
+    }
+
+    public async Task<bool> DeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var tag = await db.Tags.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (tag is null)
+        {
+            return false;
+        }
+
+        db.Tags.Remove(tag);
+        await db.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task AddNamesAsync(Document document, IEnumerable<string> names, CancellationToken cancellationToken)
     {
         var normalizedNames = names
@@ -51,3 +90,5 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
         .Concat(document.CustomFields.Select(value => $"{value.CustomField.Name} {value.Value}"))
         .Where(value => !string.IsNullOrWhiteSpace(value)));
 }
+
+public sealed record TagOption(long Id, string Name, int DocumentCount);

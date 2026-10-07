@@ -13,6 +13,7 @@ using Paper.Web.Features.Processing;
 using Paper.Web.Features.Search;
 using Paper.Web.Features.Shelf;
 using Paper.Web.Features.Storage;
+using Paper.Web.Features.Tags;
 
 namespace Paper.Tests;
 
@@ -546,6 +547,36 @@ public sealed class SqliteIntegrationTests
 
         Assert.AreEqual(2, page.TotalCount);
         CollectionAssert.AreEqual(new[] { "nested", "direct" }, page.Results.Select(result => result.Title).ToArray());
+    }
+
+    [TestMethod]
+    public async Task TagStoreManagesTagsAndCascadesDocumentLinks()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var tags = new TagStore(db, TimeProvider.System);
+        var created = await tags.CreateAsync(" Energie ", CancellationToken.None);
+        var duplicate = await tags.CreateAsync("ENERGIE", CancellationToken.None);
+
+        Assert.IsNotNull(created);
+        Assert.AreEqual("energie", created.Name);
+        Assert.AreEqual(created.Id, duplicate!.Id);
+
+        var document = NewDocument("energie.pdf", DateTime.UtcNow);
+        document.Tags.Add(new DocumentTag { Document = document, Tag = created });
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+
+        var listed = (await tags.ListAsync(CancellationToken.None)).Single();
+        Assert.AreEqual("energie", listed.Name);
+        Assert.AreEqual(1, listed.DocumentCount);
+
+        Assert.IsTrue(await tags.DeleteAsync(created.Id, CancellationToken.None));
+        Assert.AreEqual(0, await db.Tags.CountAsync());
+        Assert.AreEqual(0, await db.DocumentTags.CountAsync());
     }
 
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
