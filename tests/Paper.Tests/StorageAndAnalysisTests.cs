@@ -378,6 +378,7 @@ public sealed class StorageAndAnalysisTests
         {
             Title = "Strom",
             OriginalFileName = "stromrechnung.pdf",
+            FilePath = "Wohnung/Strom/2026-10-05 Strom.pdf",
             OcrText = "Januar",
             Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }],
             CustomFields =
@@ -390,7 +391,7 @@ public sealed class StorageAndAnalysisTests
             ]
         };
 
-        Assert.AreEqual("Strom stromrechnung.pdf Januar vertrag Rechnungsnummer RE-42", TagStore.BuildSearchText(document));
+        Assert.AreEqual("Strom stromrechnung.pdf Januar Wohnung/Strom/2026-10-05 Strom.pdf vertrag Rechnungsnummer RE-42", TagStore.BuildSearchText(document));
     }
 
     [TestMethod]

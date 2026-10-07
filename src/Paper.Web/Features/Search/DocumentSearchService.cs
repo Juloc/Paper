@@ -69,7 +69,8 @@ public sealed class DocumentSearchService(AppDbContext db)
                 var literalPattern = SearchQueryPolicy.ToLikePattern(normalizedQuery);
                 documents = documents.Where(document =>
                     document.SearchVector.Matches(fullTextQuery) ||
-                    EF.Functions.ILike(document.SearchText, literalPattern, "\\"));
+                    EF.Functions.ILike(document.SearchText, literalPattern, "\\") ||
+                    EF.Functions.ILike(document.FilePath, literalPattern, "\\"));
             }
             else
             {

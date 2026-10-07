@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
+using Paper.Web.Features.Tags;
 
 namespace Paper.Web.Features.Documents;
 
@@ -81,7 +82,12 @@ public sealed class DocumentImportService(
                 Status = DocumentStatus.Inbox,
                 CreatedAt = now,
                 UpdatedAt = now,
-                SearchText = string.Join(' ', title, fileName)
+                SearchText = TagStore.BuildSearchText(new Document
+                {
+                    Title = title,
+                    OriginalFileName = fileName,
+                    FilePath = stored.RelativePath
+                })
             };
             db.Documents.Add(document);
             db.ProcessingJobs.Add(new ProcessingJob

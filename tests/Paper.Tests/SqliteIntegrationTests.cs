@@ -584,7 +584,7 @@ public sealed class SqliteIntegrationTests
         Assert.IsTrue(await tags.DeleteAsync(created.Id, CancellationToken.None));
         Assert.AreEqual(0, await db.Tags.CountAsync());
         Assert.AreEqual(0, await db.DocumentTags.CountAsync());
-        Assert.AreEqual("Stromrechnung energie.pdf", await db.Documents.Select(item => item.SearchText).SingleAsync());
+        Assert.AreEqual("Stromrechnung energie.pdf inbox/energie.pdf", await db.Documents.Select(item => item.SearchText).SingleAsync());
     }
 
     [TestMethod]

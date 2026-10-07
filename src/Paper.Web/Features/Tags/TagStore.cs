@@ -103,6 +103,7 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
             document.Title,
             document.OriginalFileName,
             document.OcrText,
+            document.FilePath,
             document.Correspondent?.Name,
             document.DocumentType?.Name,
             document.ShelfFolder?.RelativePath
