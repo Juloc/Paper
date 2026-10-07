@@ -331,6 +331,7 @@ public sealed class StorageAndAnalysisTests
         Assert.IsTrue(SearchQueryPolicy.NeedsLiteralFallback("RE-2026/42"));
         Assert.AreEqual("%RE-2026/42%", SearchQueryPolicy.ToLikePattern("RE-2026/42"));
         Assert.AreEqual("%100\\%\\_fertig%", SearchQueryPolicy.ToLikePattern("100%_fertig"));
+        Assert.AreEqual("%C:\\\\Archiv\\%2026%", SearchQueryPolicy.ToLikePattern("C:\\Archiv%2026"));
     }
 
     [TestMethod]

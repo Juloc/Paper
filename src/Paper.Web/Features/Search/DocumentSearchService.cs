@@ -102,7 +102,8 @@ public sealed class DocumentSearchService(AppDbContext db)
             {
                 var value = criteria.CustomFieldValue.Trim();
                 documents = documents.Where(document => document.CustomFields.Any(field =>
-                    field.CustomFieldId == criteria.CustomFieldId && EF.Functions.ILike(field.Value, $"%{value}%")));
+                    field.CustomFieldId == criteria.CustomFieldId &&
+                    EF.Functions.ILike(field.Value, SearchQueryPolicy.ToLikePattern(value), "\\")));
             }
         }
 
