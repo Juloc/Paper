@@ -33,7 +33,7 @@
 .filter-button:hover { background: var(--soft); color: var(--accent-dark); }
 .add-document-button { flex: 0 0 auto; white-space: nowrap; }
 .mobile-header { display: none; }
-.page { margin: 0 auto; max-width: 1440px; padding: 28px 32px 48px; }
+.page { margin: 0; max-width: none; padding: 28px 32px 48px; }
 .auth-page { max-width: 100%; }
 .page-header { align-items: end; display: flex; gap: 18px; justify-content: space-between; margin-bottom: 14px; }
 .page-header > div { display: none; }
