@@ -21,20 +21,13 @@ public sealed class ConsumeDirectoryWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var root = Path.GetFullPath(configuration["Consume:RootPath"] ?? "/data/consume");
-        var processing = Path.Combine(root, ".processing");
-        var failed = Path.Combine(root, "failed");
-        Directory.CreateDirectory(root);
-        Directory.CreateDirectory(processing);
-        Directory.CreateDirectory(failed);
-
         var pollSeconds = Math.Clamp(configuration.GetValue<int?>("Consume:PollSeconds") ?? 15, 5, 300);
         var importEmailAttachments = configuration.GetValue("Consume:EmailAttachments", true);
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await ConsumeAvailableAsync(root, processing, failed, importEmailAttachments, stoppingToken);
+                await RunOnceAsync(importEmailAttachments, stoppingToken);
                 await Task.Delay(TimeSpan.FromSeconds(pollSeconds), stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -47,6 +40,20 @@ public sealed class ConsumeDirectoryWorker(
                 await Task.Delay(TimeSpan.FromSeconds(pollSeconds), stoppingToken);
             }
         }
+    }
+
+    public Task RunOnceAsync(CancellationToken cancellationToken) =>
+        RunOnceAsync(configuration.GetValue("Consume:EmailAttachments", true), cancellationToken);
+
+    private async Task RunOnceAsync(bool importEmailAttachments, CancellationToken cancellationToken)
+    {
+        var root = Path.GetFullPath(configuration["Consume:RootPath"] ?? "/data/consume");
+        var processing = Path.Combine(root, ".processing");
+        var failed = Path.Combine(root, "failed");
+        Directory.CreateDirectory(root);
+        Directory.CreateDirectory(processing);
+        Directory.CreateDirectory(failed);
+        await ConsumeAvailableAsync(root, processing, failed, importEmailAttachments, cancellationToken);
     }
 
     private async Task ConsumeAvailableAsync(

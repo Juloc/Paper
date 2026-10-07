@@ -1,9 +1,11 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Paper.Web.Data;
 using Paper.Web.Features.Documents;
+using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.Storage;
 
@@ -247,6 +249,67 @@ public sealed class SqliteIntegrationTests
         Assert.AreEqual(ProcessingJobState.Pending, reset.State);
         Assert.AreEqual(0, reset.Attempts);
         Assert.AreEqual(OcrStatus.Pending, (await db.Documents.SingleAsync(document => document.Id == failedDocument.Id)).OcrStatus);
+    }
+
+    [TestMethod]
+    public async Task ConsumeImportsStableFilesAndQuarantinesDuplicatesWithoutRetryLoop()
+    {
+        var storageRoot = CreateStorageRoot();
+        var consumeRoot = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(consumeRoot);
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+        var storage = CreateStorage(storageRoot);
+        var importer = new DocumentImportService(
+            db,
+            storage,
+            TimeProvider.System,
+            NullLogger<DocumentImportService>.Instance);
+        using var services = new ServiceCollection()
+            .AddSingleton(importer)
+            .BuildServiceProvider();
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Consume:RootPath"] = consumeRoot,
+            ["Consume:EmailAttachments"] = "false"
+        }).Build();
+        var worker = new ConsumeDirectoryWorker(
+            services.GetRequiredService<IServiceScopeFactory>(),
+            configuration,
+            new EmailAttachmentExtractor(),
+            TimeProvider.System,
+            NullLogger<ConsumeDirectoryWorker>.Instance);
+        var sourcePath = Path.Combine(consumeRoot, "rechnung.pdf");
+
+        try
+        {
+            await File.WriteAllBytesAsync(sourcePath, "%PDF-consume"u8.ToArray());
+            File.SetLastWriteTimeUtc(sourcePath, DateTime.UtcNow.AddSeconds(-10));
+            await worker.RunOnceAsync(CancellationToken.None);
+
+            Assert.AreEqual(1, await db.Documents.CountAsync());
+            Assert.IsFalse(File.Exists(sourcePath));
+            Assert.IsEmpty(Directory.EnumerateFiles(Path.Combine(consumeRoot, ".processing")));
+
+            var duplicatePath = Path.Combine(consumeRoot, "duplicate.pdf");
+            await File.WriteAllBytesAsync(duplicatePath, "%PDF-consume"u8.ToArray());
+            File.SetLastWriteTimeUtc(duplicatePath, DateTime.UtcNow.AddSeconds(-10));
+            await worker.RunOnceAsync(CancellationToken.None);
+            await worker.RunOnceAsync(CancellationToken.None);
+
+            Assert.AreEqual(1, await db.Documents.CountAsync());
+            var failedFiles = Directory.EnumerateFiles(Path.Combine(consumeRoot, "failed")).ToArray();
+            Assert.AreEqual(2, failedFiles.Length);
+            Assert.IsTrue(failedFiles.Any(path => path.EndsWith(".error.txt", StringComparison.OrdinalIgnoreCase)));
+            Assert.IsTrue(failedFiles.Any(path => path.EndsWith("_duplicate.pdf", StringComparison.OrdinalIgnoreCase)));
+        }
+        finally
+        {
+            DeleteStorageRoot(storageRoot);
+            DeleteStorageRoot(consumeRoot);
+        }
     }
 
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
