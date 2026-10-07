@@ -38,4 +38,8 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build container image
+        env:
+          PAPER_ADMIN_USERNAME: ci-admin
+          PAPER_ADMIN_PASSWORD: ci-admin-password
+          PAPER_POSTGRES_PASSWORD: ci-postgres-password
         run: docker compose build app
