@@ -9,6 +9,9 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
 {
     private const int MaximumOcrTextCharacters = 2_000_000;
 
+    private TimeSpan ProcessTimeout => TimeSpan.FromSeconds(
+        Math.Clamp(configuration.GetValue<int?>("Ocr:ProcessTimeoutSeconds") ?? 300, 30, 1800));
+
     public async Task<string> ExtractAsync(string relativePath, CancellationToken cancellationToken)
     {
         if (storage.TryGetLocalPath(relativePath, out var localPath))
@@ -130,7 +133,7 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
         return LimitText(result.StandardOutput);
     }
 
-    private static async Task<ProcessResult> RunProcessAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
+    private async Task<ProcessResult> RunProcessAsync(string executable, IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         var processStartInfo = new ProcessStartInfo
         {
@@ -146,28 +149,39 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
         }
 
         using var process = Process.Start(processStartInfo) ?? throw new InvalidOperationException("Tesseract konnte nicht gestartet werden.");
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(ProcessTimeout);
         try
         {
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
+            var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
             return new ProcessResult(process.ExitCode, await outputTask, await errorTask);
         }
         catch (OperationCanceledException)
         {
-            try
+            KillProcessTree(process);
+            if (cancellationToken.IsCancellationRequested)
             {
-                if (!process.HasExited)
-                {
-                    process.Kill(entireProcessTree: true);
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                // The process exited while cancellation cleanup was running.
+                throw;
             }
 
-            throw;
+            throw new TimeoutException($"Der OCR-Prozess hat das Zeitlimit von {ProcessTimeout.TotalSeconds:0} Sekunden überschritten.");
+        }
+    }
+
+    private static void KillProcessTree(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (InvalidOperationException)
+        {
+            // The process exited while cancellation cleanup was running.
         }
     }
 
