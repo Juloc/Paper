@@ -222,20 +222,14 @@ public sealed class DocumentRestoreService(
             if (!string.IsNullOrWhiteSpace(entry.Hash) &&
                 !string.Equals(entry.Hash, stored.Hash, StringComparison.OrdinalIgnoreCase))
             {
-                if (!stored.AlreadyExisted)
-                {
-                    storage.Delete(stored.RelativePath);
-                }
+                TryDeleteStored(stored);
                 result.Errors.Add($"{fileName}: Hash stimmt nicht mit dem Manifest überein.");
                 return;
             }
 
             if (await db.Documents.AnyAsync(document => document.Hash == stored.Hash, cancellationToken))
             {
-                if (!stored.AlreadyExisted)
-                {
-                    storage.Delete(stored.RelativePath);
-                }
+                TryDeleteStored(stored);
                 result.Skipped++;
                 return;
             }
@@ -252,10 +246,7 @@ public sealed class DocumentRestoreService(
                 : DocumentStatus.Inbox;
             if (restoredStatus == DocumentStatus.Filed && shelf is null)
             {
-                if (!stored.AlreadyExisted)
-                {
-                    storage.Delete(stored.RelativePath);
-                }
+                TryDeleteStored(stored);
 
                 result.Errors.Add($"{fileName}: Ein abgelegtes Dokument benötigt einen Regalpfad.");
                 return;
@@ -322,6 +313,7 @@ public sealed class DocumentRestoreService(
             {
                 db.Documents.Remove(document);
                 await db.SaveChangesAsync(cancellationToken);
+                TryDeleteStored(stored);
                 result.Errors.Add($"{fileName}: Metadaten konnten nicht wiederhergestellt werden: {saved.Error}");
                 return;
             }
@@ -331,10 +323,7 @@ public sealed class DocumentRestoreService(
         catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
         {
             db.ChangeTracker.Clear();
-            if (stored is not null && !stored.AlreadyExisted)
-            {
-                storage.Delete(stored.RelativePath);
-            }
+            TryDeleteStored(stored);
 
             logger.LogInformation("Skipped concurrently restored duplicate document {FileName}.", fileName);
             result.Skipped++;
@@ -342,13 +331,27 @@ public sealed class DocumentRestoreService(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             db.ChangeTracker.Clear();
-            if (stored is not null && !stored.AlreadyExisted)
-            {
-                storage.Delete(stored.RelativePath);
-            }
+            TryDeleteStored(stored);
 
             logger.LogError(exception, "Could not restore backup document {FileName}.", fileName);
             result.Errors.Add($"{fileName}: Wiederherstellung fehlgeschlagen.");
+        }
+    }
+
+    private void TryDeleteStored(StoredDocument? stored)
+    {
+        if (stored is null || stored.AlreadyExisted)
+        {
+            return;
+        }
+
+        try
+        {
+            storage.Delete(stored.RelativePath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not clean up restored file {RelativePath}.", stored.RelativePath);
         }
     }
 
