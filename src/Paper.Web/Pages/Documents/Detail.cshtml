@@ -8,6 +8,7 @@
     var document = Model.Document!;
     var inInbox = document.Status == DocumentStatus.Inbox;
     var inboxLike = document.Status is DocumentStatus.Inbox or DocumentStatus.Deferred or DocumentStatus.Ignored;
+    var isTiff = document.OriginalFileName.EndsWith(".tif", StringComparison.OrdinalIgnoreCase) || document.OriginalFileName.EndsWith(".tiff", StringComparison.OrdinalIgnoreCase);
 }
 <header class="page-header">
     <div><div class="eyebrow">@(inboxLike ? document.Status switch { DocumentStatus.Deferred => "Später", DocumentStatus.Ignored => "Ignoriert", _ => "Inbox" } : "Dokument")</div><h1>@document.Title</h1><p class="muted">@document.OriginalFileName</p></div>
@@ -21,7 +22,7 @@
         }
         else
         {
-            <img src="/documents/@document.Id/file" alt="Vorschau von @document.Title" />
+            <img src="@(isTiff ? $"/documents/{document.Id}/thumbnail" : $"/documents/{document.Id}/file")" alt="Vorschau von @document.Title" />
         }
         <a class="button" href="/documents/@document.Id/file?download=true">Datei herunterladen</a>
     </section>
