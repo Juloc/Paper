@@ -134,10 +134,7 @@ public sealed class PaperlessImportService(
             stored = await storage.SaveAsync(content, originalName, cancellationToken);
             if (await db.Documents.AnyAsync(document => document.Hash == stored.Hash, cancellationToken))
             {
-                if (!stored.AlreadyExisted)
-                {
-                    storage.Delete(stored.RelativePath);
-                }
+                TryDeleteStored(stored, originalName);
 
                 result.Skipped++;
                 return;
@@ -193,7 +190,8 @@ public sealed class PaperlessImportService(
                     continue;
                 }
 
-                var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name == value.Name, cancellationToken);
+                var comparisonFieldName = value.Name.ToLowerInvariant();
+                var customField = await db.CustomFields.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonFieldName, cancellationToken);
                 if (customField is null)
                 {
                     customField = new CustomField { Name = value.Name[..Math.Min(120, value.Name.Length)], Type = value.Type };
@@ -229,24 +227,40 @@ public sealed class PaperlessImportService(
         catch (DbUpdateException exception) when (DocumentPersistenceErrors.IsDuplicateHash(exception))
         {
             db.ChangeTracker.Clear();
-            if (stored is not null && !stored.AlreadyExisted)
-            {
-                storage.Delete(stored.RelativePath);
-            }
+            TryDeleteStored(stored, originalName);
 
             logger.LogInformation("Skipped concurrently imported Paperless duplicate document {FileName}.", originalName);
             result.Skipped++;
         }
+        catch (OperationCanceledException)
+        {
+            TryDeleteStored(stored, originalName);
+            throw;
+        }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             db.ChangeTracker.Clear();
-            if (stored is not null && !stored.AlreadyExisted)
-            {
-                storage.Delete(stored.RelativePath);
-            }
+            TryDeleteStored(stored, originalName);
 
             logger.LogError(exception, "Could not import Paperless document {FileName}.", originalName);
             result.Errors.Add($"{originalName}: Import fehlgeschlagen.");
+        }
+    }
+
+    private void TryDeleteStored(StoredDocument? stored, string fileName)
+    {
+        if (stored is null || stored.AlreadyExisted)
+        {
+            return;
+        }
+
+        try
+        {
+            storage.Delete(stored.RelativePath);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not clean up Paperless file {FileName} at {RelativePath}.", fileName, stored.RelativePath);
         }
     }
 
@@ -455,7 +469,8 @@ public sealed class PaperlessImportService(
             return null;
         }
 
-        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.Name == name, cancellationToken);
+        var comparisonName = name.ToLowerInvariant();
+        var existing = await db.Correspondents.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;
@@ -473,7 +488,8 @@ public sealed class PaperlessImportService(
             return null;
         }
 
-        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name == name, cancellationToken);
+        var comparisonName = name.ToLowerInvariant();
+        var existing = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Name.ToLower() == comparisonName, cancellationToken);
         if (existing is not null)
         {
             return existing;
