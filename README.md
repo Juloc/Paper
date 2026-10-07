@@ -71,3 +71,20 @@ Unter Einstellungen können die Dokumentmetadaten jederzeit als JSON oder CSV ex
 Ein solches ZIP kann in den Einstellungen wieder importiert werden. Paper streamt große Manifeste speicherschonend, prüft Dateisignaturen und SHA-256-Hashes, überspringt bereits vorhandene Dokumente und legt Regalordner, Metadaten und gelernte Analyse-Regeln bei Bedarf wieder an.
 
 Paperless-ngx-Exporte können ebenfalls als ZIP unter Einstellungen importiert werden. Unterstützte Dokumente werden mit OCR-Text, Titel, Datum, Korrespondent, Dokumenttyp, Tags und Custom Fields in die Paper-Inbox übernommen; die physische Regalablage erfolgt anschließend bewusst nach einer kurzen Prüfung. Einzelne Manifestdateien aus Paperless im Split-Manifest-Modus werden für Custom-Field-Instanzen ebenfalls berücksichtigt.
+
+## Lokale Demo-Instanz
+
+Für eine vollständig synthetische Browser-Demo gibt es ein getrenntes Compose-Projekt. Es verwendet eigene Volumes, den Port `8081` und ausschließlich Demo-Zugangsdaten:
+
+    docker compose -f compose.demo.yaml up -d --build
+
+Danach ist die Demo unter http://localhost:8081 erreichbar. Benutzer und Passwort sind jeweils `demo`.
+
+Der Seed-Container erzeugt beim ersten Start automatisch die Regalstruktur, Kataloge, Custom Fields sowie 24 synthetische PDF-Dokumente. Davon liegen 19 bereits im echten physischen Regalpfad unter dem Demo-Volume und 5 bleiben in der Inbox. Eine Werkstattrechnung wird als laufende Verarbeitung angezeigt, der Kassenbon als kontrollierter OCR-Fehler. Die PDFs enthalten Suchbegriffe wie `Stadtwerke`, `209.95`, `Telekom`, `Versicherung`, `2026`, `Rechnung`, `Steuer` und `STW-48392`.
+
+Die Demo lässt sich vollständig reproduzierbar zurücksetzen:
+
+    docker compose -f compose.demo.yaml down -v
+    docker compose -f compose.demo.yaml up -d --build
+
+Die normale `compose.yaml`-Konfiguration und ihre Volumes werden durch diese Demo nicht verändert.

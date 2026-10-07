@@ -1,0 +1,97 @@
+name: paper-demo
+
+services:
+  storage-init:
+    image: alpine:3.21
+    user: "0:0"
+    command: ["sh", "-c", "chown -R 1654:1654 /data/documents /data/consume /data/keys"]
+    volumes:
+      - paper_demo_documents:/data/documents
+      - paper_demo_consume:/data/consume
+      - paper_demo_keys:/data/keys
+    restart: "no"
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: paper
+      POSTGRES_USER: paper
+      POSTGRES_PASSWORD: demo-postgres
+    volumes:
+      - paper_demo_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paper -d paper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  app:
+    build:
+      context: .
+      dockerfile: src/Paper.Web/Dockerfile
+    depends_on:
+      storage-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=paper;Username=paper;Password=demo-postgres;Maximum Pool Size=10
+      Auth__Username: demo
+      Auth__Password: demo
+      Storage__RootPath: /data/documents
+      Storage__Provider: local
+      Consume__RootPath: /data/consume
+      Mail__Enabled: "false"
+      Ocr__Language: deu+eng
+      Processing__OcrWorkers: "1"
+      Processing__PollSeconds: "3"
+      Consume__PollSeconds: "15"
+      DataProtection__KeysDirectory: /data/keys
+    ports:
+      - "8081:8080"
+    volumes:
+      - paper_demo_documents:/data/documents
+      - paper_demo_consume:/data/consume
+      - paper_demo_keys:/data/keys
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  seed:
+    build:
+      context: .
+      dockerfile: src/Paper.DemoSeed/Dockerfile
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: Host=postgres;Port=5432;Database=paper;Username=paper;Password=demo-postgres;Maximum Pool Size=5
+    volumes:
+      - paper_demo_documents:/data/documents
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  paper_demo_documents:
+  paper_demo_consume:
+  paper_demo_keys:
+  paper_demo_postgres:

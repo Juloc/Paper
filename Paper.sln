@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paper.Web", "src\Paper.Web\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paper.Tests", "tests\Paper.Tests\Paper.Tests.csproj", "{D0D9F54B-AB4E-4593-B0BD-9E46A5A5B402}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Paper.DemoSeed", "src\Paper.DemoSeed\Paper.DemoSeed.csproj", "{7B2E6A8B-4E61-4FA4-9DB0-BBB36AC6D6A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,5 +22,9 @@ Global
 		{D0D9F54B-AB4E-4593-B0BD-9E46A5A5B402}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D0D9F54B-AB4E-4593-B0BD-9E46A5A5B402}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D0D9F54B-AB4E-4593-B0BD-9E46A5A5B402}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7B2E6A8B-4E61-4FA4-9DB0-BBB36AC6D6A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7B2E6A8B-4E61-4FA4-9DB0-BBB36AC6D6A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7B2E6A8B-4E61-4FA4-9DB0-BBB36AC6D6A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7B2E6A8B-4E61-4FA4-9DB0-BBB36AC6D6A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
