@@ -14,6 +14,23 @@ public static class DocumentInputValidator
         [".tiff"] = "image/tiff"
     };
 
+    public static async Task<int> ReadPrefixAsync(Stream source, Memory<byte> buffer, CancellationToken cancellationToken)
+    {
+        var total = 0;
+        while (total < buffer.Length)
+        {
+            var read = await source.ReadAsync(buffer[total..], cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+
+            total += read;
+        }
+
+        return total;
+    }
+
     public static bool TryValidate(string fileName, string? contentType, long length, ReadOnlySpan<byte> header, out string extension, out string error)
     {
         extension = Path.GetExtension(fileName).ToLowerInvariant();

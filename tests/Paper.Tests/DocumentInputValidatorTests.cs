@@ -63,4 +63,24 @@ public sealed class DocumentInputValidatorTests
         StringAssert.Contains(summary, "7 weitere");
         Assert.IsFalse(summary.Contains("file-10.pdf", StringComparison.Ordinal));
     }
+
+    [TestMethod]
+    public async Task ReadPrefixHandlesStreamsThatReturnShortReads()
+    {
+        await using var source = new ShortReadStream("%PDF-123"u8.ToArray());
+        var buffer = new byte[8];
+
+        var length = await DocumentInputValidator.ReadPrefixAsync(source, buffer, CancellationToken.None);
+
+        Assert.AreEqual(8, length);
+        CollectionAssert.AreEqual("%PDF-123"u8.ToArray(), buffer);
+    }
+
+    private sealed class ShortReadStream(byte[] content) : MemoryStream(content)
+    {
+        public override int Read(byte[] buffer, int offset, int count) => base.Read(buffer, offset, Math.Min(1, count));
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+            base.ReadAsync(buffer[..Math.Min(1, buffer.Length)], cancellationToken);
+    }
 }

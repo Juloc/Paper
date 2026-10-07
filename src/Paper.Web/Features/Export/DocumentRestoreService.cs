@@ -194,7 +194,7 @@ public sealed class DocumentRestoreService(
 
             content.Position = 0;
             var header = new byte[8];
-            var headerLength = await content.ReadAsync(header, cancellationToken);
+            var headerLength = await DocumentInputValidator.ReadPrefixAsync(content, header, cancellationToken);
             if (!DocumentInputValidator.TryValidate(
                     fileName,
                     ContentTypeFor(fileName),

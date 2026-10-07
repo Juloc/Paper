@@ -112,7 +112,7 @@ public sealed class PaperlessImportService(
 
             content.Position = 0;
             var header = new byte[8];
-            var headerLength = await content.ReadAsync(header, cancellationToken);
+            var headerLength = await DocumentInputValidator.ReadPrefixAsync(content, header, cancellationToken);
             if (!DocumentInputValidator.TryValidate(originalName, ContentTypeFor(originalName), content.Length, header.AsSpan(0, headerLength), out _, out var validationError))
             {
                 result.Errors.Add($"{originalName}: {validationError}");

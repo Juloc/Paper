@@ -31,7 +31,7 @@ public sealed class DocumentImportService(
         }
 
         var header = new byte[8];
-        var headerLength = await input.ReadAsync(header, cancellationToken);
+        var headerLength = await DocumentInputValidator.ReadPrefixAsync(input, header, cancellationToken);
         if (!DocumentInputValidator.TryValidate(fileName, contentType, length, header.AsSpan(0, headerLength), out _, out var error))
         {
             return ImportResult.Failed(error);
