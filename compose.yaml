@@ -51,6 +51,10 @@ services:
       Ocr__PdfRenderDpi: ${PAPER_OCR_PDF_RENDER_DPI:-200}
       Ocr__MaxPdfPages: ${PAPER_OCR_MAX_PDF_PAGES:-100}
       Ocr__ProcessTimeoutSeconds: ${PAPER_OCR_PROCESS_TIMEOUT_SECONDS:-300}
+      Processing__OcrWorkers: ${PAPER_PROCESSING_OCR_WORKERS:-1}
+      Processing__PollSeconds: ${PAPER_PROCESSING_POLL_SECONDS:-3}
+      Consume__PollSeconds: ${PAPER_CONSUME_POLL_SECONDS:-15}
+      Consume__EmailAttachments: ${PAPER_CONSUME_EMAIL_ATTACHMENTS:-true}
       DataProtection__KeysDirectory: /data/keys
     ports:
       - "8080:8080"
