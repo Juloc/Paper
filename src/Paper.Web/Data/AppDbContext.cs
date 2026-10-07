@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.Processing;
 using Paper.Web.Features.CustomFields;
+using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Data;
 
@@ -30,6 +31,18 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<CustomField> CustomFields => Set<CustomField>();
 
     public DbSet<DocumentCustomFieldValue> DocumentCustomFieldValues => Set<DocumentCustomFieldValue>();
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        NormalizeShelfPathKeys();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        NormalizeShelfPathKeys();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -124,7 +137,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             }
             entity.Property(folder => folder.Name).HasMaxLength(120).IsRequired();
             entity.Property(folder => folder.RelativePath).HasMaxLength(500).IsRequired();
-            entity.HasIndex(folder => folder.RelativePath).IsUnique();
+            entity.Property(folder => folder.RelativePathKey).HasMaxLength(500).IsRequired();
+            entity.HasIndex(folder => folder.RelativePath);
+            entity.HasIndex(folder => folder.RelativePathKey).IsUnique();
             entity.HasIndex(folder => new { folder.ParentId, folder.Name }).IsUnique();
             entity.HasOne(folder => folder.Parent)
                 .WithMany(parent => parent.Children)
@@ -243,5 +258,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasOne<DocumentType>().WithMany().HasForeignKey(rule => rule.DocumentTypeId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<ShelfFolder>().WithMany().HasForeignKey(rule => rule.ShelfFolderId).OnDelete(DeleteBehavior.Restrict);
         });
+    }
+
+    private void NormalizeShelfPathKeys()
+    {
+        foreach (var entry in ChangeTracker.Entries<ShelfFolder>()
+                     .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.RelativePathKey = StoragePathPolicy.CreatePathKey(entry.Entity.RelativePath);
+        }
     }
 }

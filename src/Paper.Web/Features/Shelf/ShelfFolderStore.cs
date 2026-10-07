@@ -82,7 +82,8 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             return null;
         }
 
-        if (await db.ShelfFolders.AnyAsync(folder => folder.RelativePath == relativePath, cancellationToken))
+        var relativePathKey = StoragePathPolicy.CreatePathKey(relativePath);
+        if (await db.ShelfFolders.AnyAsync(folder => folder.RelativePathKey == relativePathKey, cancellationToken))
         {
             return null;
         }
@@ -93,6 +94,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             ParentId = parentId,
             Name = normalizedName,
             RelativePath = relativePath,
+            RelativePathKey = relativePathKey,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -154,12 +156,13 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
         {
             return ShelfFolderUpdateResult.Invalid("Der Regalpfad ist zu lang.");
         }
-        if (newPath.Equals(oldPath, StringComparison.Ordinal))
+        var newPathKey = StoragePathPolicy.CreatePathKey(newPath);
+        if (newPathKey.Equals(folder.RelativePathKey, StringComparison.Ordinal))
         {
             return ShelfFolderUpdateResult.Success;
         }
 
-        if (await db.ShelfFolders.AnyAsync(item => item.Id != id && item.RelativePath == newPath, cancellationToken))
+        if (await db.ShelfFolders.AnyAsync(item => item.Id != id && item.RelativePathKey == newPathKey, cancellationToken))
         {
             return ShelfFolderUpdateResult.Invalid("Am Ziel existiert bereits ein Ordner mit diesem Namen.");
         }
@@ -193,6 +196,7 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             folder.ParentId = parentId;
             folder.Name = normalizedName;
             folder.RelativePath = newPath;
+            folder.RelativePathKey = newPathKey;
             folder.UpdatedAt = timeProvider.GetUtcNow().UtcDateTime;
             foreach (var descendant in descendants)
             {

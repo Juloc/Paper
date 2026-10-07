@@ -10,6 +10,7 @@ using Paper.Web.Features.Documents;
 using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.Shelf;
 using Paper.Web.Features.Storage;
 
 namespace Paper.Tests;
@@ -453,6 +454,33 @@ public sealed class SqliteIntegrationTests
         {
             DeleteStorageRoot(sourceRoot);
             DeleteStorageRoot(restoreRoot);
+        }
+    }
+
+    [TestMethod]
+    public async Task ShelfFolderPathsRejectCaseOnlyPhysicalCollisions()
+    {
+        var root = CreateStorageRoot();
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+        var storage = CreateStorage(root);
+        var folders = new ShelfFolderStore(db, TimeProvider.System, storage);
+
+        try
+        {
+            var first = await folders.CreateAsync(null, "Strom", CancellationToken.None);
+            var duplicate = await folders.CreateAsync(null, "strom", CancellationToken.None);
+
+            Assert.IsNotNull(first);
+            Assert.IsNull(duplicate);
+            Assert.AreEqual("STROM", first.RelativePathKey);
+            Assert.AreEqual(1, await db.ShelfFolders.CountAsync());
+        }
+        finally
+        {
+            DeleteStorageRoot(root);
         }
     }
 

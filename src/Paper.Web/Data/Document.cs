@@ -108,6 +108,8 @@ public sealed class ShelfFolder
 
     public string RelativePath { get; set; } = "";
 
+    public string RelativePathKey { get; set; } = "";
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

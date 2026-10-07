@@ -30,6 +30,9 @@ public static class StoragePathPolicy
         return normalized;
     }
 
+    public static string CreatePathKey(string path) =>
+        NormalizeRelativePath(path).ToUpperInvariant();
+
     public static string NormalizeRelativePath(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path))

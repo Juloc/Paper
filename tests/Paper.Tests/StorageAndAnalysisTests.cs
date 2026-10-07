@@ -308,7 +308,7 @@ public sealed class StorageAndAnalysisTests
         using var db = new AppDbContext(options);
 
         var shelf = db.Model.FindEntityType(typeof(ShelfFolder))!;
-        Assert.IsTrue(shelf.GetIndexes().Any(index => index.IsUnique && index.Properties.Single().Name == nameof(ShelfFolder.RelativePath)));
+        Assert.IsTrue(shelf.GetIndexes().Any(index => index.IsUnique && index.Properties.Count == 1 && index.Properties[0].Name == nameof(ShelfFolder.RelativePathKey)));
         Assert.AreEqual(DeleteBehavior.Restrict, shelf.FindNavigation(nameof(ShelfFolder.Parent))!.ForeignKey.DeleteBehavior);
 
         var customValue = db.Model.FindEntityType(typeof(DocumentCustomFieldValue))!;

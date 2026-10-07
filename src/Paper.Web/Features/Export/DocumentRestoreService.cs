@@ -410,7 +410,8 @@ public sealed class DocumentRestoreService(
         foreach (var segment in normalizedPath.Split('/'))
         {
             var currentPath = parent is null ? segment : $"{parent.RelativePath}/{segment}";
-            var folder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.RelativePath == currentPath, cancellationToken);
+            var pathKey = StoragePathPolicy.CreatePathKey(currentPath);
+            var folder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.RelativePathKey == pathKey, cancellationToken);
             if (folder is null)
             {
                 var now = timeProvider.GetUtcNow().UtcDateTime;
@@ -419,6 +420,7 @@ public sealed class DocumentRestoreService(
                     Parent = parent,
                     Name = segment,
                     RelativePath = currentPath,
+                    RelativePathKey = pathKey,
                     CreatedAt = now,
                     UpdatedAt = now
                 };
