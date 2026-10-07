@@ -6,6 +6,7 @@ using Paper.Web.Features.DocumentTypes;
 using Paper.Web.Features.Documents;
 using Paper.Web.Features.Search;
 using Paper.Web.Features.Shelf;
+using Paper.Web.Features.Tags;
 
 namespace Paper.Web.Pages.Search;
 
@@ -14,7 +15,8 @@ public sealed class IndexModel(
     CorrespondentStore correspondents,
     DocumentTypeStore documentTypes,
     ShelfFolderStore shelfFolders,
-    CustomFieldStore customFields) : PageModel
+    CustomFieldStore customFields,
+    TagStore tags) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string Query { get; set; } = "";
@@ -52,6 +54,7 @@ public sealed class IndexModel(
     public IReadOnlyList<DocumentTypeOption> DocumentTypes { get; private set; } = [];
     public IReadOnlyList<ShelfFolderOption> ShelfFolders { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFields { get; private set; } = [];
+    public IReadOnlyList<TagOption> Tags { get; private set; } = [];
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -65,5 +68,6 @@ public sealed class IndexModel(
         DocumentTypes = await documentTypes.ListAsync(cancellationToken);
         ShelfFolders = await shelfFolders.ListOptionsAsync(cancellationToken);
         CustomFields = await customFields.ListAsync(cancellationToken);
+        Tags = await tags.ListAsync(cancellationToken);
     }
 }

@@ -37,7 +37,15 @@
                 }
             </select>
         </label>
-        <label>Tag <input asp-for="Tag" placeholder="z. B. rechnung" /></label>
+        <label>Tag
+            <select asp-for="Tag">
+                <option value="">Alle</option>
+                @foreach (var option in Model.Tags)
+                {
+                    <option value="@option.Name">@option.Name · @option.DocumentCount</option>
+                }
+            </select>
+        </label>
         <label>Von <input asp-for="FromDate" type="date" /></label>
         <label>Bis <input asp-for="ToDate" type="date" /></label>
         <label>Zusatzfeld
