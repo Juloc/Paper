@@ -110,6 +110,8 @@ public sealed class SmbStorageProvider : IStorageProvider
 
     public bool DirectoryExists(string relativePath) => Execute(connection => Exists(connection, relativePath, directory: true));
 
+    public bool FileExists(string relativePath) => Execute(connection => Exists(connection, relativePath, directory: false));
+
     public void EnsureDirectory(string relativePath) => Execute(connection =>
     {
         EnsureDirectory(connection, relativePath);

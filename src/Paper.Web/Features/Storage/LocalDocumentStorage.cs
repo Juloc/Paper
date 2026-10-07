@@ -12,6 +12,7 @@ public interface IStorageProvider
     Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     bool DirectoryExists(string relativePath);
+    bool FileExists(string relativePath);
     void EnsureDirectory(string relativePath);
     bool TryGetLocalPath(string relativePath, out string path);
     Stream OpenRead(string relativePath);
@@ -149,6 +150,8 @@ public sealed class LocalDocumentStorage : IStorageProvider
     }
 
     public bool DirectoryExists(string relativePath) => Directory.Exists(GetSafePath(relativePath));
+
+    public bool FileExists(string relativePath) => File.Exists(GetSafePath(relativePath));
 
     public void EnsureDirectory(string relativePath) => Directory.CreateDirectory(GetSafePath(relativePath));
 

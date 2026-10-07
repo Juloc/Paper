@@ -31,6 +31,7 @@ Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_
 - vollständiges ZIP-Backup mit Manifest, Dateien, Metadaten und Lernregeln sowie Restore
 - Paperless-ngx-Import für Dokumente, OCR-Text, Kataloge, Tags und Custom Fields
 - transparente, korrigierbare Lernregeln in den Einstellungen
+- manuelle Speicherprüfung gegen die in PostgreSQL registrierten Dokumentpfade, auch für direkte SMB-Speicher
 - On-Demand-Bild-Thumbnails als lokaler, wegwerfbarer Preview-Cache; PDFs bleiben direkt im Browser betrachtbar
 
 Die Anwendung benötigt keine externe Suchengine, Queue oder AI-Komponente. OCR ist optional zur Laufzeit: Fehlt Tesseract, bleibt der Fehler sichtbar und der Job wird mit Retry-Status gespeichert.

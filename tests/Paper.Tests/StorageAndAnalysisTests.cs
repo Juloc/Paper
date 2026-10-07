@@ -37,6 +37,8 @@ public sealed class StorageAndAnalysisTests
 
             Assert.AreEqual("3c87d37f1dbea6909f917ce437c390fb8e655a774387d9e69301c0b2283d5b63", result.Hash);
             Assert.IsTrue(result.RelativePath.StartsWith("inbox/", StringComparison.Ordinal));
+            Assert.IsTrue(storage.FileExists(result.RelativePath));
+            Assert.IsFalse(storage.FileExists("inbox/missing.pdf"));
             Assert.ThrowsExactly<ArgumentException>(() => storage.GetSafePath("../secrets.pdf"));
         }
         finally
@@ -342,6 +344,47 @@ public sealed class StorageAndAnalysisTests
         Assert.AreEqual("data/documents", new StorageOptions { RootPath = "data/documents" }.EffectiveRootPath());
         Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "smb" }.EffectiveRootPath());
         Assert.ThrowsExactly<InvalidOperationException>(() => new StorageOptions { Provider = "ftp" }.EffectiveRootPath());
+    }
+
+    [TestMethod]
+    public void StorageIntegrityCheckReportsMissingFilesWithoutChangingDocuments()
+    {
+        var documents = new[]
+        {
+            new StorageIntegrityDocument(1, "Vorhanden", "inbox/one.pdf"),
+            new StorageIntegrityDocument(2, "Fehlt", "inbox/two.pdf"),
+            new StorageIntegrityDocument(3, "Auch vorhanden", "shelf/three.pdf")
+        };
+
+        var report = StorageIntegrityService.CheckDocuments(
+            documents,
+            path => path != "inbox/two.pdf",
+            new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero));
+
+        Assert.AreEqual(3, report.DocumentsChecked);
+        Assert.AreEqual(1, report.MissingFiles);
+        Assert.AreEqual("inbox/two.pdf", report.MissingDocuments.Single().FilePath);
+        Assert.IsFalse(report.IsHealthy);
+        Assert.IsNull(report.Error);
+    }
+
+    [TestMethod]
+    public void StorageIntegrityCheckStopsSafelyWhenProviderCannotBeQueried()
+    {
+        var documents = new[]
+        {
+            new StorageIntegrityDocument(1, "Dokument", "inbox/one.pdf")
+        };
+
+        var report = StorageIntegrityService.CheckDocuments(
+            documents,
+            _ => throw new IOException("NAS nicht erreichbar"),
+            DateTimeOffset.UtcNow);
+
+        Assert.AreEqual(1, report.DocumentsChecked);
+        Assert.IsNotNull(report.Error);
+        StringAssert.Contains(report.Error, "NAS nicht erreichbar");
+        Assert.IsFalse(report.IsHealthy);
     }
 
     [TestMethod]

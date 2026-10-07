@@ -13,6 +13,46 @@
     <div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div>
     <div><span class="muted">Export und Backup</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a> <a class="button" href="/export/backup.zip">ZIP-Backup</a></span></div>
 </section>
+<section class="panel settings-card restore-card">
+    <h2>Speicherprüfung</h2>
+    <p class="muted">Prüft, ob jedes in der Datenbank bekannte Dokument noch am registrierten Speicherpfad vorhanden ist. Es werden keine Dateien verändert.</p>
+    <form method="post" asp-page-handler="CheckStorage">
+        <button class="button button-primary" type="submit">Speicher jetzt prüfen</button>
+    </form>
+    @if (Model.IntegrityReport is not null)
+    {
+        var report = Model.IntegrityReport;
+        <div class="integrity-result @(report.IsHealthy ? "integrity-ok" : "integrity-warning")" role="status">
+            <strong>@report.DocumentsChecked Dokument(e) geprüft</strong>
+            @if (report.Error is not null)
+            {
+                <span>Prüfung wegen eines Speicherfehlers beendet: @report.Error</span>
+            }
+            else if (report.IsHealthy)
+            {
+                <span>Alle Dateien sind vorhanden.</span>
+            }
+            else
+            {
+                <span>@report.MissingFiles fehlende Datei(en).</span>
+            }
+        </div>
+        @if (report.MissingDocuments.Count > 0)
+        {
+            <ul class="integrity-issues">
+                @foreach (var missing in report.MissingDocuments)
+                {
+                    <li><strong>@missing.Title</strong><span class="small muted">@missing.FilePath</span></li>
+                }
+            </ul>
+            @if (report.MissingFiles > report.MissingDocuments.Count)
+            {
+                <p class="small muted">Es werden höchstens @Paper.Web.Features.Storage.StorageIntegrityService.MaximumReportedMissingFiles fehlende Pfade angezeigt.</p>
+            }
+        }
+    }
+    <div asp-validation-summary="ModelOnly" class="validation"></div>
+</section>
 <div class="settings-grid">
     <section class="panel settings-card">
         <h2>Korrespondenten</h2>

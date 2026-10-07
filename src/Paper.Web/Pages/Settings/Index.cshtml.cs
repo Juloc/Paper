@@ -8,6 +8,7 @@ using Paper.Web.Features.DocumentTypes;
 using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.Storage;
 
 namespace Paper.Web.Pages.Settings;
 
@@ -20,6 +21,7 @@ public sealed class IndexModel(
     PaperlessImportService paperlessImport,
     ImapMailImportWorker mailImport,
     AnalysisRuleStore analysisRules,
+    StorageIntegrityService storageIntegrity,
     AppDbContext db) : PageModel
 {
     [BindProperty]
@@ -53,6 +55,7 @@ public sealed class IndexModel(
     public IReadOnlyList<AnalysisRuleView> AnalysisRules { get; private set; } = [];
     public IReadOnlyList<MailImportState> MailStates { get; private set; } = [];
     public IReadOnlyList<MailImportFailure> MailFailures { get; private set; } = [];
+    public StorageIntegrityReport? IntegrityReport { get; private set; }
 
     public Task OnGetAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
 
@@ -166,6 +169,22 @@ public sealed class IndexModel(
         }
 
         return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostCheckStorageAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            IntegrityReport = await storageIntegrity.CheckAsync(cancellationToken);
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            ModelState.AddModelError(string.Empty, $"Die Speicherprüfung konnte nicht ausgeführt werden: {exception.Message}");
+            await LoadAsync(cancellationToken);
+            return Page();
+        }
     }
 
     private async Task LoadAsync(CancellationToken cancellationToken)

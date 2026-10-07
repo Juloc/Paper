@@ -49,6 +49,7 @@ builder.Services.AddScoped<CorrespondentStore>();
 builder.Services.AddScoped<DocumentTypeStore>();
 builder.Services.AddScoped<ShelfFolderStore>();
 builder.Services.AddScoped<CustomFieldStore>();
+builder.Services.AddScoped<StorageIntegrityService>();
 builder.Services.AddScoped<DocumentExportService>();
 builder.Services.AddScoped<DocumentBackupService>();
 builder.Services.AddScoped<DocumentRestoreService>();
