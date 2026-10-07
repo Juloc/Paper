@@ -124,7 +124,8 @@ public sealed class DocumentProcessingWorker(
             foreach (var suggestion in analysis.SuggestedCustomFields)
             {
                 if (!customFields.TryGetValue(suggestion.Key, out var field) ||
-                    document.CustomFields.Any(value => value.CustomFieldId == field.Id))
+                    document.CustomFields.Any(value => value.CustomFieldId == field.Id) ||
+                    !CustomFieldValuePolicy.IsValid(field.Type, suggestion.Value.Trim()))
                 {
                     continue;
                 }
@@ -134,7 +135,7 @@ public sealed class DocumentProcessingWorker(
                     Document = document,
                     CustomField = field,
                     CustomFieldId = field.Id,
-                    Value = suggestion.Value
+                    Value = suggestion.Value.Trim()
                 });
             }
 

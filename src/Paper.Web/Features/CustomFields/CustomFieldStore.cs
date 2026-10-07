@@ -14,7 +14,7 @@ public sealed class CustomFieldStore(AppDbContext db)
     public async Task<CustomField?> CreateAsync(string name, CustomFieldType type, CancellationToken cancellationToken)
     {
         var normalizedName = name.Trim();
-        if (normalizedName.Length is 0 or > 120)
+        if (normalizedName.Length is 0 or > 120 || !Enum.IsDefined(type))
         {
             return null;
         }

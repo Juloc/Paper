@@ -225,6 +225,17 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void CustomFieldValuePolicyAcceptsGermanNumbersAndRejectsWrongTypes()
+    {
+        Assert.IsTrue(CustomFieldValuePolicy.IsValid(CustomFieldType.Number, "1.234,50"));
+        Assert.IsTrue(CustomFieldValuePolicy.IsValid(CustomFieldType.Date, "31.12.2026"));
+        Assert.IsTrue(CustomFieldValuePolicy.IsValid(CustomFieldType.Boolean, "true"));
+        Assert.IsFalse(CustomFieldValuePolicy.IsValid(CustomFieldType.Date, "not-a-date"));
+        Assert.IsFalse(CustomFieldValuePolicy.IsValid((CustomFieldType)99, "value"));
+        Assert.IsFalse(CustomFieldValuePolicy.IsValid(CustomFieldType.Text, new string('x', 2001)));
+    }
+
+    [TestMethod]
     public void SearchTextCombinesTitleOcrAndTags()
     {
         var document = new Document { Title = "Strom", OcrText = "Januar", Tags = [new DocumentTag { Tag = new Tag { Name = "vertrag" } }] };

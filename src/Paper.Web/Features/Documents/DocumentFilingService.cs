@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Paper.Web.Data;
 using Paper.Web.Features.CustomFields;
@@ -79,7 +78,7 @@ public sealed class DocumentFilingService(
                 continue;
             }
 
-            if (!IsValidValue(field.Type, fieldValue.Value.Trim()))
+            if (!CustomFieldValuePolicy.IsValid(field.Type, fieldValue.Value.Trim()))
             {
                 return DocumentSaveResult.Invalid($"Der Wert für „{field.Name}“ hat das falsche Format.");
             }
@@ -237,14 +236,6 @@ public sealed class DocumentFilingService(
         }
     }
 
-    private static bool IsValidValue(CustomFieldType type, string value) => type switch
-    {
-        CustomFieldType.Text => value.Length <= 2000,
-        CustomFieldType.Number => decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out _),
-        CustomFieldType.Date => DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
-        CustomFieldType.Boolean => bool.TryParse(value, out _),
-        _ => false
-    };
 }
 
 public sealed record DocumentEdit(
