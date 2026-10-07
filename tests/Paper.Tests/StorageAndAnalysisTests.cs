@@ -22,6 +22,14 @@ namespace Paper.Tests;
 public sealed class StorageAndAnalysisTests
 {
     [TestMethod]
+    public void ImapClientParsesUidValidityFromSelectResponse()
+    {
+        Assert.AreEqual(385752904L, ImapClient.ParseUidValidity(
+            ["* OK [UIDVALIDITY 385752904]", "A0001 OK SELECT completed"]));
+        Assert.IsNull(ImapClient.ParseUidValidity(["* FLAGS (\\Seen)"]));
+    }
+
+    [TestMethod]
     public async Task StorageComputesStableHashAndRejectsTraversal()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));

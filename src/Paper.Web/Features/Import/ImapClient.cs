@@ -10,6 +10,7 @@ namespace Paper.Web.Features.Import;
 public sealed class ImapClient : IAsyncDisposable
 {
     private static readonly Regex LiteralPattern = new(@"\{(?<length>\d+)\}$", RegexOptions.Compiled);
+    private static readonly Regex UidValidityPattern = new(@"\[UIDVALIDITY (?<value>\d+)\]", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private readonly MailAccountOptions options;
     private readonly CancellationToken cancellationToken;
     private TcpClient? tcpClient;
@@ -22,7 +23,7 @@ public sealed class ImapClient : IAsyncDisposable
         this.cancellationToken = cancellationToken;
     }
 
-    public async Task ConnectAsync()
+    public async Task<long?> ConnectAsync()
     {
         tcpClient = new TcpClient();
         await tcpClient.ConnectAsync(options.Host, options.Port, cancellationToken);
@@ -46,7 +47,22 @@ public sealed class ImapClient : IAsyncDisposable
         }
 
         await ExecuteAsync($"LOGIN {Quote(options.Username)} {Quote(options.Password)}");
-        await ExecuteAsync($"SELECT {Quote(options.Folder)}");
+        var selectResponse = await ExecuteAsync($"SELECT {Quote(options.Folder)}");
+        return ParseUidValidity(selectResponse.Lines);
+    }
+
+    public static long? ParseUidValidity(IEnumerable<string> responseLines)
+    {
+        foreach (var line in responseLines)
+        {
+            var match = UidValidityPattern.Match(line);
+            if (match.Success && long.TryParse(match.Groups["value"].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var value))
+            {
+                return value;
+            }
+        }
+
+        return null;
     }
 
     public async Task<IReadOnlyList<long>> SearchAsync(long afterUid, int maximum, bool onlyUnread, string? fromContains, string? subjectContains)

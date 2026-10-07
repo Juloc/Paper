@@ -120,7 +120,20 @@ public sealed class ImapMailImportWorker(
         }
 
         await using var client = new ImapClient(options, cancellationToken);
-        await client.ConnectAsync();
+        var uidValidity = await client.ConnectAsync();
+        if (uidValidity is not null && state.UidValidity != uidValidity)
+        {
+            if (state.UidValidity is not null)
+            {
+                logger.LogInformation("IMAP UIDVALIDITY changed for account {AccountName}; restarting UID scan with hash deduplication.", options.AccountName);
+            }
+
+            state.UidValidity = uidValidity;
+            state.LastUid = 0;
+            state.LastError = null;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
         var uids = await client.SearchAsync(state.LastUid + 1, options.MaxMessagesPerRun, options.OnlyUnread, options.FromContains, options.SubjectContains);
         var importer = scope.ServiceProvider.GetRequiredService<DocumentImportService>();
         var allowedExtensions = options.AllowedAttachmentExtensions();

@@ -237,7 +237,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
         modelBuilder.Entity<MailImportState>(entity =>
         {
             entity.ToTable("MailImportStates", table =>
-                table.HasCheckConstraint("CK_MailImportStates_LastUid", "\"LastUid\" >= 0"));
+            {
+                table.HasCheckConstraint("CK_MailImportStates_UidValidity", "\"UidValidity\" IS NULL OR \"UidValidity\" >= 0");
+                table.HasCheckConstraint("CK_MailImportStates_LastUid", "\"LastUid\" >= 0");
+            });
             entity.Property(state => state.AccountName).HasMaxLength(120).IsRequired();
             entity.Property(state => state.LastError).HasMaxLength(2000);
             entity.HasIndex(state => state.AccountName).IsUnique();

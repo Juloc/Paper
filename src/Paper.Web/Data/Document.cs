@@ -154,6 +154,8 @@ public sealed class MailImportState
 
     public string AccountName { get; set; } = "";
 
+    public long? UidValidity { get; set; }
+
     public long LastUid { get; set; }
 
     public DateTime? LastSyncAt { get; set; }
