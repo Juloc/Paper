@@ -70,6 +70,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.HasIndex(document => document.CorrespondentId);
             entity.HasIndex(document => document.DocumentTypeId);
             entity.HasIndex(document => document.ShelfFolderId);
+            entity.HasIndex(document => document.SuggestedShelfFolderId);
             entity.HasOne(document => document.Correspondent)
                 .WithMany(correspondent => correspondent.Documents)
                 .HasForeignKey(document => document.CorrespondentId)
@@ -82,6 +83,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .WithMany(folder => folder.Documents)
                 .HasForeignKey(document => document.ShelfFolderId)
                 .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(document => document.SuggestedShelfFolder)
+                .WithMany()
+                .HasForeignKey(document => document.SuggestedShelfFolderId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Correspondent>(entity =>

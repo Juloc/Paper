@@ -134,6 +134,31 @@ public sealed class SqliteIntegrationTests
                 storage,
                 TimeProvider.System,
                 NullLogger<DocumentFilingService>.Instance);
+            var deferred = await db.Documents.SingleAsync();
+            deferred.Status = DocumentStatus.Deferred;
+            await db.SaveChangesAsync();
+            var suggestion = await filing.SaveAsync(
+                imported.DocumentId!.Value,
+                new DocumentEdit(
+                    "Stadtwerke Rechnung",
+                    new DateOnly(2026, 10, 7),
+                    null,
+                    null,
+                    folder.Id,
+                    "energie",
+                    new Dictionary<long, string>()),
+                fileFromInbox: false,
+                CancellationToken.None);
+
+            Assert.IsTrue(suggestion.Succeeded);
+            var suggestedDocument = await db.Documents.SingleAsync();
+            Assert.AreEqual(DocumentStatus.Deferred, suggestedDocument.Status);
+            Assert.IsNull(suggestedDocument.ShelfFolderId);
+            Assert.AreEqual(folder.Id, suggestedDocument.SuggestedShelfFolderId);
+            Assert.IsTrue(storage.FileExists(suggestedDocument.FilePath));
+
+            suggestedDocument.Status = DocumentStatus.Inbox;
+            await db.SaveChangesAsync();
             var saved = await filing.SaveAsync(
                 imported.DocumentId!.Value,
                 new DocumentEdit(
@@ -171,12 +196,79 @@ public sealed class SqliteIntegrationTests
         }
     }
 
+    [TestMethod]
+    public async Task ProcessingRecoveryRequeuesInterruptedJobsAndManualRetryResetsFailures()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var now = DateTime.UtcNow;
+        var retryDocument = NewDocument("retry.pdf", now);
+        var failedDocument = NewDocument("failed.pdf", now);
+        db.Documents.AddRange(retryDocument, failedDocument);
+        db.ProcessingJobs.AddRange(
+            new ProcessingJob
+            {
+                Document = retryDocument,
+                Type = ProcessingJobType.OcrAndAnalyze,
+                State = ProcessingJobState.Running,
+                Attempts = 1,
+                Priority = 10,
+                CreatedAt = now,
+                StartedAt = now
+            },
+            new ProcessingJob
+            {
+                Document = failedDocument,
+                Type = ProcessingJobType.OcrAndAnalyze,
+                State = ProcessingJobState.Running,
+                Attempts = 3,
+                Priority = 10,
+                CreatedAt = now,
+                StartedAt = now
+            });
+        await db.SaveChangesAsync();
+
+        var jobs = new ProcessingJobStore(db, TimeProvider.System);
+        Assert.AreEqual(1, await jobs.RequeueInterruptedAsync(CancellationToken.None));
+
+        db.ChangeTracker.Clear();
+        var recovered = await db.ProcessingJobs.OrderBy(job => job.Id).ToListAsync();
+        Assert.AreEqual(ProcessingJobState.Pending, recovered[0].State);
+        Assert.AreEqual(ProcessingJobState.Failed, recovered[1].State);
+        Assert.AreEqual(OcrStatus.Pending, (await db.Documents.SingleAsync(document => document.Id == retryDocument.Id)).OcrStatus);
+        Assert.AreEqual(OcrStatus.Failed, (await db.Documents.SingleAsync(document => document.Id == failedDocument.Id)).OcrStatus);
+
+        var status = new ProcessingStatusStore(db, TimeProvider.System);
+        Assert.IsTrue(await status.RetryAsync(recovered[1].Id, CancellationToken.None));
+        var reset = await db.ProcessingJobs.SingleAsync(job => job.Id == recovered[1].Id);
+        Assert.AreEqual(ProcessingJobState.Pending, reset.State);
+        Assert.AreEqual(0, reset.Attempts);
+        Assert.AreEqual(OcrStatus.Pending, (await db.Documents.SingleAsync(document => document.Id == failedDocument.Id)).OcrStatus);
+    }
+
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
             .Options;
 
     private static AppDbContext CreateDatabase(SqliteConnection connection) => new(CreateOptions(connection));
+
+    private static Document NewDocument(string fileName, DateTime now) => new()
+    {
+        Title = Path.GetFileNameWithoutExtension(fileName),
+        OriginalFileName = fileName,
+        FilePath = $"inbox/{fileName}",
+        FileSize = 9,
+        Hash = Guid.NewGuid().ToString("N").PadRight(64, 'a'),
+        OcrStatus = OcrStatus.Processing,
+        Status = DocumentStatus.Inbox,
+        CreatedAt = now,
+        UpdatedAt = now,
+        SearchText = fileName
+    };
 
     private static LocalDocumentStorage CreateStorage(string root)
     {

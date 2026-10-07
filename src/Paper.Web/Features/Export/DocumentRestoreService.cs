@@ -237,6 +237,9 @@ public sealed class DocumentRestoreService(
             var correspondent = await FindOrCreateCorrespondentAsync(entry.Correspondent, cancellationToken);
             var documentType = await FindOrCreateDocumentTypeAsync(entry.DocumentType, cancellationToken);
             var shelf = await FindOrCreateShelfAsync(entry.ShelfPath, cancellationToken);
+            var suggestedShelf = string.Equals(entry.SuggestedShelfPath, entry.ShelfPath, StringComparison.OrdinalIgnoreCase)
+                ? shelf
+                : await FindOrCreateShelfAsync(entry.SuggestedShelfPath, cancellationToken);
             var customFieldDefinitions = await FindOrCreateCustomFieldsAsync(entry.CustomFields ?? [], cancellationToken);
             var now = timeProvider.GetUtcNow().UtcDateTime;
             var createdAt = entry.CreatedAt == default ? now : entry.CreatedAt;
@@ -304,7 +307,7 @@ public sealed class DocumentRestoreService(
                     document.DocumentDate,
                     correspondent?.Id,
                     documentType?.Id,
-                    shelf?.Id,
+                    restoredStatus == DocumentStatus.Filed ? shelf?.Id : suggestedShelf?.Id ?? shelf?.Id,
                     string.Join(", ", entry.Tags ?? []),
                     customValues),
                 fileFromInbox: restoredStatus == DocumentStatus.Filed,

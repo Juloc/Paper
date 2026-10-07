@@ -23,6 +23,7 @@ Die drei Pflichtwerte `PAPER_ADMIN_USERNAME`, `PAPER_ADMIN_PASSWORD` und `PAPER_
 - dezenter Processing-Status mit Fehlerliste und manuellem Retry
 - Tesseract OCR für Bilder sowie PDF-OCR mit eingebettetem Text und Poppler-Rasterisierung als Fallback
 - kleine regelbasierte Titel-, Datums-, Korrespondenten-, Dokumenttyp- und Tag-Erkennung
+- transparente Regalvorschläge aus wiederkehrenden Benutzerkorrekturen; Vorschläge verändern den physischen Pfad erst beim bewussten Ablegen
 - PostgreSQL Full Text Search über Titel, OCR-Text, Dateiname, Regalpfad und Metadaten
 - paginierte Inbox- und Bestandsansichten für große Archive
 - responsive Razor-UI, sichere Cookie-Authentifizierung und zeitbegrenzter Login-Brute-Force-Schutz ohne externe Infrastruktur

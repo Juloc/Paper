@@ -41,6 +41,10 @@ public sealed class Document
 
     public ShelfFolder? ShelfFolder { get; set; }
 
+    public long? SuggestedShelfFolderId { get; set; }
+
+    public ShelfFolder? SuggestedShelfFolder { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

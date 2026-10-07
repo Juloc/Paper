@@ -56,6 +56,7 @@ public sealed class DocumentStore(
             .Include(item => item.Correspondent)
             .Include(item => item.DocumentType)
             .Include(item => item.ShelfFolder)
+            .Include(item => item.SuggestedShelfFolder)
             .Include(item => item.CustomFields).ThenInclude(item => item.CustomField)
             .SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
         return document is null ? null : ToDetails(document);
@@ -197,6 +198,8 @@ public sealed class DocumentStore(
         document.DocumentType?.Name,
         document.ShelfFolderId,
         document.ShelfFolder?.RelativePath,
+        document.SuggestedShelfFolderId,
+        document.SuggestedShelfFolder?.RelativePath,
         document.Tags.Select(documentTag => documentTag.Tag.Name).OrderBy(name => name).ToArray(),
         document.CustomFields
             .OrderBy(value => value.CustomField.Name)
@@ -230,6 +233,8 @@ public sealed record DocumentDetails(
     string? DocumentType,
     long? ShelfFolderId,
     string? ShelfPath,
+    long? SuggestedShelfFolderId,
+    string? SuggestedShelfPath,
     string[] Tags,
     CustomFieldValueDetails[] CustomFields);
 

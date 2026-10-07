@@ -45,7 +45,8 @@ public sealed class DocumentFilingService(
             }
         }
 
-        if ((fileFromInbox || document.Status == DocumentStatus.Filed) && shelf is null)
+        var movesFile = fileFromInbox || document.Status == DocumentStatus.Filed;
+        if (movesFile && shelf is null)
         {
             return DocumentSaveResult.Invalid("Bitte einen Regalordner auswählen.");
         }
@@ -90,7 +91,7 @@ public sealed class DocumentFilingService(
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            if (fileFromInbox || document.Status == DocumentStatus.Filed)
+            if (movesFile)
             {
                 newPath = await storage.MoveToShelfAsync(
                     document.FilePath,
@@ -109,8 +110,10 @@ public sealed class DocumentFilingService(
             document.Correspondent = correspondent;
             document.DocumentTypeId = documentType?.Id;
             document.DocumentType = documentType;
-            document.ShelfFolderId = shelf?.Id ?? document.ShelfFolderId;
-            document.ShelfFolder = shelf ?? document.ShelfFolder;
+            document.ShelfFolderId = movesFile ? shelf!.Id : null;
+            document.ShelfFolder = movesFile ? shelf : null;
+            document.SuggestedShelfFolderId = movesFile ? null : shelf?.Id;
+            document.SuggestedShelfFolder = movesFile ? null : shelf;
             document.Status = fileFromInbox ? DocumentStatus.Filed : document.Status;
             ReplaceTags(document, edit.Tags);
             ReplaceCustomFields(document, edit.CustomFields, customFields);

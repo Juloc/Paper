@@ -156,7 +156,7 @@ public sealed class EditDocumentInput
         DocumentDate = document.DocumentDate;
         CorrespondentId = document.CorrespondentId;
         DocumentTypeId = document.DocumentTypeId;
-        ShelfFolderId = document.ShelfFolderId;
+        ShelfFolderId = document.ShelfFolderId ?? document.SuggestedShelfFolderId;
         Tags = string.Join(", ", document.Tags);
         CustomFields = document.CustomFields.ToDictionary(field => field.CustomFieldId, field => field.Value);
     }

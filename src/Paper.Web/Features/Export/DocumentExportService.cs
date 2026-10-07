@@ -33,6 +33,7 @@ public sealed class DocumentExportService(AppDbContext db)
             writer.WriteString("correspondent", document.Correspondent?.Name);
             writer.WriteString("documentType", document.DocumentType?.Name);
             writer.WriteString("shelfPath", document.ShelfFolder?.RelativePath);
+            writer.WriteString("suggestedShelfPath", document.SuggestedShelfFolder?.RelativePath);
             writer.WriteStartArray("tags");
             foreach (var tag in document.Tags.OrderBy(item => item.Tag.Name))
             {
@@ -62,7 +63,7 @@ public sealed class DocumentExportService(AppDbContext db)
     public async Task WriteCsvAsync(Stream destination, CancellationToken cancellationToken)
     {
         await using var writer = new StreamWriter(destination, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false), 16 * 1024, leaveOpen: true);
-        await writer.WriteLineAsync("Id;Titel;Dokumentdatum;Originaldatei;Dateipfad;Größe;Hash;Status;OCR;OCR-Text;OCR-Fehler;Erstellt;Geändert;Korrespondent;Dokumenttyp;Regal;Tags;Zusatzfelder");
+        await writer.WriteLineAsync("Id;Titel;Dokumentdatum;Originaldatei;Dateipfad;Größe;Hash;Status;OCR;OCR-Text;OCR-Fehler;Erstellt;Geändert;Korrespondent;Dokumenttyp;Regal;Regalvorschlag;Tags;Zusatzfelder");
         await writer.FlushAsync(cancellationToken);
         await foreach (var document in Query().AsAsyncEnumerable().WithCancellation(cancellationToken))
         {
@@ -87,6 +88,7 @@ public sealed class DocumentExportService(AppDbContext db)
                 document.Correspondent?.Name,
                 document.DocumentType?.Name,
                 document.ShelfFolder?.RelativePath,
+                document.SuggestedShelfFolder?.RelativePath,
                 string.Join(", ", document.Tags.OrderBy(item => item.Tag.Name).Select(item => item.Tag.Name)),
                 customFields
             };
@@ -101,6 +103,7 @@ public sealed class DocumentExportService(AppDbContext db)
             .Include(document => document.Correspondent)
             .Include(document => document.DocumentType)
             .Include(document => document.ShelfFolder)
+            .Include(document => document.SuggestedShelfFolder)
             .Include(document => document.Tags).ThenInclude(link => link.Tag)
             .Include(document => document.CustomFields).ThenInclude(field => field.CustomField)
             .OrderBy(document => document.Id);

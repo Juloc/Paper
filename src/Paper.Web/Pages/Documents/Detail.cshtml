@@ -49,7 +49,7 @@
                     }
                 </select>
             </label>
-            <label>Regalordner
+            <label>Regalordner@(document.ShelfFolderId is null && document.SuggestedShelfFolderId is not null ? " (Vorschlag)" : "")
                 <select asp-for="Input.ShelfFolderId">
                     <option value="">@(inInbox ? "Bitte auswählen" : "Nicht festgelegt")</option>
                     @foreach (var option in Model.ShelfFolders)
@@ -58,6 +58,10 @@
                     }
                 </select>
             </label>
+            @if (document.ShelfFolderId is null && document.SuggestedShelfPath is not null)
+            {
+                <p class="small muted">Die Datei bleibt bis zum Ablegen in der Inbox. Vorschlag: @document.SuggestedShelfPath</p>
+            }
             <label>Tags <input asp-for="Input.Tags" placeholder="z. B. rechnung, privat" /></label>
             @if (Model.CustomFields.Count > 0)
             {
@@ -92,7 +96,7 @@
         </form>
         <dl class="facts">
             <div><dt>OCR</dt><dd>@(document.OcrStatus switch { OcrStatus.Pending => "Wartet", OcrStatus.Processing => "Läuft", OcrStatus.Completed => "Fertig", _ => "Fehlgeschlagen" })</dd></div>
-            <div><dt>Regal</dt><dd>@(document.ShelfPath ?? "Noch nicht abgelegt")</dd></div>
+            <div><dt>Regal</dt><dd>@(document.ShelfPath ?? (document.SuggestedShelfPath is null ? "Noch nicht abgelegt" : $"Vorschlag: {document.SuggestedShelfPath}"))</dd></div>
             <div><dt>Größe</dt><dd>@($"{document.FileSize / 1024d / 1024d:0.0} MB")</dd></div>
             <div><dt>Originaldatei</dt><dd>@document.OriginalFileName</dd></div>
             <div><dt>Geändert</dt><dd>@document.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</dd></div>

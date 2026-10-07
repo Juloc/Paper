@@ -72,6 +72,7 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
             .Include(document => document.Correspondent)
             .Include(document => document.DocumentType)
             .Include(document => document.ShelfFolder)
+            .Include(document => document.SuggestedShelfFolder)
             .Include(document => document.Tags).ThenInclude(link => link.Tag)
             .Include(document => document.CustomFields).ThenInclude(field => field.CustomField)
             .OrderBy(document => document.Id);
@@ -93,6 +94,7 @@ public sealed class DocumentBackupService(AppDbContext db, IStorageProvider stor
         document.Correspondent?.Name,
         document.DocumentType?.Name,
         document.ShelfFolder?.RelativePath,
+        document.SuggestedShelfFolder?.RelativePath,
         document.Tags.Select(link => link.Tag.Name).OrderBy(name => name).ToArray(),
         document.CustomFields
             .OrderBy(field => field.CustomField.Name)
@@ -163,6 +165,7 @@ public sealed record DocumentBackupManifestEntry(
     string? Correspondent,
     string? DocumentType,
     string? ShelfPath,
+    string? SuggestedShelfPath,
     string[] Tags,
     DocumentBackupCustomField[] CustomFields);
 

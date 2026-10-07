@@ -119,9 +119,9 @@ public sealed class DocumentProcessingWorker(
                 document.DocumentType = await db.DocumentTypes.SingleOrDefaultAsync(item => item.Id == learned.DocumentTypeId, cancellationToken);
             }
 
-            if (document.ShelfFolder is null && learned?.ShelfFolderId is not null)
+            if (document.ShelfFolderId is null && document.SuggestedShelfFolderId is null && learned?.ShelfFolderId is not null)
             {
-                document.ShelfFolder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.Id == learned.ShelfFolderId, cancellationToken);
+                document.SuggestedShelfFolderId = learned.ShelfFolderId;
             }
 
             var customFields = (await db.CustomFields.ToListAsync(cancellationToken))
