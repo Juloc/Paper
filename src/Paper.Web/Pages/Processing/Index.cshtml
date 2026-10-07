@@ -23,7 +23,7 @@
         @foreach (var job in Model.Jobs)
         {
             <article class="processing-row">
-                <div><strong>@job.DocumentTitle</strong><span class="muted">@job.OriginalFileName · @job.Type · Versuch @job.Attempts</span></div>
+                <div><strong>@job.DocumentTitle</strong><span class="muted">@job.OriginalFileName · @(job.Type switch { ProcessingJobType.OcrAndAnalyze => "OCR und Analyse", _ => "Verarbeitung" }) · Versuch @job.Attempts</span></div>
                 <div class="processing-row-state">
                     <span class="status status-@job.State.ToString().ToLowerInvariant()">@(job.State switch { ProcessingJobState.Pending => "Wartet", ProcessingJobState.Running => "Läuft", ProcessingJobState.Succeeded => "Fertig", _ => "Fehlgeschlagen" })</span>
                     @if (job.State == ProcessingJobState.Failed)
