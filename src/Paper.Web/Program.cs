@@ -32,12 +32,15 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")
         ?? throw new InvalidOperationException("ConnectionStrings:Default is required.")));
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton<LocalDocumentStorage>();
-builder.Services.AddSingleton<SmbStorageProvider>();
-builder.Services.AddSingleton<IStorageProvider>(services =>
-    (builder.Configuration["Storage:Provider"] ?? "local").Equals("smb", StringComparison.OrdinalIgnoreCase)
-        ? services.GetRequiredService<SmbStorageProvider>()
-        : services.GetRequiredService<LocalDocumentStorage>());
+builder.Services.AddSingleton<StorageProviderFactory>();
+builder.Services.AddScoped<StorageConfigurationStore>();
+builder.Services.AddScoped<StorageConnectionTestService>();
+builder.Services.AddScoped<IStorageProvider>(services =>
+{
+    var configurations = services.GetRequiredService<StorageConfigurationStore>();
+    var providers = services.GetRequiredService<StorageProviderFactory>();
+    return providers.Create(configurations.LoadProviderOptions());
+});
 builder.Services.AddScoped<DocumentImportService>();
 builder.Services.AddScoped<DocumentStore>();
 builder.Services.AddScoped<DocumentFilingService>();
@@ -68,6 +71,7 @@ builder.Services.AddSingleton<IHostedService>(services => services.GetRequiredSe
 builder.Services.AddSingleton<EmailAttachmentExtractor>();
 builder.Services.AddScoped<PaperlessImportService>();
 builder.Services.AddScoped<ConsumeFailureStore>();
+builder.Services.AddScoped<MailImportStatusStore>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -195,6 +199,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
+    await scope.ServiceProvider.GetRequiredService<StorageConfigurationStore>().EnsureInitializedAsync(CancellationToken.None);
     await scope.ServiceProvider.GetRequiredService<ThumbnailService>().QueueMissingAsync(CancellationToken.None);
 }
 

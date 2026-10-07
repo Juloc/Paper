@@ -1,64 +1,21 @@
 @page "/Settings"
 @model Paper.Web.Pages.Settings.IndexModel
-@using Paper.Web.Features.CustomFields
+@using Paper.Web.Features.Storage
 @{
     ViewData["Title"] = "Einstellungen";
-    var section = Model.Section.ToLowerInvariant() switch
-    {
-        "metadata" or "import" or "storage" or "processing" or "user" or "advanced" => Model.Section.ToLowerInvariant(),
-        _ => "general"
-    };
 }
-<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Kompakte Bereiche für Archiv, Import und Metadaten.</p></div></header>
+<header class="page-header"><div><div class="eyebrow">System</div><h1>Einstellungen</h1><p class="muted">Archiv, Import und Verarbeitung.</p></div></header>
 <div class="settings-shell">
-    <nav class="panel settings-nav" aria-label="Einstellungsbereiche">
-        <a class="@(section == "general" ? "active" : "")" asp-route-section="general">Allgemein</a>
-        <a class="@(section == "metadata" ? "active" : "")" asp-route-section="metadata">Metadaten</a>
-        <a class="@(section == "import" ? "active" : "")" asp-route-section="import">Import</a>
-        <a class="@(section == "storage" ? "active" : "")" asp-route-section="storage">Speicher</a>
-        <a class="@(section == "processing" ? "active" : "")" asp-route-section="processing">Verarbeitung</a>
-        <a class="@(section == "user" ? "active" : "")" asp-route-section="user">Benutzer</a>
-        <a class="@(section == "advanced" ? "active" : "")" asp-route-section="advanced">Erweitert</a>
-    </nav>
+    <partial name="_SettingsNavigation" model="@("general")" />
     <div class="settings-content">
-        @if (section == "general")
-        {
-            <section class="panel settings-card"><h2>Allgemein</h2><p class="muted">Paper bleibt lokal, kompakt und ohne externe Dienste.</p><div class="settings-list"><div><span class="muted">Storage-Provider</span><strong>@Model.StorageProvider</strong></div><div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div><div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div><div><span class="muted">Export</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a> <a class="button" href="/export/backup.zip">ZIP</a></span></div></div></section>
-        }
-        @if (section == "metadata")
-        {
-            <div class="settings-grid">
-                <section class="panel settings-card"><h2>Korrespondenten</h2><form method="post" asp-page-handler="CreateCorrespondent" class="inline-form"><input asp-for="CorrespondentName" placeholder="z. B. Stadtwerke Mannheim" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.CorrespondentOptions) { <span class="tag">@item.Name</span><form method="post" asp-page-handler="DeleteCorrespondent" class="inline-form" onsubmit="return confirm('Korrespondent entfernen, falls er nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Korrespondent @item.Name entfernen">×</button></form> }</div></section>
-                <section class="panel settings-card"><h2>Dokumenttypen</h2><form method="post" asp-page-handler="CreateDocumentType" class="inline-form"><input asp-for="DocumentTypeName" placeholder="z. B. Rechnung" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.DocumentTypeOptions) { <span class="tag">@item.Name</span><form method="post" asp-page-handler="DeleteDocumentType" class="inline-form" onsubmit="return confirm('Dokumenttyp entfernen, falls er nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Dokumenttyp @item.Name entfernen">×</button></form> }</div></section>
-                <section class="panel settings-card"><h2>Custom Fields</h2><form method="post" asp-page-handler="CreateCustomField" class="stack"><input asp-for="CustomFieldName" placeholder="z. B. Vertragsnummer" /><select asp-for="CustomFieldType">@foreach (var type in Enum.GetValues<CustomFieldType>()) { <option value="@type">@type</option> }</select><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.CustomFieldOptions) { <span class="tag">@item.Name · @item.Type</span><form method="post" asp-page-handler="DeleteCustomField" class="inline-form" onsubmit="return confirm('Zusatzfeld entfernen, falls es nicht mehr verwendet wird?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Zusatzfeld @item.Name entfernen">×</button></form> }</div></section>
-                <section class="panel settings-card"><h2>Tags</h2><form method="post" asp-page-handler="CreateTag" class="inline-form"><input asp-for="TagName" placeholder="z. B. steuer" /><button class="button button-primary" type="submit">Hinzufügen</button></form><div class="settings-tags">@foreach (var item in Model.TagOptions) { <span class="tag">@item.Name · @item.DocumentCount Dok.</span><form method="post" asp-page-handler="DeleteTag" class="inline-form" onsubmit="return confirm('Tag entfernen?');"><input type="hidden" name="id" value="@item.Id" /><button class="button button-quiet" type="submit" aria-label="Tag @item.Name entfernen">×</button></form> }</div></section>
+        <section class="panel settings-card">
+            <h2>Allgemein</h2>
+            <div class="settings-list">
+                <div><span class="muted">Speicher</span><strong>@(Model.Storage.ProviderType == StorageProviderType.Smb ? "NAS / SMB" : "Lokaler Speicher")</strong></div>
+                <div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div>
+                <div><span class="muted">Verarbeitung</span><strong>Persistente PostgreSQL-Jobs</strong></div>
+                <div><span class="muted">Export</span><span><a class="button" href="/export/documents.json">JSON</a> <a class="button" href="/export/documents.csv">CSV</a> <a class="button" href="/export/backup.zip">ZIP</a></span></div>
             </div>
-        }
-        @if (section == "storage")
-        {
-            <section class="panel settings-card"><h2>Speicher</h2><div class="settings-list"><div><span class="muted">Pfad</span><strong>@Model.StoragePath</strong></div><div><span class="muted">NAS-Wake-Policy</span><strong>@Model.WakePolicy</strong></div></div><p class="muted">Die Prüfung verändert keine Dateien.</p><form method="post" asp-page-handler="CheckStorage"><button class="button button-primary" type="submit">Speicher jetzt prüfen</button></form>@if (Model.IntegrityReport is not null) { var report = Model.IntegrityReport; <div class="integrity-result @(report.IsHealthy ? "integrity-ok" : "integrity-warning")"><strong>@report.DocumentsChecked Dokument(e) geprüft</strong><span>@(report.Error ?? (report.IsHealthy ? "Alle Dateien sind vorhanden." : $"{report.MissingFiles} fehlend, {report.SizeMismatches} Größenabweichung(en), {report.HashMismatches} Hashabweichung(en)."))</span></div> }</section>
-        }
-        @if (section == "processing")
-        {
-            <section class="panel settings-card"><h2>Verarbeitung</h2><p class="muted">OCR, Analyse und Thumbnail-Erzeugung laufen als persistente Jobs mit einem schlanken Worker.</p><div class="settings-list"><div><span class="muted">OCR-Sprache</span><strong>@Model.OcrLanguage</strong></div><div><span class="muted">Thumbnail-Cache</span><strong>PostgreSQL · erste Seite</strong></div></div><a class="button button-primary" asp-page="/Processing/Index">Verarbeitung öffnen</a></section>
-        }
-        @if (section == "user")
-        {
-            <section class="panel settings-card"><h2>Benutzer</h2><p class="muted">Paper ist für einen lokalen Eigentümerzugang ausgelegt.</p><div class="settings-list"><div><span class="muted">Angemeldet als</span><strong>@User.Identity?.Name</strong></div><div><span class="muted">Rolle</span><strong>Owner</strong></div></div></section>
-        }
-        @if (section == "advanced")
-        {
-            <section class="panel settings-card"><h2>Gelernte Analyse</h2><p class="muted">Paper merkt sich wiederkehrende Korrekturen und verwendet sie für spätere Analysen.</p>@if (Model.AnalysisRules.Count == 0) { <p class="small muted">Noch keine Lernregeln vorhanden.</p> } else { <div class="analysis-rules">@foreach (var rule in Model.AnalysisRules) { <div class="analysis-rule"><div><strong>@rule.Term</strong><span class="small muted">@rule.UseCount Verwendung(en) · @rule.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span></div><form method="post" asp-page-handler="DeleteAnalysisRule"><input type="hidden" name="id" value="@rule.Id" /><button class="button button-quiet" type="submit">Entfernen</button></form></div> }</div> }</section>
-        }
-        @if (section == "import")
-        {
-            <div class="settings-grid">
-                <section class="panel settings-card"><h2>Backup wiederherstellen</h2><p class="muted">Importiert Dateien und Metadaten aus einem Paper-ZIP-Backup.</p><form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form"><input asp-for="Backup" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form></section>
-                <section class="panel settings-card"><h2>Mailimport</h2><p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p><form method="post" asp-page-handler="RunMailImport"><button class="button button-primary" type="submit">Jetzt abrufen</button></form>@if (Model.MailConfigurationError is not null) { <p class="error-text">@Model.MailConfigurationError</p> }</section>
-                <section class="panel settings-card"><h2>Consume-Fehler</h2><p class="muted">Fehlgeschlagene Dateien werden nicht automatisch erneut verarbeitet.</p>@if (Model.ConsumeFailures.Count == 0) { <p class="small muted">Keine Consume-Fehler vorhanden.</p> } else { <details open><summary>Letzte Fehler (@Model.ConsumeFailures.Count)</summary><ul>@foreach (var failure in Model.ConsumeFailures) { <li><strong>@failure.OriginalFileName</strong> — @failure.Error</li> }</ul></details> }</section>
-                <section class="panel settings-card"><h2>Paperless-ngx</h2><p class="muted">Importiert unterstützte Export-ZIPs in die Inbox.</p><form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form"><input asp-for="PaperlessExport" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form></section>
-            </div>
-        }
-        <div asp-validation-summary="ModelOnly" class="validation"></div>
+        </section>
     </div>
 </div>

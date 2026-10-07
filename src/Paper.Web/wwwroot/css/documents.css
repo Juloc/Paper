@@ -1,0 +1,31 @@
+.document-toolbar { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; margin-bottom: 16px; }
+.toolbar-meta { color: var(--muted); font-size: .8rem; }
+.view-switch { border: 1px solid var(--line); border-radius: 7px; display: inline-flex; overflow: hidden; }
+.view-switch a { color: var(--muted); font-size: .78rem; padding: 6px 10px; }
+.view-switch a.active { background: var(--soft); color: var(--accent-dark); font-weight: 700; }
+.document-grid { display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.document-card { background: var(--surface); border: 1px solid var(--line); border-radius: 9px; display: flex; flex-direction: column; min-width: 0; overflow: hidden; transition: border-color .15s ease, transform .15s ease; }
+.document-card:hover { border-color: #aabce8; transform: translateY(-1px); }
+.document-card-preview { align-items: center; background: #edf1f8; display: flex; height: clamp(210px, 23vw, 320px); justify-content: center; overflow: hidden; }
+.document-card-preview img { height: 100%; object-fit: contain; width: 100%; }
+.document-card-preview .preview-placeholder { align-items: center; color: var(--accent-dark); display: none; flex-direction: column; font-size: .75rem; gap: 6px; justify-content: center; }
+.document-card-preview.thumbnail-missing .preview-placeholder { display: flex; }
+.preview-placeholder strong { background: var(--soft); border: 1px solid #d5def6; border-radius: 6px; font-size: .72rem; padding: 7px 9px; }
+.document-card-body { display: grid; gap: 7px; padding: 12px; }
+.document-card-title, .document-title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.document-card-title { font-size: .92rem; line-height: 1.25; }
+.document-card-title:hover, .document-title:hover { color: var(--accent-dark); }
+.document-card-meta { color: var(--muted); display: grid; font-size: .75rem; gap: 2px; }
+.document-card-type { color: var(--ink); font-weight: 650; }
+.document-list { display: grid; gap: 8px; }
+.document-row { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; display: flex; gap: 12px; padding: 10px 12px; }
+.document-row:hover { border-color: #aabce8; }
+.document-row .document-card-preview { border-radius: 5px; flex: 0 0 55px; height: 62px; width: 55px; }
+.document-icon { align-items: center; background: var(--soft); border-radius: 6px; color: var(--accent-dark); display: flex; flex: 0 0 55px; font-size: .68rem; font-weight: 750; height: 62px; justify-content: center; }
+.document-copy { display: grid; gap: 3px; min-width: 0; }
+.document-title { font-size: .9rem; }
+.document-row-actions { align-items: center; display: flex; gap: 6px; margin-left: auto; }
+.pagination { align-items: center; display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+@media (max-width: 1280px) { .document-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .document-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .document-card-preview { height: 170px; } }
+@media (max-width: 480px) { .document-grid { gap: 10px; grid-template-columns: 1fr; } .document-card-preview { height: 220px; } .document-card-body { padding: 9px; } .document-card-title { font-size: .8rem; } .document-row { align-items: start; flex-wrap: wrap; } .document-row-actions { flex-basis: 100%; margin-left: 67px; } }

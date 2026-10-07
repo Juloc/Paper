@@ -8,19 +8,12 @@
 </header>
 <div class="shelf-layout">
     <section class="panel shelf-tree">
-        <strong class="small">Ordner</strong>
+        <div class="shelf-tree-header"><h2>Ordner</h2><button class="button button-primary" type="button" data-open-folder>+ Ordner</button></div>
         <a class="shelf-folder @(Model.FolderId is null ? "active" : "")" asp-page="/Shelf/Index">Alle Dokumente</a>
-        @foreach (var folder in Model.Folders)
+        @foreach (var folder in Model.FolderTree)
         {
-            var depth = folder.RelativePath.Count(character => character == '/');
-            <a class="shelf-folder @(Model.FolderId == folder.Id ? "active" : "")" style="margin-left: @(depth * 1.1)rem" asp-page="/Shelf/Index" asp-route-folderId="@folder.Id">@folder.Name</a>
+            <partial name="_ShelfTreeNode" model="folder" />
         }
-        <form method="post" asp-page-handler="Create" class="stack">
-            <input type="hidden" name="parentId" value="@Model.FolderId" />
-            <label>Neuer Ordner <input asp-for="NewFolderName" placeholder="z. B. Wohnung" /></label>
-            <span asp-validation-for="NewFolderName" class="validation"></span>
-            <button class="button" type="submit">Ordner erstellen</button>
-        </form>
     </section>
     <section class="panel shelf-content">
         @if (Model.CurrentFolder is null && Model.FolderId is not null)
@@ -40,7 +33,21 @@
                     <span aria-hidden="true">/</span><a asp-page="/Shelf/Index" asp-route-folderId="@breadcrumb.Id">@breadcrumb.Name</a>
                 }
             </nav>
-            <div class="page-header shelf-heading"><div><h2>@Model.CurrentFolder.RelativePath</h2><p class="muted">@Model.CurrentFolder.Documents.Count Dokumente</p></div></div>
+            <div class="page-header shelf-heading">
+                <div><h2>@Model.CurrentFolder.RelativePath</h2><p class="muted">@Model.CurrentFolder.Documents.Count Dokumente</p></div>
+                <details class="details-menu">
+                    <summary aria-label="Ordneraktionen">…</summary>
+                    <div class="details-menu-panel">
+                        <form method="post" asp-page-handler="Update" class="stack">
+                            <input type="hidden" name="id" value="@Model.CurrentFolder.Id" />
+                            <label>Ordnername<input name="name" value="@Model.CurrentFolder.Name" /></label>
+                            <label>Übergeordnetes Regal<select name="parentId"><option value="">Oberste Ebene</option>@foreach (var option in Model.Folders.Where(option => option.Id != Model.CurrentFolder.Id && !option.RelativePath.StartsWith(Model.CurrentFolder.RelativePath + "/", StringComparison.Ordinal))) { <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.ParentId ? "selected" : null)">@option.RelativePath</option> }</select></label>
+                            <button class="button" type="submit">Umbenennen / verschieben</button>
+                        </form>
+                        <form method="post" asp-page-handler="Delete" onsubmit="return confirm('Leeren Ordner wirklich löschen?');"><input type="hidden" name="id" value="@Model.CurrentFolder.Id" /><button class="button button-danger" type="submit">Löschen</button></form>
+                    </div>
+                </details>
+            </div>
             @if (Model.CurrentFolder.Children.Count > 0)
             {
                 <div class="shelf-children"><h3>Unterordner</h3>@foreach (var child in Model.CurrentFolder.Children) { <a class="shelf-child" asp-page="/Shelf/Index" asp-route-folderId="@child.Id" asp-route-sort="@Model.Sort">@child.Name</a> }</div>
@@ -54,20 +61,6 @@
                         <option value="UpdatedDescending" selected="@(Model.Sort == ShelfDocumentSort.UpdatedDescending ? "selected" : null)">Zuletzt geändert</option>
                     </select>
                 </label>
-            </form>
-            <form method="post" asp-page-handler="Update" class="stack shelf-editor">
-                <input type="hidden" name="id" value="@Model.CurrentFolder.Id" />
-                <label>Ordnername <input name="name" value="@Model.CurrentFolder.Name" /></label>
-                <label>Übergeordnetes Regal
-                    <select name="parentId">
-                        <option value="">Oberste Ebene</option>
-                        @foreach (var option in Model.Folders.Where(option => option.Id != Model.CurrentFolder.Id && !option.RelativePath.StartsWith(Model.CurrentFolder.RelativePath + "/", StringComparison.Ordinal)))
-                        {
-                            <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.ParentId ? "selected" : null)">@option.RelativePath</option>
-                        }
-                    </select>
-                </label>
-                <button class="button" type="submit">Ordner ändern</button>
             </form>
             @if (Model.CurrentFolder.Documents.Count == 0)
             {
@@ -87,16 +80,20 @@
                                 <a class="document-card-title" asp-page="/Documents/Detail" asp-route-id="@document.Id">@document.Title</a>
                                 <div class="document-card-meta"><span>@(document.Correspondent ?? "Ohne Korrespondent")</span><span>@(document.DocumentDate?.ToString("dd.MM.yyyy") ?? "Ohne Datum") · @(document.DocumentType ?? "Dokument")</span></div>
                                 <div class="tag-list">@foreach (var tag in document.Tags.Take(3)) { <span class="tag">@tag</span> }</div>
-                                <form method="post" asp-page-handler="MoveDocument" class="inline-form">
-                                    <input type="hidden" name="documentId" value="@document.Id" />
-                                    <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
-                                    <input type="hidden" name="sort" value="@Model.Sort" />
-                                    <label class="sr-only" for="shelf-@document.Id">Zielordner</label>
-                                    <select id="shelf-@document.Id" name="shelfFolderId">
-                                        @foreach (var option in Model.Folders) { <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.Id ? "selected" : null)">@option.RelativePath</option> }
-                                    </select>
-                                    <button class="button" type="submit">Verschieben</button>
-                                </form>
+                                <details class="details-menu">
+                                    <summary aria-label="Dokumentaktionen">…</summary>
+                                    <div class="details-menu-panel">
+                                        <a class="button" asp-page="/Documents/Detail" asp-route-id="@document.Id">Details öffnen</a>
+                                        <form method="post" asp-page-handler="MoveDocument">
+                                            <input type="hidden" name="documentId" value="@document.Id" />
+                                            <input type="hidden" name="folderId" value="@Model.CurrentFolder.Id" />
+                                            <input type="hidden" name="sort" value="@Model.Sort" />
+                                            <label for="shelf-@document.Id">Zielordner</label>
+                                            <select id="shelf-@document.Id" name="shelfFolderId">@foreach (var option in Model.Folders) { <option value="@option.Id" selected="@(option.Id == Model.CurrentFolder.Id ? "selected" : null)">@option.RelativePath</option> }</select>
+                                            <button class="button button-primary" type="submit">Verschieben</button>
+                                        </form>
+                                    </div>
+                                </details>
                             </div>
                         </article>
                     }
@@ -105,3 +102,12 @@
         }
     </section>
 </div>
+<dialog class="upload-dialog" id="folder-dialog" aria-labelledby="folder-dialog-title">
+    <div class="dialog-header"><div><div class="eyebrow">Regal</div><h2 id="folder-dialog-title">Ordner anlegen</h2></div><button class="icon-button" type="button" data-close-folder aria-label="Dialog schließen">×</button></div>
+    <form method="post" asp-page-handler="Create" class="stack upload-modal-form">
+        <input type="hidden" name="parentId" value="@Model.FolderId" />
+        <label>Ordnername<input asp-for="NewFolderName" placeholder="z. B. Wohnung" /></label>
+        <span asp-validation-for="NewFolderName" class="validation"></span>
+        <div class="dialog-actions"><button class="button" type="button" data-close-folder>Abbrechen</button><button class="button button-primary" type="submit">Ordner erstellen</button></div>
+    </form>
+</dialog>

@@ -8,10 +8,12 @@ public sealed record StorageFileMetadata(long Length);
 public interface IStorageProvider
 {
     Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken);
+    Task<StorageConnectionTestResult> TestConnectionAsync(CancellationToken cancellationToken);
     Task<string> MoveToShelfAsync(string sourceRelativePath, string shelfRelativePath, DateOnly? documentDate, string title, string originalFileName, CancellationToken cancellationToken);
     Task MoveAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveBackAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
     Task MoveDirectoryAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken);
+    Task DeleteDirectoryAsync(string relativePath, CancellationToken cancellationToken);
     bool DirectoryExists(string relativePath);
     bool FileExists(string relativePath);
     StorageFileMetadata? GetFileMetadata(string relativePath);
@@ -27,11 +29,36 @@ public sealed class LocalDocumentStorage : IStorageProvider
     private readonly StorageOptions options;
     private readonly string rootPath;
 
-    public LocalDocumentStorage(IConfiguration configuration, ILogger<LocalDocumentStorage> logger)
+    public LocalDocumentStorage(StorageOptions options, ILogger<LocalDocumentStorage> logger)
     {
         this.logger = logger;
-        options = configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions();
-        rootPath = Path.GetFullPath(options.EffectiveRootPath());
+        this.options = options;
+        rootPath = Path.GetFullPath(this.options.EffectiveRootPath());
+    }
+
+    public LocalDocumentStorage(IConfiguration configuration, ILogger<LocalDocumentStorage> logger)
+        : this(configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions(), logger)
+    {
+    }
+
+    public Task<StorageConnectionTestResult> TestConnectionAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        try
+        {
+            Directory.CreateDirectory(rootPath);
+            var probePath = Path.Combine(rootPath, $".paper-access-{Guid.NewGuid():N}.tmp");
+            using (File.Create(probePath))
+            {
+            }
+
+            File.Delete(probePath);
+            return Task.FromResult(new StorageConnectionTestResult(true, "Lokaler Speicher ist erreichbar."));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return Task.FromResult(StorageConnectionTestResult.Failed($"Der lokale Speicher ist nicht erreichbar: {exception.Message}"));
+        }
     }
 
     public async Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken)
@@ -181,6 +208,19 @@ public sealed class LocalDocumentStorage : IStorageProvider
 
         Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
         await Task.Run(() => Directory.Move(sourcePath, destinationPath), cancellationToken);
+    }
+
+    public Task DeleteDirectoryAsync(string relativePath, CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var path = GetSafePath(relativePath);
+        if (!Directory.Exists(path))
+        {
+            return Task.CompletedTask;
+        }
+
+        Directory.Delete(path, recursive: false);
+        return Task.CompletedTask;
     }
 
     public bool DirectoryExists(string relativePath) => Directory.Exists(GetSafePath(relativePath));

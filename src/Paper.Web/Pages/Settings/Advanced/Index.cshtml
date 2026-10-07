@@ -1,0 +1,10 @@
+@page "/Settings/Advanced"
+@model Paper.Web.Pages.Settings.Advanced.IndexModel
+@{
+    ViewData["Title"] = "Erweitert";
+}
+<header class="page-header"><div><div class="eyebrow">Settings</div><h1>Erweitert</h1><p class="muted">Gelernte Analysewerte.</p></div></header>
+<div class="settings-shell">
+    <partial name="_SettingsNavigation" model="@("advanced")" />
+    <div class="settings-content"><section class="panel settings-card"><h2>Analyse-Lernregeln</h2>@if (Model.AnalysisRules.Count == 0) { <p class="small muted">Noch keine Lernregeln vorhanden.</p> } else { <div class="analysis-rules">@foreach (var rule in Model.AnalysisRules) { <div class="analysis-rule"><div><strong>@rule.Term</strong><span class="small muted">@rule.UseCount Verwendung(en) · @rule.UpdatedAt.ToLocalTime().ToString("dd.MM.yyyy")</span></div><form method="post" asp-page-handler="DeleteAnalysisRule"><input type="hidden" name="id" value="@rule.Id" /><button class="button button-quiet" type="submit">Entfernen</button></form></div> }</div> }</section></div>
+</div>

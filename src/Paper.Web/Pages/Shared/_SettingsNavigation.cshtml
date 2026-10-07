@@ -1,0 +1,10 @@
+@model string
+<nav class="panel settings-nav" aria-label="Einstellungsbereiche">
+    <a class="@(Model == "general" ? "active" : "")" asp-page="/Settings/Index">Allgemein</a>
+    <a class="@(Model == "metadata" ? "active" : "")" asp-page="/Settings/Metadata/Index">Metadaten</a>
+    <a class="@(Model == "import" ? "active" : "")" asp-page="/Settings/Import/Index">Import</a>
+    <a class="@(Model == "storage" ? "active" : "")" asp-page="/Settings/Storage/Index">Speicher</a>
+    <a class="@(Model == "processing" ? "active" : "")" asp-page="/Settings/Processing/Index">Verarbeitung</a>
+    <a class="@(Model == "user" ? "active" : "")" asp-page="/Settings/User/Index">Benutzer</a>
+    <a class="@(Model == "advanced" ? "active" : "")" asp-page="/Settings/Advanced/Index">Erweitert</a>
+</nav>

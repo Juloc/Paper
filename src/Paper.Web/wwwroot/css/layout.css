@@ -1,0 +1,50 @@
+.app-shell { display: flex; min-height: 100vh; }
+.sidebar { background: #fbfcff; border-right: 1px solid var(--line); display: flex; flex: 0 0 236px; flex-direction: column; min-height: 100vh; padding: 22px 14px 16px; }
+.sidebar-brand { padding: 0 12px 28px; }
+.brand { color: var(--accent-dark); font-size: 1.4rem; font-weight: 780; letter-spacing: -.055em; }
+.sidebar-nav { display: grid; gap: 3px; }
+.nav-item { align-items: center; border-radius: 8px; color: var(--muted); display: flex; font-size: .9rem; gap: 10px; padding: 10px 12px; }
+.nav-item:hover, .nav-item:focus-visible, .nav-item.active { background: var(--soft); color: var(--accent-dark); }
+.nav-item.active { font-weight: 700; }
+.nav-icon { align-items: center; color: currentColor; display: inline-flex; font-size: 1rem; justify-content: center; width: 20px; }
+.sidebar-divider, .sidebar-status, .sidebar-user { border-top: 1px solid var(--line); }
+.sidebar-divider { margin: 20px 12px 14px; }
+.sidebar-spacer { flex: 1; min-height: 40px; }
+.sidebar-status { display: grid; gap: 9px; padding: 18px 12px; }
+.status-link { align-items: center; color: var(--muted); display: flex; font-size: .78rem; gap: 7px; }
+.status-link:hover { color: var(--accent-dark); }
+.status-count { color: var(--accent-dark); font-weight: 700; margin-left: auto; }
+.status-dot { background: #9aa4b2; border-radius: 50%; display: inline-block; height: 7px; width: 7px; }
+.status-dot.has-failures { background: #c14b4b; }
+.storage-meter { border-top: 1px solid var(--line); color: var(--muted); display: grid; font-size: .72rem; gap: 4px; margin-top: 5px; padding-top: 12px; }
+.storage-meter strong { color: var(--ink); font-size: .78rem; font-weight: 650; }
+.sidebar-user { align-items: center; display: flex; gap: 8px; padding: 14px 8px 0; }
+.avatar { align-items: center; background: var(--accent); border-radius: 50%; color: white; display: inline-flex; flex: 0 0 28px; font-size: .76rem; font-weight: 700; height: 28px; justify-content: center; }
+.user-name { font-size: .8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-user form { margin-left: auto; }
+.logout-button { font-size: .72rem; padding: .25rem 0; }
+.app-main { min-width: 0; width: 100%; }
+.main-header { align-items: center; background: rgba(247, 249, 253, .94); border-bottom: 1px solid var(--line); display: flex; gap: 16px; justify-content: space-between; min-height: 70px; padding: 12px 32px; position: sticky; top: 0; z-index: 5; }
+.global-search { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; display: flex; gap: 8px; height: 44px; max-width: 720px; padding: 0 9px; width: min(100%, 720px); }
+.global-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(49, 89, 184, .22); }
+.global-search input { background: transparent; border: 0; min-width: 0; outline: 0; padding: 10px 2px; }
+.search-icon { color: var(--muted); font-size: 1.2rem; line-height: 1; }
+.filter-button { border-left: 0; border-radius: 999px; color: var(--muted); font-size: .78rem; padding: 5px 8px; }
+.filter-button:hover { background: var(--soft); color: var(--accent-dark); }
+.add-document-button { flex: 0 0 auto; white-space: nowrap; }
+.mobile-header { display: none; }
+.page { margin: 0 auto; max-width: 1440px; padding: 28px 32px 48px; }
+.auth-page { max-width: 100%; }
+.page-header { align-items: end; display: flex; gap: 18px; justify-content: space-between; margin-bottom: 22px; }
+.page-header p { margin-bottom: 0; }
+.auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin: 10vh auto; max-width: 420px; padding: 24px; }
+@media (max-width: 760px) {
+    .mobile-header { align-items: center; background: var(--surface); border-bottom: 1px solid var(--line); display: flex; height: 56px; justify-content: space-between; padding: 0 12px; position: sticky; top: 0; z-index: 8; }
+    .sidebar { box-shadow: 12px 0 30px rgba(32, 41, 56, .1); left: 0; position: fixed; top: 0; transform: translateX(-105%); transition: transform .18s ease; width: 236px; z-index: 10; }
+    .sidebar.is-open { transform: translateX(0); }
+    .main-header { min-height: 62px; padding: 10px 14px; }
+    .add-document-button { font-size: 0; padding: .56rem; }
+    .add-document-button span { font-size: 1rem; }
+    .page { padding: 20px 14px 34px; }
+    .page-header { align-items: start; flex-direction: column; margin-bottom: 16px; }
+}

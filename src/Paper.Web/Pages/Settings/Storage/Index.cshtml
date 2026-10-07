@@ -1,0 +1,80 @@
+@page "/Settings/Storage"
+@model Paper.Web.Pages.Settings.Storage.IndexModel
+@using Paper.Web.Features.Storage
+@{
+    ViewData["Title"] = "Speicher";
+}
+<header class="page-header">
+    <div><div class="eyebrow">Settings</div><h1>Speicher</h1><p class="muted">Lokalen Speicher oder ein NAS per direkter SMB-Verbindung verwalten.</p></div>
+    <button class="button button-primary" type="submit" form="storage-form">Speicher speichern</button>
+</header>
+<div class="settings-shell">
+    <partial name="_SettingsNavigation" model="@("storage")" />
+    <div class="settings-content settings-grid">
+        <section class="panel settings-card settings-card-wide">
+            <h2>Speicherort</h2>
+            <p class="small muted">Nach dem ersten Dokument werden Anbieter und Speicherort gesperrt, damit physische und logische Ablage konsistent bleiben.</p>
+            <form id="storage-form" method="post" class="stack">
+                <div class="storage-provider-choice" data-storage-provider-choice>
+                    <label class="choice-card"><input type="radio" asp-for="ProviderType" value="Local" data-storage-provider="local" /> <span><strong>Lokaler Speicher</strong><small>Ordner auf dem Paper-Host</small></span></label>
+                    <label class="choice-card"><input type="radio" asp-for="ProviderType" value="Smb" data-storage-provider="smb" /> <span><strong>NAS / SMB</strong><small>Direkte Verbindung ohne Host-Mount</small></span></label>
+                </div>
+                <div class="storage-fields" data-storage-fields="local">
+                    <label>Lokaler Pfad<input asp-for="LocalRootPath" autocomplete="off" /></label>
+                </div>
+                <div class="storage-fields stack" data-storage-fields="smb">
+                    <div class="form-grid">
+                        <label>Server<input asp-for="SmbServer" placeholder="nas.example.local" autocomplete="off" /></label>
+                        <label>Freigabe<input asp-for="SmbShare" placeholder="Dokumente" autocomplete="off" /></label>
+                        <label>Unterordner<input asp-for="SmbBasePath" placeholder="Paper" autocomplete="off" /></label>
+                        <label>Benutzer<input asp-for="SmbUsername" autocomplete="username" /></label>
+                        <label>Domäne <span class="muted small">optional</span><input asp-for="SmbDomain" autocomplete="organization" /></label>
+                        <label>Passwort <span class="muted small">optional</span><input name="SmbPassword" type="password" autocomplete="new-password" placeholder="Leer lassen, um beizubehalten" /></label>
+                    </div>
+                    @if (Model.Current.HasSmbPassword)
+                    {
+                        <p class="notice notice-info">Ein SMB-Passwort ist verschlüsselt hinterlegt. Es wird niemals angezeigt oder zurückgegeben.</p>
+                    }
+                </div>
+                <div asp-validation-summary="ModelOnly" class="validation"></div>
+                <div class="dialog-actions">
+                    <button class="button" type="submit" asp-page-handler="Test">Verbindung testen</button>
+                    <button class="button button-primary" type="submit" asp-page-handler="Save">Speichern</button>
+                </div>
+            </form>
+            @if (Model.ConnectionTest is not null)
+            {
+                <div class="notice @(Model.ConnectionTest.Succeeded ? "notice-success" : "notice-error")" role="status">@Model.ConnectionTest.Message</div>
+            }
+        </section>
+        <section class="panel settings-card">
+            <h2>Wake-on-LAN</h2>
+            <p class="small muted">Optional für NAS-Geräte, die vor einer Verbindung geweckt werden müssen.</p>
+            <form method="post" class="stack">
+                <input type="hidden" name="ProviderType" value="@Model.Current.ProviderType" />
+                <input type="hidden" name="LocalRootPath" value="@Model.Current.LocalRootPath" />
+                <input type="hidden" name="SmbServer" value="@Model.Current.SmbServer" />
+                <input type="hidden" name="SmbShare" value="@Model.Current.SmbShare" />
+                <input type="hidden" name="SmbBasePath" value="@Model.Current.SmbBasePath" />
+                <input type="hidden" name="SmbUsername" value="@Model.Current.SmbUsername" />
+                <input type="hidden" name="SmbDomain" value="@Model.Current.SmbDomain" />
+                <label>Richtlinie<select asp-for="WakePolicy"><option value="Never">Nie</option><option value="OnDemand">Bei Bedarf</option></select></label>
+                <label>MAC-Adresse<input asp-for="WakeMacAddress" placeholder="AA:BB:CC:DD:EE:FF" autocomplete="off" /></label>
+                <label>Broadcast-Adresse<input asp-for="WakeBroadcastAddress" /></label>
+                <button class="button" type="submit" asp-page-handler="Save">Wake-on-LAN speichern</button>
+            </form>
+        </section>
+        <section class="panel settings-card">
+            <h2>Speicherprüfung</h2>
+            <p class="small muted">Prüft gespeicherte Dateien gegen die Dokument-Metadaten.</p>
+            <form method="post"><button class="button" type="submit" asp-page-handler="CheckStorage">Jetzt prüfen</button></form>
+            @if (Model.IntegrityReport is not null)
+            {
+                <div class="integrity-summary @(Model.IntegrityReport.IsHealthy ? "healthy" : "unhealthy")">
+                    <strong>@(Model.IntegrityReport.IsHealthy ? "Speicher konsistent" : "Abweichungen gefunden")</strong>
+                    <span>@Model.IntegrityReport.DocumentsChecked Dokument(e) geprüft · @Model.IntegrityReport.MissingFiles fehlend · @Model.IntegrityReport.HashMismatches Hash-Abweichungen</span>
+                </div>
+            }
+        </section>
+    </div>
+</div>

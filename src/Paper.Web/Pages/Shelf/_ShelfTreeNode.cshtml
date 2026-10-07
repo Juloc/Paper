@@ -1,0 +1,17 @@
+@model Paper.Web.Features.Shelf.ShelfFolderTreeNode
+<div class="shelf-tree-node">
+    <a class="shelf-folder @(Model.IsSelected ? "active" : "")" asp-page="/Shelf/Index" asp-route-folderId="@Model.Folder.Id">
+        <span class="shelf-folder-toggle" aria-hidden="true">@(Model.Children.Count > 0 ? (Model.IsExpanded ? "▾" : "▸") : "")</span>
+        <span class="shelf-folder-icon" aria-hidden="true">▰</span>
+        <span class="shelf-folder-label">@Model.Folder.Name</span>
+    </a>
+    @if (Model.IsExpanded && Model.Children.Count > 0)
+    {
+        <div class="shelf-tree-children">
+            @foreach (var child in Model.Children)
+            {
+                <partial name="_ShelfTreeNode" model="child" />
+            }
+        </div>
+    }
+</div>

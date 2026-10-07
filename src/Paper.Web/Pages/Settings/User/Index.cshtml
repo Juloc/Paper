@@ -1,0 +1,10 @@
+@page "/Settings/User"
+@model Paper.Web.Pages.Settings.User.IndexModel
+@{
+    ViewData["Title"] = "Benutzer";
+}
+<header class="page-header"><div><div class="eyebrow">Settings</div><h1>Benutzer</h1><p class="muted">Lokaler Eigentümerzugang.</p></div></header>
+<div class="settings-shell">
+    <partial name="_SettingsNavigation" model="@("user")" />
+    <div class="settings-content"><section class="panel settings-card"><h2>Aktueller Zugang</h2><div class="settings-list"><div><span class="muted">Angemeldet als</span><strong>@Model.User.Identity?.Name</strong></div><div><span class="muted">Rolle</span><strong>Owner</strong></div></div></section></div>
+</div>

@@ -1,0 +1,26 @@
+project: Paper
+repository: Juloc/Paper
+coordination:
+  repository: Juloc/agent-control
+  issue: 1
+  hubUrl: null
+relatedRepositories:
+  - Juloc/agent-control
+  - Juloc/Jularr
+validation:
+  - dotnet restore Paper.sln
+  - dotnet build Paper.sln --no-restore /m:1 /p:UseSharedCompilation=false
+  - dotnet test tests/Paper.Tests/Paper.Tests.csproj --no-build --no-restore /p:UseSharedCompilation=false
+  - dotnet ef migrations has-pending-model-changes --project src/Paper.Web/Paper.Web.csproj --startup-project src/Paper.Web/Paper.Web.csproj --no-build
+  - docker compose -f compose.yaml config --quiet
+  - docker compose -f compose.demo.yaml config --quiet
+protectedPaths:
+  - AGENTS.md
+  - .agent/project.yaml
+  - .agent/upgrade-policy.yaml
+notes:
+  - "Paper stays a modular monolith; do not introduce microservices or duplicate state/configuration paths."
+  - "Razor Pages are UI boundaries; shared UI belongs in partials/components and persistence belongs in feature stores."
+  - "The PostgreSQL database is the canonical owner for runtime storage configuration after bootstrap migration."
+  - "Direct SMB is used without a host mount; deployment configuration must not require /mnt/nas."
+  - "Agents commit and push directly to main when the user explicitly requests a pushed result."

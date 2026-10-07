@@ -1,9 +1,12 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Paper.Web.Data;
 using Paper.Web.Features.Documents;
@@ -495,6 +498,103 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void SmbEndpointParsesAndRejectsTraversal()
+    {
+        var endpoint = SmbEndpoint.Parse("smb://nas/documents/Paper/2026");
+
+        Assert.AreEqual("nas", endpoint.Server);
+        Assert.AreEqual("documents", endpoint.Share);
+        Assert.AreEqual("Paper/2026", endpoint.BasePath);
+        Assert.AreEqual("smb://nas/documents/Paper/2026", endpoint.ToRootPath());
+        Assert.ThrowsExactly<InvalidOperationException>(() => SmbEndpoint.Parse("smb://nas/documents/../private"));
+        Assert.ThrowsExactly<InvalidOperationException>(() => SmbEndpoint.Create("nas", "documents", "Paper/../../private"));
+    }
+
+    [TestMethod]
+    public void StorageConfigurationValidatorChecksLocalAndSmbInputs()
+    {
+        var local = new StorageConfigurationEdit(
+            StorageProviderType.Local,
+            " /data/documents ",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            WakePolicy.Never,
+            null,
+            "255.255.255.255");
+        Assert.IsNull(StorageConfigurationValidator.Validate(local));
+
+        var smb = local with { ProviderType = StorageProviderType.Smb, SmbServer = "nas", SmbShare = "documents" };
+        Assert.AreEqual("Der SMB-Benutzer ist erforderlich.", StorageConfigurationValidator.Validate(smb));
+        Assert.IsNull(StorageConfigurationValidator.Validate(smb with { SmbUsername = "paper" }));
+    }
+
+    [TestMethod]
+    public void StoragePasswordUsesDataProtectionAndNeverAppearsInConfigurationView()
+    {
+        const string password = "secret-not-for-logs";
+        var protector = new EphemeralDataProtectionProvider().CreateProtector("Paper.Storage.SmbPassword.v1");
+        var encrypted = protector.Protect(password);
+        var view = new StorageConfigurationView(
+            StorageProviderType.Smb,
+            "/data/documents",
+            "nas",
+            "documents",
+            "Paper",
+            "paper",
+            "ACME",
+            true,
+            WakePolicy.Never,
+            null,
+            "255.255.255.255",
+            DateTime.UtcNow);
+
+        Assert.AreNotEqual(password, encrypted);
+        Assert.AreEqual(password, protector.Unprotect(encrypted));
+        Assert.IsFalse(typeof(StorageConfigurationView).GetProperties().Any(property => property.Name == "SmbPassword"));
+        Assert.IsFalse(JsonSerializer.Serialize(view).Contains(password, StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public async Task LocalConnectionTestReturnsSafeResultAndProviderFactorySelectsLocalProvider()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        try
+        {
+            var options = new StorageOptions { RootPath = root };
+            var provider = new StorageProviderFactory(LoggerFactory.Create(_ => { })).Create(options);
+            var result = await provider.TestConnectionAsync(CancellationToken.None);
+
+            Assert.IsTrue(result.Succeeded);
+            Assert.IsInstanceOfType<LocalDocumentStorage>(provider);
+            Assert.IsFalse(result.Message.Contains("secret", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public void SettingsPageModelsDoNotOwnDirectDatabaseAccess()
+    {
+        var repoRoot = FindRepositoryRoot();
+        var settingsPath = Path.Combine(repoRoot, "src", "Paper.Web", "Pages", "Settings");
+        var source = Directory.EnumerateFiles(settingsPath, "*.cs*", SearchOption.AllDirectories)
+            .Select(File.ReadAllText)
+            .ToArray();
+
+        Assert.IsNotEmpty(source);
+        Assert.IsFalse(source.Any(content => content.Contains("AppDbContext", StringComparison.Ordinal)));
+    }
+
+    [TestMethod]
     public void StorageIntegrityCheckReportsMissingFilesWithoutChangingDocuments()
     {
         var documents = new[]
@@ -913,5 +1013,16 @@ public sealed class StorageAndAnalysisTests
         var exception = Assert.ThrowsExactly<InvalidOperationException>(() => MailConfiguration.Load(configuration));
 
         StringAssert.Contains(exception.Message, "gültiges Konten-JSON");
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Paper.sln")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new DirectoryNotFoundException("Repository-Root wurde nicht gefunden.");
     }
 }

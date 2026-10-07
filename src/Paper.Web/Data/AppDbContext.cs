@@ -36,6 +36,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<DocumentThumbnail> DocumentThumbnails => Set<DocumentThumbnail>();
 
+    public DbSet<StorageConfiguration> StorageConfigurations => Set<StorageConfiguration>();
+
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         NormalizeShelfPathKeys();
@@ -119,6 +121,30 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 .WithOne(document => document.Thumbnail)
                 .HasForeignKey<DocumentThumbnail>(thumbnail => thumbnail.DocumentId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<StorageConfiguration>(entity =>
+        {
+            entity.ToTable("StorageConfigurations", table =>
+            {
+                table.HasCheckConstraint("CK_StorageConfigurations_Id", "\"Id\" = 1");
+                table.HasCheckConstraint("CK_StorageConfigurations_ProviderType", "\"ProviderType\" IN ('Local', 'Smb')");
+                table.HasCheckConstraint("CK_StorageConfigurations_WakePolicy", "\"WakePolicy\" IN ('Never', 'OnDemand')");
+            });
+            entity.HasKey(configuration => configuration.Id);
+            entity.Property(configuration => configuration.Id).ValueGeneratedNever();
+            entity.Property(configuration => configuration.ProviderType).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(configuration => configuration.LocalRootPath).HasMaxLength(500).IsRequired();
+            entity.Property(configuration => configuration.SmbServer).HasMaxLength(255);
+            entity.Property(configuration => configuration.SmbShare).HasMaxLength(255);
+            entity.Property(configuration => configuration.SmbBasePath).HasMaxLength(500);
+            entity.Property(configuration => configuration.SmbUsername).HasMaxLength(255);
+            entity.Property(configuration => configuration.EncryptedSmbPassword).HasColumnType("text");
+            entity.Property(configuration => configuration.SmbDomain).HasMaxLength(255);
+            entity.Property(configuration => configuration.WakePolicy).HasConversion<string>().HasMaxLength(16).IsRequired();
+            entity.Property(configuration => configuration.WakeMacAddress).HasMaxLength(32);
+            entity.Property(configuration => configuration.WakeBroadcastAddress).HasMaxLength(64).IsRequired();
+            entity.Property(configuration => configuration.UpdatedAt).IsRequired();
         });
 
         modelBuilder.Entity<Correspondent>(entity =>

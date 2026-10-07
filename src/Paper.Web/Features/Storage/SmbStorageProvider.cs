@@ -19,11 +19,25 @@ public sealed class SmbStorageProvider : IStorageProvider
     private readonly object wakeLock = new();
     private DateTime lastWakeAtUtc = DateTime.MinValue;
 
-    public SmbStorageProvider(IConfiguration configuration, ILogger<SmbStorageProvider> logger)
+    public SmbStorageProvider(StorageOptions options, ILogger<SmbStorageProvider> logger)
     {
-        options = configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions();
-        endpoint = SmbEndpoint.Parse(options.SmbRootPath ?? throw new InvalidOperationException("Storage:SmbRootPath ist für den SMB-Provider erforderlich."));
+        this.options = options;
+        endpoint = SmbEndpoint.Parse(this.options.SmbRootPath ?? throw new InvalidOperationException("Storage:SmbRootPath ist für den SMB-Provider erforderlich."));
         this.logger = logger;
+    }
+
+    public SmbStorageProvider(IConfiguration configuration, ILogger<SmbStorageProvider> logger)
+        : this(configuration.GetSection("Storage").Get<StorageOptions>() ?? new StorageOptions(), logger)
+    {
+    }
+
+    public Task<StorageConnectionTestResult> TestConnectionAsync(CancellationToken cancellationToken)
+    {
+        return Task.Run(() =>
+        {
+            using var connection = OpenConnection();
+            return new StorageConnectionTestResult(true, "SMB-Verbindung erfolgreich.");
+        }, cancellationToken);
     }
 
     public async Task<StoredDocument> SaveAsync(Stream source, string originalFileName, CancellationToken cancellationToken)
@@ -122,6 +136,38 @@ public sealed class SmbStorageProvider : IStorageProvider
             using var connection = OpenConnection();
             Move(connection, sourceRelativePath, destinationRelativePath, directory: true);
         }, cancellationToken);
+
+    public Task DeleteDirectoryAsync(string relativePath, CancellationToken cancellationToken) =>
+        Task.Run(() => Execute(connection =>
+        {
+            var status = connection.Store.CreateFile(
+                out var handle,
+                out _,
+                connection.RemotePath(relativePath),
+                AccessMask.DELETE | AccessMask.SYNCHRONIZE,
+                SmbAttributes.Directory,
+                ShareAccess.Read | ShareAccess.Write | ShareAccess.Delete,
+                CreateDisposition.FILE_OPEN,
+                CreateOptions.FILE_DIRECTORY_FILE,
+                null);
+            if (status == NTStatus.STATUS_OBJECT_NAME_NOT_FOUND)
+            {
+                return true;
+            }
+
+            ThrowIfFailed(status, relativePath, "gelöscht");
+            try
+            {
+                status = connection.Store.SetFileInformation(handle, new FileDispositionInformation { DeletePending = true });
+                ThrowIfFailed(status, relativePath, "gelöscht");
+            }
+            finally
+            {
+                connection.Store.CloseFile(handle);
+            }
+
+            return true;
+        }), cancellationToken);
 
     public bool DirectoryExists(string relativePath) => Execute(connection => Exists(connection, relativePath, directory: true));
 
@@ -663,33 +709,6 @@ public sealed class SmbStorageProvider : IStorageProvider
         }
     }
 
-    private sealed record SmbEndpoint(string Server, string Share, string BasePath)
-    {
-        public static SmbEndpoint Parse(string value)
-        {
-            var normalized = value.Trim().Replace('\\', '/');
-            if (normalized.StartsWith("smb://", StringComparison.OrdinalIgnoreCase))
-            {
-                normalized = normalized[6..];
-            }
-            else if (normalized.StartsWith("//", StringComparison.Ordinal))
-            {
-                normalized = normalized[2..];
-            }
-            else
-            {
-                throw new InvalidOperationException("Storage:SmbRootPath muss smb://server/share oder \\\\server\\share verwenden.");
-            }
-
-            var segments = normalized.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            if (segments.Length < 2 || segments.Any(segment => segment is "." or ".." || segment.Contains(':')))
-            {
-                throw new InvalidOperationException("Storage:SmbRootPath enthält keinen gültigen Server und Share.");
-            }
-
-            return new SmbEndpoint(segments[0], segments[1], string.Join('\\', segments.Skip(2)));
-        }
-    }
 }
 
 internal static class WakeOnLan

@@ -17,6 +17,7 @@ public sealed class IndexModel(ShelfFolderStore folders, DocumentFilingService f
     public string NewFolderName { get; set; } = "";
 
     public IReadOnlyList<ShelfFolderOption> Folders { get; private set; } = [];
+    public IReadOnlyList<ShelfFolderTreeNode> FolderTree { get; private set; } = [];
     public ShelfFolderView? CurrentFolder { get; private set; }
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
@@ -27,6 +28,7 @@ public sealed class IndexModel(ShelfFolderStore folders, DocumentFilingService f
         }
 
         Folders = await folders.ListOptionsAsync(cancellationToken);
+        FolderTree = BuildTree(Folders, FolderId);
         if (FolderId is not null)
         {
             CurrentFolder = await folders.GetAsync(FolderId.Value, Sort, cancellationToken);
@@ -84,5 +86,46 @@ public sealed class IndexModel(ShelfFolderStore folders, DocumentFilingService f
 
         TempData["Status"] = "Dokument verschoben.";
         return RedirectToPage(new { folderId = shelfFolderId, sort = Sort });
+    }
+
+    public async Task<IActionResult> OnPostDeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var result = await folders.DeleteAsync(id, cancellationToken);
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (!result.Succeeded)
+        {
+            TempData["Status"] = result.Error ?? "Der Ordner konnte nicht gelöscht werden.";
+            return RedirectToPage(new { folderId = id, sort = Sort });
+        }
+
+        TempData["Status"] = "Regalordner gelöscht.";
+        return RedirectToPage(new { sort = Sort });
+    }
+
+    private static IReadOnlyList<ShelfFolderTreeNode> BuildTree(
+        IReadOnlyList<ShelfFolderOption> options,
+        long? selectedId)
+    {
+        var childrenByParent = options
+            .GroupBy(option => option.ParentId)
+            .ToLookup(group => group.Key, group => group.OrderBy(option => option.Name).ToArray());
+
+        ShelfFolderTreeNode Build(ShelfFolderOption option)
+        {
+            var childOptions = childrenByParent[option.Id].FirstOrDefault();
+            var children = childOptions is not null
+                ? childOptions.Select(Build).ToArray()
+                : [];
+            return new ShelfFolderTreeNode(option, children, selectedId == option.Id || children.Any(child => child.IsExpanded), selectedId == option.Id);
+        }
+
+        var rootOptions = childrenByParent[null].FirstOrDefault();
+        return rootOptions is not null
+            ? rootOptions.Select(Build).ToArray()
+            : [];
     }
 }

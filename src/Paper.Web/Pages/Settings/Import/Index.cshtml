@@ -1,0 +1,17 @@
+@page "/Settings/Import"
+@model Paper.Web.Pages.Settings.Import.IndexModel
+@{
+    ViewData["Title"] = "Import";
+}
+<header class="page-header"><div><div class="eyebrow">Settings</div><h1>Import</h1><p class="muted">Backups, Mail und externe Archive.</p></div></header>
+<div class="settings-shell">
+    <partial name="_SettingsNavigation" model="@("import")" />
+    <div class="settings-content settings-grid">
+        <section class="panel settings-card"><h2>Backup wiederherstellen</h2><p class="muted">Paper-ZIP-Backup mit Dateien und Metadaten.</p><form method="post" asp-page-handler="Restore" enctype="multipart/form-data" class="inline-form"><input asp-for="Backup" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form><span asp-validation-for="Backup" class="validation"></span></section>
+        <section class="panel settings-card"><h2>Mailimport</h2><p class="muted">@(Model.MailEnabled ? "Aktiviert" : "Deaktiviert")</p><form method="post" asp-page-handler="RunMailImport"><button class="button button-primary" type="submit">Jetzt abrufen</button></form>@if (Model.MailConfigurationError is not null) { <p class="error-text">@Model.MailConfigurationError</p> }</section>
+        <section class="panel settings-card"><h2>Paperless-ngx</h2><p class="muted">Unterstützte Export-ZIPs in die Inbox importieren.</p><form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form"><input asp-for="PaperlessExport" accept=".zip" /><button class="button button-primary" type="submit">Importieren</button></form><span asp-validation-for="PaperlessExport" class="validation"></span></section>
+        <section class="panel settings-card"><h2>Consume-Fehler</h2>@if (Model.ConsumeFailures.Count == 0) { <p class="small muted">Keine Fehler vorhanden.</p> } else { <div class="analysis-rules">@foreach (var failure in Model.ConsumeFailures) { <div class="analysis-rule"><strong>@failure.OriginalFileName</strong><span class="small muted">@failure.Error</span></div> }</div> }</section>
+        <section class="panel settings-card"><h2>Mailstatus</h2>@if (Model.MailStates.Count == 0) { <p class="small muted">Noch kein Mailkonto synchronisiert.</p> } else { <div class="settings-list">@foreach (var state in Model.MailStates) { <div><span>@state.AccountName</span><span class="small muted">UID @state.LastUid · @(state.LastSyncAt?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "noch nicht")</span></div> }</div> }</section>
+        @if (Model.MailFailures.Count > 0) { <section class="panel settings-card"><h2>Letzte Mailfehler</h2><div class="analysis-rules">@foreach (var failure in Model.MailFailures) { <div class="analysis-rule"><strong>@failure.AccountName · @failure.Uid</strong><span class="small muted">@failure.Error</span></div> }</div></section> }
+    </div>
+</div>

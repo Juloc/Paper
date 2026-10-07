@@ -255,9 +255,55 @@ public sealed class ShelfFolderStore(AppDbContext db, TimeProvider timeProvider,
             throw;
         }
     }
+
+    public async Task<ShelfFolderDeleteResult> DeleteAsync(long id, CancellationToken cancellationToken)
+    {
+        var folder = await db.ShelfFolders.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+        if (folder is null)
+        {
+            return ShelfFolderDeleteResult.Missing;
+        }
+
+        if (await db.ShelfFolders.AnyAsync(item => item.ParentId == id, cancellationToken) ||
+            await db.Documents.AnyAsync(item => item.ShelfFolderId == id, cancellationToken))
+        {
+            return ShelfFolderDeleteResult.Invalid("Ein Ordner kann nur gelöscht werden, wenn er leer ist und keine Unterordner enthält.");
+        }
+
+        var physicalDirectoryExists = storage.DirectoryExists(folder.RelativePath);
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            if (physicalDirectoryExists)
+            {
+                await storage.DeleteDirectoryAsync(folder.RelativePath, cancellationToken);
+            }
+
+            db.ShelfFolders.Remove(folder);
+            await db.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return ShelfFolderDeleteResult.Success;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            if (physicalDirectoryExists && !storage.DirectoryExists(folder.RelativePath))
+            {
+                storage.EnsureDirectory(folder.RelativePath);
+            }
+
+            throw;
+        }
+    }
 }
 
 public sealed record ShelfFolderOption(long Id, string Name, string RelativePath, long? ParentId);
+
+public sealed record ShelfFolderTreeNode(
+    ShelfFolderOption Folder,
+    IReadOnlyList<ShelfFolderTreeNode> Children,
+    bool IsExpanded,
+    bool IsSelected);
 
 public sealed record ShelfDocument(
     long Id,
@@ -290,4 +336,11 @@ public sealed record ShelfFolderUpdateResult(bool Succeeded, bool NotFound, stri
     public static ShelfFolderUpdateResult Success { get; } = new(true, false, null);
     public static ShelfFolderUpdateResult Missing { get; } = new(false, true, null);
     public static ShelfFolderUpdateResult Invalid(string error) => new(false, false, error);
+}
+
+public sealed record ShelfFolderDeleteResult(bool Succeeded, bool NotFound, string? Error)
+{
+    public static ShelfFolderDeleteResult Success { get; } = new(true, false, null);
+    public static ShelfFolderDeleteResult Missing { get; } = new(false, true, null);
+    public static ShelfFolderDeleteResult Invalid(string error) => new(false, false, error);
 }

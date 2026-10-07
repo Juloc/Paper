@@ -1,0 +1,26 @@
+.shelf-layout { display: grid; gap: 14px; grid-template-columns: minmax(240px, .55fr) minmax(0, 1.7fr); }
+.shelf-tree, .shelf-content { padding: 14px; }
+.shelf-tree { align-content: start; display: grid; gap: 3px; }
+.shelf-tree-header, .shelf-content-header { align-items: center; display: flex; gap: 10px; justify-content: space-between; }
+.shelf-tree-header { border-bottom: 1px solid var(--line); margin-bottom: 8px; padding-bottom: 10px; }
+.shelf-tree-header h2, .shelf-content-header h2 { margin: 0; }
+.shelf-folder { align-items: center; border-radius: 6px; display: flex; font-size: .82rem; gap: 6px; padding: 7px 9px; }
+.shelf-folder:hover, .shelf-folder.active { background: var(--soft); color: var(--accent-dark); }
+.shelf-folder-toggle { color: var(--muted); font-size: .75rem; width: 12px; }
+.shelf-folder-icon { color: #b2822e; font-size: .9rem; }
+.shelf-folder-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.shelf-tree-children { border-left: 1px solid var(--line); margin-left: 13px; padding-left: 6px; }
+.shelf-children { border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; padding-bottom: 14px; }
+.shelf-children h3 { flex-basis: 100%; margin-bottom: 0; }
+.shelf-child { background: var(--soft); border-radius: 6px; color: var(--accent-dark); font-size: .78rem; padding: 6px 8px; }
+.shelf-documents { display: grid; gap: 8px; }
+.shelf-documents .document-row { align-items: start; }
+.shelf-documents .document-copy { flex: 1; }
+.shelf-editor { border-bottom: 1px solid var(--line); margin-bottom: 14px; padding-bottom: 14px; }
+.shelf-editor .form-grid { margin-top: 10px; }
+.sort-form { display: flex; justify-content: end; margin-bottom: 12px; }
+.sort-form label { align-items: center; display: flex; flex-direction: row; gap: 8px; }
+.sort-form select { min-width: 180px; width: auto; }
+.breadcrumbs { align-items: center; color: var(--muted); display: flex; flex-wrap: wrap; font-size: .78rem; gap: 6px; margin-bottom: 8px; }
+.breadcrumbs a:hover { color: var(--accent-dark); }
+@media (max-width: 760px) { .shelf-layout { grid-template-columns: 1fr; } }

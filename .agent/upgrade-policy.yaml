@@ -1,10 +1,10 @@
 schemaVersion: 1
 
-# The initial Paper schema is still the supported upgrade baseline. A later
-# deliberate baseline reset must advance both values together.
 currentEpoch: 1
 minimumSupportedEpoch: 1
-introducedIn: "0.1.0-alpha.1"
-minimumSupportedVersion: "0.1.0-alpha.1"
+
+introducedIn: null
+minimumSupportedVersion: null
 bridgeVersion: null
-reason: "Initial PostgreSQL migration baseline; all shipped installations are supported directly."
+
+reason: "Initial PostgreSQL schema baseline for the Paper modular monolith."
