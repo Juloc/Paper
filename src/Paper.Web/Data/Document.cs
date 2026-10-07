@@ -170,6 +170,17 @@ public sealed class MailImportFailure
     public DateTime CreatedAt { get; set; }
 }
 
+public sealed class ConsumeFailure
+{
+    public long Id { get; set; }
+
+    public string OriginalFileName { get; set; } = "";
+
+    public string Error { get; set; } = "";
+
+    public DateTime CreatedAt { get; set; }
+}
+
 public sealed class AnalysisRule
 {
     public long Id { get; set; }

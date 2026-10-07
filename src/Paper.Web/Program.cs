@@ -67,6 +67,7 @@ builder.Services.AddSingleton<ImapMailImportWorker>();
 builder.Services.AddSingleton<IHostedService>(services => services.GetRequiredService<ImapMailImportWorker>());
 builder.Services.AddSingleton<EmailAttachmentExtractor>();
 builder.Services.AddScoped<PaperlessImportService>();
+builder.Services.AddScoped<ConsumeFailureStore>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>

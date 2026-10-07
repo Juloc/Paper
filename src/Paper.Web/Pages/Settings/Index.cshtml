@@ -184,6 +184,26 @@
     <div asp-validation-summary="ModelOnly" class="validation"></div>
 </section>
 <section class="panel settings-card restore-card">
+    <h2>Consume-Fehler</h2>
+    <p class="muted">Fehlgeschlagene Dateien werden nach <code>/data/consume/failed</code> verschoben und nicht automatisch erneut verarbeitet.</p>
+    @if (Model.ConsumeFailures.Count == 0)
+    {
+        <p class="small muted">Keine Consume-Fehler vorhanden.</p>
+    }
+    else
+    {
+        <details class="mail-failures" open>
+            <summary>Letzte Consume-Fehler (@Model.ConsumeFailures.Count)</summary>
+            <ul>
+                @foreach (var failure in Model.ConsumeFailures)
+                {
+                    <li><strong>@failure.OriginalFileName</strong> <span class="muted">· @failure.CreatedAt.ToLocalTime().ToString("g")</span> — @failure.Error</li>
+                }
+            </ul>
+        </details>
+    }
+</section>
+<section class="panel settings-card restore-card">
     <h2>Paperless-ngx importieren</h2>
     <p class="muted">Importiert unterstützte Paperless-Export-ZIPs in die Inbox. Die Dateien können danach geprüft und im Regal abgelegt werden.</p>
     <form method="post" asp-page-handler="ImportPaperless" enctype="multipart/form-data" class="inline-form">

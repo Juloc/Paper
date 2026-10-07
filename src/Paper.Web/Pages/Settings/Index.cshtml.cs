@@ -19,6 +19,7 @@ public sealed class IndexModel(
     DocumentTypeStore documentTypes,
     CustomFieldStore customFields,
     TagStore tags,
+    ConsumeFailureStore consumeFailures,
     DocumentRestoreService restore,
     PaperlessImportService paperlessImport,
     ImapMailImportWorker mailImport,
@@ -76,6 +77,7 @@ public sealed class IndexModel(
     public IReadOnlyList<AnalysisRuleView> AnalysisRules { get; private set; } = [];
     public IReadOnlyList<MailImportState> MailStates { get; private set; } = [];
     public IReadOnlyList<MailImportFailure> MailFailures { get; private set; } = [];
+    public IReadOnlyList<ConsumeFailureView> ConsumeFailures { get; private set; } = [];
     public StorageIntegrityReport? IntegrityReport { get; private set; }
 
     public Task OnGetAsync(CancellationToken cancellationToken) => LoadAsync(cancellationToken);
@@ -245,5 +247,6 @@ public sealed class IndexModel(
             .OrderByDescending(failure => failure.CreatedAt)
             .Take(10)
             .ToListAsync(cancellationToken);
+        ConsumeFailures = await consumeFailures.ListAsync(cancellationToken);
     }
 }

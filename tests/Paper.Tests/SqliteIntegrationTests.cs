@@ -307,6 +307,7 @@ public sealed class SqliteIntegrationTests
             NullLogger<DocumentImportService>.Instance);
         using var services = new ServiceCollection()
             .AddSingleton(importer)
+            .AddSingleton(new ConsumeFailureStore(db, TimeProvider.System))
             .BuildServiceProvider();
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
@@ -338,6 +339,7 @@ public sealed class SqliteIntegrationTests
             await worker.RunOnceAsync(CancellationToken.None);
 
             Assert.AreEqual(1, await db.Documents.CountAsync());
+            Assert.AreEqual(1, await db.ConsumeFailures.CountAsync());
             var failedFiles = Directory.EnumerateFiles(Path.Combine(consumeRoot, "failed")).ToArray();
             Assert.AreEqual(2, failedFiles.Length);
             Assert.IsTrue(failedFiles.Any(path => path.EndsWith(".error.txt", StringComparison.OrdinalIgnoreCase)));

@@ -20,6 +20,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     public DbSet<MailImportFailure> MailImportFailures => Set<MailImportFailure>();
 
+    public DbSet<ConsumeFailure> ConsumeFailures => Set<ConsumeFailure>();
+
     public DbSet<AnalysisRule> AnalysisRules => Set<AnalysisRule>();
 
     public DbSet<Correspondent> Correspondents => Set<Correspondent>();
@@ -245,6 +247,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             entity.Property(failure => failure.AccountName).HasMaxLength(120).IsRequired();
             entity.Property(failure => failure.Error).HasMaxLength(2000).IsRequired();
             entity.HasIndex(failure => new { failure.AccountName, failure.CreatedAt });
+        });
+
+        modelBuilder.Entity<ConsumeFailure>(entity =>
+        {
+            entity.ToTable("ConsumeFailures");
+            entity.Property(failure => failure.OriginalFileName).HasMaxLength(255).IsRequired();
+            entity.Property(failure => failure.Error).HasMaxLength(2000).IsRequired();
+            entity.HasIndex(failure => failure.CreatedAt);
         });
 
         modelBuilder.Entity<AnalysisRule>(entity =>

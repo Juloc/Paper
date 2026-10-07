@@ -135,12 +135,12 @@ public sealed class ConsumeDirectoryWorker(
                 return;
             }
 
-            MoveFailed(processingPath, failedDirectory, originalFileName, result.Error ?? "Import fehlgeschlagen.");
+            await MoveFailedAsync(processingPath, failedDirectory, originalFileName, result.Error ?? "Import fehlgeschlagen.");
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogWarning(exception, "Could not consume {FileName}.", originalFileName);
-            MoveFailed(processingPath, failedDirectory, originalFileName, exception.Message);
+            await MoveFailedAsync(processingPath, failedDirectory, originalFileName, exception.Message);
         }
     }
 
@@ -153,7 +153,7 @@ public sealed class ConsumeDirectoryWorker(
     {
         if (!importEmailAttachments)
         {
-            MoveFailed(processingPath, failedDirectory, originalFileName, "E-Mail-Anhänge sind deaktiviert.");
+            await MoveFailedAsync(processingPath, failedDirectory, originalFileName, "E-Mail-Anhänge sind deaktiviert.");
             return;
         }
 
@@ -165,7 +165,7 @@ public sealed class ConsumeDirectoryWorker(
 
         if (attachments.Count == 0)
         {
-            MoveFailed(processingPath, failedDirectory, originalFileName, "Die E-Mail enthält keine unterstützten Anhänge.");
+            await MoveFailedAsync(processingPath, failedDirectory, originalFileName, "Die E-Mail enthält keine unterstützten Anhänge.");
             return;
         }
 
@@ -194,7 +194,7 @@ public sealed class ConsumeDirectoryWorker(
 
         if (errors.Count > 0)
         {
-            MoveFailed(processingPath, failedDirectory, originalFileName, $"E-Mail teilweise importiert ({imported}): {string.Join(" | ", errors)}");
+            await MoveFailedAsync(processingPath, failedDirectory, originalFileName, $"E-Mail teilweise importiert ({imported}): {string.Join(" | ", errors)}");
             return;
         }
 
@@ -202,17 +202,34 @@ public sealed class ConsumeDirectoryWorker(
         logger.LogInformation("Consumed {FileName} with {AttachmentCount} attachment(s).", originalFileName, attachments.Count);
     }
 
-    private void MoveFailed(string processingPath, string failedDirectory, string originalFileName, string error)
+    private async Task MoveFailedAsync(string processingPath, string failedDirectory, string originalFileName, string error)
     {
-        if (!File.Exists(processingPath))
+        var errorText = error[..Math.Min(2000, error.Length)];
+        try
         {
-            return;
+            if (File.Exists(processingPath))
+            {
+                var safeName = SanitizeName(originalFileName);
+                var destination = Path.Combine(failedDirectory, $"{timeProvider.GetUtcNow():yyyyMMddHHmmss}_{Guid.NewGuid():N}_{safeName}");
+                File.Move(processingPath, destination);
+                File.WriteAllText(destination + ".error.txt", errorText);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(exception, "Could not move failed consume file {FileName} to quarantine.", originalFileName);
         }
 
-        var safeName = SanitizeName(originalFileName);
-        var destination = Path.Combine(failedDirectory, $"{timeProvider.GetUtcNow():yyyyMMddHHmmss}_{Guid.NewGuid():N}_{safeName}");
-        File.Move(processingPath, destination);
-        File.WriteAllText(destination + ".error.txt", error[..Math.Min(2000, error.Length)]);
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<ConsumeFailureStore>()
+                .RecordAsync(originalFileName, errorText, CancellationToken.None);
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogWarning(exception, "Could not record consume failure for {FileName}.", originalFileName);
+        }
     }
 
     private bool IsStable(string path)
