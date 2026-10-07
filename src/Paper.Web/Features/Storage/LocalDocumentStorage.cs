@@ -118,16 +118,30 @@ public sealed class LocalDocumentStorage : IStorageProvider
         var directoryPath = GetSafePath(folderPath);
         Directory.CreateDirectory(directoryPath);
         var fileName = StoragePathPolicy.CreateShelfFileName(documentDate, title, originalFileName);
-        var destinationRelativePath = GetAvailablePath(folderPath, fileName, sourceRelativePath);
-        var destinationPath = GetSafePath(destinationRelativePath);
-        if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
+        var extension = Path.GetExtension(fileName);
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        for (var attempt = 1; ; attempt++)
         {
-            return destinationRelativePath;
-        }
+            var candidateName = attempt == 1 ? fileName : $"{stem} ({attempt}){extension}";
+            var destinationRelativePath = StoragePathPolicy.Combine(folderPath, candidateName);
+            var destinationPath = GetSafePath(destinationRelativePath);
+            if (string.Equals(sourcePath, destinationPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return destinationRelativePath;
+            }
 
-        await Task.Run(() => File.Move(sourcePath, destinationPath), cancellationToken);
-        logger.LogInformation("Moved document from {SourcePath} to {DestinationPath}.", sourceRelativePath, destinationRelativePath);
-        return destinationRelativePath;
+            try
+            {
+                await Task.Run(() => File.Move(sourcePath, destinationPath), cancellationToken);
+                logger.LogInformation("Moved document from {SourcePath} to {DestinationPath}.", sourceRelativePath, destinationRelativePath);
+                return destinationRelativePath;
+            }
+            catch (IOException) when (File.Exists(destinationPath) || Directory.Exists(destinationPath))
+            {
+                // A concurrent filing operation claimed this candidate after
+                // it was checked; the next suffix is the safe retry.
+            }
+        }
     }
 
     public async Task MoveAsync(string sourceRelativePath, string destinationRelativePath, CancellationToken cancellationToken)
@@ -214,22 +228,6 @@ public sealed class LocalDocumentStorage : IStorageProvider
             File.Delete(path);
             logger.LogInformation("Deleted document file {Path}.", relativePath);
         }
-    }
-
-    private string GetAvailablePath(string folderPath, string fileName, string sourceRelativePath)
-    {
-        var extension = Path.GetExtension(fileName);
-        var stem = Path.GetFileNameWithoutExtension(fileName);
-        var attempt = 1;
-        var relativePath = StoragePathPolicy.Combine(folderPath, fileName);
-        while (File.Exists(GetSafePath(relativePath)) &&
-               !string.Equals(relativePath, StoragePathPolicy.NormalizeRelativePath(sourceRelativePath), StringComparison.OrdinalIgnoreCase))
-        {
-            attempt++;
-            relativePath = StoragePathPolicy.Combine(folderPath, $"{stem} ({attempt}){extension}");
-        }
-
-        return relativePath;
     }
 
     private static void TryDelete(string path)

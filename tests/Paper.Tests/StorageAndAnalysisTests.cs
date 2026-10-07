@@ -92,6 +92,39 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public async Task StorageUsesUniqueShelfNamesForConcurrentMoves()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Storage:RootPath"] = root
+            }).Build();
+            var storage = new LocalDocumentStorage(configuration, NullLogger<LocalDocumentStorage>.Instance);
+            await using var first = new MemoryStream("%PDF-race-one"u8.ToArray());
+            await using var second = new MemoryStream("%PDF-race-two"u8.ToArray());
+            var firstStored = await storage.SaveAsync(first, "rechnung.pdf", CancellationToken.None);
+            var secondStored = await storage.SaveAsync(second, "rechnung.pdf", CancellationToken.None);
+
+            var results = await Task.WhenAll(
+                storage.MoveToShelfAsync(firstStored.RelativePath, "Wohnung/Strom", new DateOnly(2026, 10, 5), "Stadtwerke Rechnung", "rechnung.pdf", CancellationToken.None),
+                storage.MoveToShelfAsync(secondStored.RelativePath, "Wohnung/Strom", new DateOnly(2026, 10, 5), "Stadtwerke Rechnung", "rechnung.pdf", CancellationToken.None));
+
+            Assert.AreNotEqual(results[0], results[1]);
+            Assert.IsTrue(results.All(storage.FileExists));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task StorageDoesNotDeleteExistingFileWhenSameContentIsSavedAgain()
     {
         var root = Path.Combine(Path.GetTempPath(), "paper-tests", Guid.NewGuid().ToString("N"));

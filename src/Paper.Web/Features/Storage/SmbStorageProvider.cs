@@ -81,14 +81,28 @@ public sealed class SmbStorageProvider : IStorageProvider
         {
             using var connection = OpenConnection();
             EnsureDirectory(connection, folderPath);
-            var destination = GetAvailablePath(connection, folderPath, fileName, sourceRelativePath);
-            if (string.Equals(StoragePathPolicy.NormalizeRelativePath(sourceRelativePath), destination, StringComparison.OrdinalIgnoreCase))
+            var extension = Path.GetExtension(fileName);
+            var stem = Path.GetFileNameWithoutExtension(fileName);
+            for (var attempt = 1; ; attempt++)
             {
-                return destination;
-            }
+                var candidateName = attempt == 1 ? fileName : $"{stem} ({attempt}){extension}";
+                var destination = StoragePathPolicy.Combine(folderPath, candidateName);
+                if (string.Equals(StoragePathPolicy.NormalizeRelativePath(sourceRelativePath), destination, StringComparison.OrdinalIgnoreCase))
+                {
+                    return destination;
+                }
 
-            Move(connection, sourceRelativePath, destination, directory: false);
-            return destination;
+                try
+                {
+                    Move(connection, sourceRelativePath, destination, directory: false);
+                    return destination;
+                }
+                catch (IOException) when (Exists(connection, destination, directory: false) || Exists(connection, destination, directory: true))
+                {
+                    // A concurrent filing operation claimed this candidate;
+                    // retry with the next human-readable suffix.
+                }
+            }
         }, cancellationToken);
     }
 
@@ -393,23 +407,6 @@ public sealed class SmbStorageProvider : IStorageProvider
         {
             connection.Store.CloseFile(handle);
         }
-    }
-
-    private string GetAvailablePath(SmbConnection connection, string folderPath, string fileName, string sourceRelativePath)
-    {
-        var normalizedSource = StoragePathPolicy.NormalizeRelativePath(sourceRelativePath);
-        var extension = Path.GetExtension(fileName);
-        var stem = Path.GetFileNameWithoutExtension(fileName);
-        var attempt = 1;
-        var relativePath = StoragePathPolicy.Combine(folderPath, fileName);
-        while (Exists(connection, relativePath, directory: false) &&
-               !string.Equals(relativePath, normalizedSource, StringComparison.OrdinalIgnoreCase))
-        {
-            attempt++;
-            relativePath = StoragePathPolicy.Combine(folderPath, $"{stem} ({attempt}){extension}");
-        }
-
-        return relativePath;
     }
 
     private void EnsureDirectory(SmbConnection connection, string relativePath)
