@@ -63,7 +63,7 @@ public sealed class StorageIntegrityService(
                 missing,
                 null);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        catch (Exception exception) when (exception is ArgumentException or IOException or UnauthorizedAccessException or InvalidOperationException)
         {
             return new StorageIntegrityReport(checkedAt, checkedCount, missingCount, missing, exception.Message);
         }

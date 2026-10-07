@@ -400,6 +400,24 @@ public sealed class StorageAndAnalysisTests
     }
 
     [TestMethod]
+    public void StorageIntegrityCheckReportsInvalidRegisteredPaths()
+    {
+        var documents = new[]
+        {
+            new StorageIntegrityDocument(1, "Ungültig", "../outside.pdf")
+        };
+
+        var report = StorageIntegrityService.CheckDocuments(
+            documents,
+            path => StoragePathPolicy.NormalizeRelativePath(path).Length > 0,
+            DateTimeOffset.UtcNow);
+
+        Assert.IsNotNull(report.Error);
+        StringAssert.Contains(report.Error!, "ungültig");
+        Assert.AreEqual(1, report.DocumentsChecked);
+    }
+
+    [TestMethod]
     public void LoginAttemptLimiterLocksOutAfterRepeatedFailuresAndResetsAfterWindow()
     {
         var limiter = new LoginAttemptLimiter();
