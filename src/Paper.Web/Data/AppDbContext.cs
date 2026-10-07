@@ -192,7 +192,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                 entity.Property(tag => tag.Id).UseIdentityByDefaultColumn();
             }
             entity.Property(tag => tag.Name).HasMaxLength(80).IsRequired();
-            entity.HasIndex(tag => tag.Name).IsUnique();
+            entity.Property(tag => tag.NameKey).HasMaxLength(80).IsRequired();
+            entity.HasIndex(tag => tag.NameKey).IsUnique();
         });
 
         modelBuilder.Entity<DocumentTag>(entity =>
@@ -302,6 +303,13 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
                      .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
         {
             entry.Entity.NameKey = entry.Entity.Name.Trim().ToLowerInvariant();
+        }
+
+        foreach (var entry in ChangeTracker.Entries<Tag>()
+                     .Where(entry => entry.State is EntityState.Added or EntityState.Modified))
+        {
+            entry.Entity.Name = entry.Entity.Name.Trim().ToLowerInvariant();
+            entry.Entity.NameKey = entry.Entity.Name;
         }
     }
 }

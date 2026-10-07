@@ -568,6 +568,7 @@ public sealed class SqliteIntegrationTests
 
         Assert.IsNotNull(created);
         Assert.AreEqual("energie", created.Name);
+            Assert.AreEqual("energie", created.NameKey);
         Assert.AreEqual(created.Id, duplicate!.Id);
 
         var document = NewDocument("energie.pdf", DateTime.UtcNow);

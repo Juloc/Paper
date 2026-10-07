@@ -19,13 +19,13 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
             return null;
         }
 
-        var existing = await db.Tags.SingleOrDefaultAsync(tag => tag.Name.ToLower() == normalizedName, cancellationToken);
+        var existing = await db.Tags.SingleOrDefaultAsync(tag => tag.NameKey == normalizedName, cancellationToken);
         if (existing is not null)
         {
             return existing;
         }
 
-        var tag = new Tag { Name = normalizedName };
+        var tag = new Tag { Name = normalizedName, NameKey = normalizedName };
         db.Tags.Add(tag);
         await db.SaveChangesAsync(cancellationToken);
         return tag;
@@ -77,12 +77,12 @@ public sealed class TagStore(AppDbContext db, TimeProvider timeProvider)
             return;
         }
 
-        var existing = await db.Tags.Where(tag => normalizedNames.Contains(tag.Name)).ToDictionaryAsync(tag => tag.Name, cancellationToken);
+        var existing = await db.Tags.Where(tag => normalizedNames.Contains(tag.NameKey)).ToDictionaryAsync(tag => tag.NameKey, cancellationToken);
         foreach (var name in normalizedNames)
         {
             if (!existing.TryGetValue(name, out var tag))
             {
-                tag = new Tag { Name = name };
+                tag = new Tag { Name = name, NameKey = name };
                 db.Tags.Add(tag);
             }
 

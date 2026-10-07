@@ -64,6 +64,8 @@ public sealed class Tag
 
     public string Name { get; set; } = "";
 
+    public string NameKey { get; set; } = "";
+
     public List<DocumentTag> Documents { get; set; } = [];
 }
 
