@@ -714,4 +714,17 @@ public sealed class StorageAndAnalysisTests
         var legacy = MailConfiguration.Load(legacyConfiguration);
         Assert.AreEqual("legacy", legacy.Single().AccountName);
     }
+
+    [TestMethod]
+    public void MailConfigurationRejectsMalformedAccountsJsonWithAnActionableError()
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Mail:AccountsJson"] = "{malformed"
+        }).Build();
+
+        var exception = Assert.ThrowsExactly<InvalidOperationException>(() => MailConfiguration.Load(configuration));
+
+        StringAssert.Contains(exception.Message, "gültiges Konten-JSON");
+    }
 }

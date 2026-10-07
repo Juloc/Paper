@@ -48,7 +48,22 @@ public sealed class IndexModel(
         : configuration["Storage:RootPath"] ?? "/data/documents";
     public string WakePolicy => configuration["Storage:WakePolicy"] ?? "Never";
     public string OcrLanguage => configuration["Ocr:Language"] ?? "eng";
-    public bool MailEnabled => MailConfiguration.Load(configuration).Any(account => account.Enabled);
+    public bool MailEnabled
+    {
+        get
+        {
+            try
+            {
+                return MailConfiguration.Load(configuration).Any(account => account.Enabled);
+            }
+            catch (InvalidOperationException exception)
+            {
+                MailConfigurationError = exception.Message;
+                return false;
+            }
+        }
+    }
+    public string? MailConfigurationError { get; private set; }
     public IReadOnlyList<CorrespondentOption> CorrespondentOptions { get; private set; } = [];
     public IReadOnlyList<DocumentTypeOption> DocumentTypeOptions { get; private set; } = [];
     public IReadOnlyList<CustomFieldOption> CustomFieldOptions { get; private set; } = [];

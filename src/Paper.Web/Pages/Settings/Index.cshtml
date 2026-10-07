@@ -124,6 +124,10 @@
 <section class="panel settings-card restore-card">
     <h2>Mailimport</h2>
     <p class="muted">Der IMAP-Import ist @(Model.MailEnabled ? "aktiviert" : "deaktiviert").</p>
+    @if (Model.MailConfigurationError is not null)
+    {
+        <p class="error-text">Mail-Konfiguration ungültig: @Model.MailConfigurationError</p>
+    }
     @if (Model.MailStates.Count > 0)
     {
         @foreach (var state in Model.MailStates)

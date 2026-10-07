@@ -63,7 +63,17 @@ public sealed class ImapMailImportWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var options = LoadOptions().Where(account => account.Enabled).ToArray();
+        MailAccountOptions[] options;
+        try
+        {
+            options = LoadOptions().Where(account => account.Enabled).ToArray();
+        }
+        catch (InvalidOperationException exception)
+        {
+            logger.LogError(exception, "IMAP import configuration is invalid; the mail worker remains disabled.");
+            return;
+        }
+
         if (options.Length == 0)
         {
             logger.LogInformation("IMAP import is disabled.");
