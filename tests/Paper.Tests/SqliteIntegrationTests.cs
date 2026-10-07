@@ -10,6 +10,7 @@ using Paper.Web.Features.Documents;
 using Paper.Web.Features.Export;
 using Paper.Web.Features.Import;
 using Paper.Web.Features.Processing;
+using Paper.Web.Features.Search;
 using Paper.Web.Features.Shelf;
 using Paper.Web.Features.Storage;
 
@@ -522,6 +523,31 @@ public sealed class SqliteIntegrationTests
         }
     }
 
+    [TestMethod]
+    public async Task SearchShelfFilterIncludesDocumentsInDescendantFolders()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var parent = new ShelfFolder { Name = "Wohnung", RelativePath = "Wohnung", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var child = new ShelfFolder { Name = "Strom", RelativePath = "Wohnung/Strom", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        var other = new ShelfFolder { Name = "Auto", RelativePath = "Auto", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+        db.ShelfFolders.AddRange(parent, child, other);
+        db.Documents.AddRange(
+            NewFiledDocument("direct.pdf", parent, "direct"),
+            NewFiledDocument("nested.pdf", child, "nested"),
+            NewFiledDocument("other.pdf", other, "other"));
+        await db.SaveChangesAsync();
+
+        var search = new DocumentSearchService(db);
+        var page = await search.SearchAsync(new SearchCriteria("", null, null, parent.Id, null, null, null, null, null), 1, CancellationToken.None);
+
+        Assert.AreEqual(2, page.TotalCount);
+        CollectionAssert.AreEquivalent(new[] { "direct", "nested" }, page.Results.Select(result => result.Title).ToArray());
+    }
+
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
@@ -541,6 +567,21 @@ public sealed class SqliteIntegrationTests
         CreatedAt = now,
         UpdatedAt = now,
         SearchText = fileName
+    };
+
+    private static Document NewFiledDocument(string fileName, ShelfFolder folder, string title) => new()
+    {
+        Title = title,
+        OriginalFileName = fileName,
+        FilePath = $"{folder.RelativePath}/{fileName}",
+        FileSize = 9,
+        Hash = Guid.NewGuid().ToString("N").PadRight(64, 'b'),
+        OcrStatus = OcrStatus.Completed,
+        Status = DocumentStatus.Filed,
+        ShelfFolder = folder,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow,
+        SearchText = $"{title} {fileName} {folder.RelativePath}"
     };
 
     private static LocalDocumentStorage CreateStorage(string root)

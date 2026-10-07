@@ -18,6 +18,21 @@ public sealed class DocumentSearchService(AppDbContext db)
 
         pageNumber = Math.Max(1, pageNumber);
         var documents = BuildQuery(criteria, normalizedQuery);
+        if (criteria.ShelfFolderId is not null)
+        {
+            var shelfPath = await db.ShelfFolders
+                .Where(folder => folder.Id == criteria.ShelfFolderId)
+                .Select(folder => folder.RelativePath)
+                .SingleOrDefaultAsync(cancellationToken);
+            if (shelfPath is null)
+            {
+                return new SearchPage([], 1, 1, 0);
+            }
+
+            documents = documents.Where(document => document.ShelfFolder != null &&
+                (document.ShelfFolder.RelativePath == shelfPath || document.ShelfFolder.RelativePath.StartsWith(shelfPath + "/")));
+        }
+
         var totalCount = await documents.CountAsync(cancellationToken);
         var pageCount = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
         pageNumber = Math.Min(pageNumber, pageCount);
@@ -69,11 +84,6 @@ public sealed class DocumentSearchService(AppDbContext db)
         if (criteria.DocumentTypeId is not null)
         {
             documents = documents.Where(document => document.DocumentTypeId == criteria.DocumentTypeId);
-        }
-
-        if (criteria.ShelfFolderId is not null)
-        {
-            documents = documents.Where(document => document.ShelfFolderId == criteria.ShelfFolderId);
         }
 
         if (!string.IsNullOrWhiteSpace(criteria.Tag))
