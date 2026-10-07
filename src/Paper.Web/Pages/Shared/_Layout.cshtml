@@ -61,11 +61,7 @@
                             : "Paper";
                     }
                     <nav class="topbar-breadcrumb" aria-label="Brotkrümelnavigation">
-                        <a asp-page="/Inbox/Index">Paper</a>
-                        @if (topbarSection != "Paper")
-                        {
-                            <span aria-hidden="true">/</span><span>@topbarSection</span>
-                        }
+                        <span>@topbarSection</span>
                     </nav>
                     <form class="global-search" method="get" action="/Search" role="search">
                         <span class="search-icon">⌕</span>
