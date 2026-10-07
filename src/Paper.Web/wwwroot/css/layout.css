@@ -35,7 +35,9 @@
 .mobile-header { display: none; }
 .page { margin: 0 auto; max-width: 1440px; padding: 28px 32px 48px; }
 .auth-page { max-width: 100%; }
-.page-header { align-items: end; display: flex; gap: 18px; justify-content: space-between; margin-bottom: 22px; }
+.page-header { align-items: end; display: flex; gap: 18px; justify-content: space-between; margin-bottom: 14px; }
+.page-header > div { display: none; }
+.page-header:has(> div:only-child) { display: none; }
 .page-header p { margin-bottom: 0; }
 .auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; margin: 10vh auto; max-width: 420px; padding: 24px; }
 @media (max-width: 760px) {

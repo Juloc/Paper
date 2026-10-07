@@ -4,11 +4,17 @@
     ViewData["Title"] = "Dokumente";
     var isList = string.Equals(Model.View, "list", StringComparison.OrdinalIgnoreCase);
 }
-<header class="page-header">
-    <div><div class="eyebrow">Bibliothek</div><h1>Dokumente</h1><p class="muted">Dein kompletter, durchsuchbarer Bestand.</p></div>
-</header>
+<h1 class="sr-only">Dokumente</h1>
 <div class="document-toolbar">
     <span class="toolbar-meta">@Model.TotalCount Dokumente</span>
+    @if (Model.PageCount > 1)
+    {
+        <nav class="pagination pagination-top" aria-label="Dokumentseiten">
+            @if (Model.PageNumber > 1) { <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-view="@Model.View" aria-label="Vorherige Seite">‹</a> }
+            <span class="muted">@Model.PageNumber / @Model.PageCount</span>
+            @if (Model.PageNumber < Model.PageCount) { <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-view="@Model.View" aria-label="Nächste Seite">›</a> }
+        </nav>
+    }
     <div class="view-switch" aria-label="Ansicht wechseln">
         <a class="@(!isList ? "active" : "")" asp-route-view="grid">▦ Grid</a>
         <a class="@(isList ? "active" : "")" asp-route-view="list">☷ Liste</a>
@@ -35,12 +41,4 @@ else
             <partial name="_DocumentCard" model="document" />
         }
     </section>
-}
-@if (Model.PageCount > 1)
-{
-    <nav class="pagination" aria-label="Dokumentseiten">
-        @if (Model.PageNumber > 1) { <a class="button" asp-route-pageNumber="@(Model.PageNumber - 1)" asp-route-view="@Model.View">Zurück</a> }
-        <span class="muted">Seite @Model.PageNumber von @Model.PageCount</span>
-        @if (Model.PageNumber < Model.PageCount) { <a class="button" asp-route-pageNumber="@(Model.PageNumber + 1)" asp-route-view="@Model.View">Weiter</a> }
-    </nav>
 }
