@@ -9,7 +9,9 @@ public sealed class DocumentExportService(AppDbContext db)
 {
     public async Task WriteJsonAsync(Stream destination, CancellationToken cancellationToken)
     {
-        using var writer = new Utf8JsonWriter(destination, new JsonWriterOptions { Indented = true });
+        // Do not dispose the writer here: Utf8JsonWriter.Dispose() performs a
+        // synchronous flush, which Kestrel disallows for response streams.
+        var writer = new Utf8JsonWriter(destination, new JsonWriterOptions { Indented = true });
         writer.WriteStartArray();
         await foreach (var document in Query().AsAsyncEnumerable().WithCancellation(cancellationToken))
         {
