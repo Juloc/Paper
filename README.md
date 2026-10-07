@@ -42,6 +42,8 @@ Bei gescannten PDFs werden standardmäßig höchstens 100 Seiten rasterisiert; `
 
 Für Monitoring steht `GET /health` ohne Anmeldung zur Verfügung. Der Endpunkt bestätigt nur eine erreichbare Datenbank und enthält keine Archiv- oder Konfigurationsdaten.
 
+Die OCR-Sprache kann über `PAPER_OCR_LANGUAGE` als Tesseract-Sprachliste gesetzt werden, zum Beispiel `deu+eng` oder `eng+fra`.
+
 ## Datenablage
 
 Neue Uploads landen zunächst unter inbox/. Nach der Prüfung erzeugt Paper beispielsweise:
