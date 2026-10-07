@@ -8,6 +8,7 @@ namespace Paper.Web.Features.Processing;
 public sealed class TesseractOcrService(IConfiguration configuration, IStorageProvider storage, ILogger<TesseractOcrService> logger)
 {
     private const int MaximumOcrTextCharacters = 2_000_000;
+    private const int MaximumProcessErrorCharacters = 64_000;
 
     private TimeSpan ProcessTimeout => TimeSpan.FromSeconds(
         Math.Clamp(configuration.GetValue<int?>("Ocr:ProcessTimeoutSeconds") ?? 300, 30, 1800));
@@ -153,8 +154,8 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
         timeout.CancelAfter(ProcessTimeout);
         try
         {
-            var outputTask = process.StandardOutput.ReadToEndAsync(timeout.Token);
-            var errorTask = process.StandardError.ReadToEndAsync(timeout.Token);
+            var outputTask = ReadLimitedAsync(process.StandardOutput, MaximumOcrTextCharacters, timeout.Token);
+            var errorTask = ReadLimitedAsync(process.StandardError, MaximumProcessErrorCharacters, timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
             return new ProcessResult(process.ExitCode, await outputTask, await errorTask);
         }
@@ -183,6 +184,27 @@ public sealed class TesseractOcrService(IConfiguration configuration, IStoragePr
         {
             // The process exited while cancellation cleanup was running.
         }
+    }
+
+    private static async Task<string> ReadLimitedAsync(StreamReader reader, int maximumCharacters, CancellationToken cancellationToken)
+    {
+        var output = new StringBuilder(Math.Min(maximumCharacters, 16 * 1024));
+        var buffer = new char[16 * 1024];
+        while (true)
+        {
+            var read = await reader.ReadAsync(buffer.AsMemory(), cancellationToken);
+            if (read == 0)
+            {
+                break;
+            }
+
+            if (output.Length < maximumCharacters)
+            {
+                output.Append(buffer, 0, Math.Min(read, maximumCharacters - output.Length));
+            }
+        }
+
+        return output.ToString();
     }
 
     private static string LimitText(string value)
