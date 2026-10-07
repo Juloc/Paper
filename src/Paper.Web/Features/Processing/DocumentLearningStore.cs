@@ -82,12 +82,13 @@ public sealed class DocumentLearningStore(AppDbContext db, TimeProvider timeProv
             return null;
         }
 
-        var total = rules.Sum(rule => rule.UseCount);
         var correspondent = Best(rules.Where(rule => rule.CorrespondentId is not null).GroupBy(rule => rule.CorrespondentId!.Value));
         var documentType = Best(rules.Where(rule => rule.DocumentTypeId is not null).GroupBy(rule => rule.DocumentTypeId!.Value));
         var shelfFolder = Best(rules.Where(rule => rule.ShelfFolderId is not null).GroupBy(rule => rule.ShelfFolderId!.Value));
-        var bestScore = new[] { correspondent.Score, documentType.Score, shelfFolder.Score }.Max();
-        var confidence = total == 0 ? 0 : (double)bestScore / total;
+        var confidences = new[] { correspondent.Confidence, documentType.Confidence, shelfFolder.Confidence }
+            .Where(confidence => confidence > 0)
+            .ToArray();
+        var confidence = confidences.Length == 0 ? 0 : confidences.Average();
         return confidence < 0.35 ? null : new LearningSuggestion(correspondent.Id, documentType.Id, shelfFolder.Id, confidence);
     }
 
@@ -98,13 +99,16 @@ public sealed class DocumentLearningStore(AppDbContext db, TimeProvider timeProv
             .Distinct(StringComparer.Ordinal)
             .ToArray();
 
-    private static (long? Id, int Score) Best(IEnumerable<IGrouping<long, AnalysisRule>> groups)
+    private static (long? Id, double Confidence) Best(IEnumerable<IGrouping<long, AnalysisRule>> groups)
     {
-        var best = groups.Select(group => new { Id = group.Key, Score = group.Sum(rule => rule.UseCount) })
+        var scores = groups.Select(group => new { Id = group.Key, Score = group.Sum(rule => rule.UseCount) })
+            .ToArray();
+        var total = scores.Sum(item => item.Score);
+        var best = scores
             .OrderByDescending(item => item.Score)
             .ThenBy(item => item.Id)
             .FirstOrDefault();
-        return best is null ? (null, 0) : (best.Id, best.Score);
+        return best is null || total == 0 ? (null, 0) : (best.Id, (double)best.Score / total);
     }
 }
 

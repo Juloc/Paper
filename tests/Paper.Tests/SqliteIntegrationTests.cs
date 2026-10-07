@@ -659,6 +659,55 @@ public sealed class SqliteIntegrationTests
         Assert.AreEqual(1, await db.CustomFields.CountAsync());
     }
 
+    [TestMethod]
+    public async Task LearningSuggestionKeepsCombinedCorrectionsConfident()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var db = CreateDatabase(connection);
+        await db.Database.EnsureCreatedAsync();
+
+        var correspondent = await new CorrespondentStore(db)
+            .CreateAsync("Stadtwerke Mannheim", CancellationToken.None);
+        var documentType = await new DocumentTypeStore(db)
+            .CreateAsync("Rechnung", CancellationToken.None);
+        var shelf = new ShelfFolder
+        {
+            Name = "Strom",
+            RelativePath = "Wohnung/Strom",
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        db.ShelfFolders.Add(shelf);
+        var document = NewDocument("stadtwerke-rechnung.pdf", DateTime.UtcNow);
+        document.Title = "Stadtwerke Rechnung";
+        document.OcrText = "Stadtwerke Mannheim Rechnung";
+        db.Documents.Add(document);
+        await db.SaveChangesAsync();
+
+        var edit = new DocumentEdit(
+            document.Title,
+            null,
+            correspondent!.Id,
+            documentType!.Id,
+            shelf.Id,
+            null,
+            new Dictionary<long, string>());
+        var learning = new DocumentLearningStore(db, TimeProvider.System);
+        await learning.RecordCorrectionAsync(document.Id, edit, CancellationToken.None);
+        await learning.RecordCorrectionAsync(document.Id, edit, CancellationToken.None);
+
+        var suggestion = await learning.SuggestAsync(
+            "Stadtwerke Mannheim Rechnung stadtwerke-rechnung.pdf",
+            CancellationToken.None);
+
+        Assert.IsNotNull(suggestion);
+        Assert.AreEqual(correspondent.Id, suggestion.CorrespondentId);
+        Assert.AreEqual(documentType.Id, suggestion.DocumentTypeId);
+        Assert.AreEqual(shelf.Id, suggestion.ShelfFolderId);
+        Assert.AreEqual(1d, suggestion.Confidence, 0.001d);
+    }
+
     private static DbContextOptions<AppDbContext> CreateOptions(SqliteConnection connection) =>
         new DbContextOptionsBuilder<AppDbContext>()
             .UseSqlite(connection)
